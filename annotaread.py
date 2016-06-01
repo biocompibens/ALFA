@@ -752,30 +752,25 @@ def filter_categs_on_biotype(selected_biotype,cpt) :
 def usage_message(name=None):                                                            
     return '''
     Generate genome indexes:
-         categories_plot.py -a GTF_FILE  [-g GENOME_INDEX]
+         annotaread.py -a GTF_FILE  [-g GENOME_INDEX]
                                          [--chr_len CHR_LENGTHS_FILE]
     Process BAM file(s):
-         categories_plot.py -g GENOME_INDEX -i BAM1 LABEL1 [BAM2 LABEL2 ...]
+         annotaread.py -g GENOME_INDEX -i BAM1 LABEL1 [BAM2 LABEL2 ...]
                                          [--bedgraph] [-t LIBRARY_TYPE]
                                          [-q] [-d {1,2,3,4}] [--pdf output.pdf]
     Index genome + process BAM:
-         categories_plot.py -a GTF_FILE [-g GENOME_INDEX]
+         annotaread.py -a GTF_FILE [-g GENOME_INDEX]
                             -i BAM1 LABEL1 [BAM2 LABEL2 ...]
                             [--chr_len CHR_LENGTHS_FILE]
                             [--bedgraph][-t library_type]
                             [-q] [-d {1,2,3,4}] [--pdf output.pdf]
                             
     Process previously created PROG_NAME counts file(s):
-         categories_plot.py -c COUNTS1 [COUNTS2 ...]
+         annotaread.py -c COUNTS1 [COUNTS2 ...]
                             [-t library_type]
                             [-q] [-d {1,2,3,4}] [--pdf output.pdf]
 
         '''
-#usage: categories_plot.py [-h] [--version] [-g GENOME_INDEX] [-a file.gtf]
-                          #[--chr_len CHR_LEN]
-                          #[-i BAM_FILE LABEL [BAM_FILE LABEL ...]]
-                          #[--bedgraph] [-c] [-t] [-d {1,2,3,4}] [--pdf [PDF]]
-                          #[-q]
 
 
 
