@@ -73,14 +73,15 @@ Important: the GTF file has to be sorted by position. Otherwise, you can use the
 Usage:
 
     ALFA.py -g GENOME_INDEX -i BAM1 LABEL1 [BAM2 LABEL2 …]
-                         [-t LIBRARY_TYPE] [-n]
+                         [-s STRAND] [-n]
                          [-d {1,2,3,4}] [--pdf output.pdf]
 
 Arguments:
 * _**-g/--genome_index**_ specifies path and basename of existing index files
 * _**-i/--input**_ specifies BAM files paths and associated labels (labels are used within output filenames and plots legends)
-* _**-t/--library_type**_ specifies the strandness of the library. Authorized values are: ‘unstranded’ (default), ’forward’/’fr-firststrand’ and ‘reverse’/’fr-secondstrand’.
+* _**-s/--strand**_ specifies the strandness of the library. Authorized values are: ‘unstranded’ (default), ’forward’/’fr-firststrand’ and ‘reverse’/’fr-secondstrand’.
 * _**-d/--categories_depth**_ specifies the depth for the categories (see [Categories depth](#categories-depth))
+* _**-t/--threshold**_ set the y-axis limits
 * _**--pdf**_ specifies the path to save the plots in a PDF report.
 * _**-n/--no_plot**_ do not create and show the plots
 
