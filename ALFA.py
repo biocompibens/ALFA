@@ -311,21 +311,21 @@ def create_genome_index(annotation, unstranded_genome_index, stranded_genome_ind
 		print "\rChromosome '" + prev_chrom + "' registered.\nDone!"
 
 
-def create_bedgraph_files(bams,strand):
+def create_bedgraph_files(bams,strandness):
 	samples_files = []
 	labels = []
 	print "\n### Generating the bedgraph files"
 	for n in range(0, len(bams), 2):
-		print "Processing '%s'\n..." %bams[n],
+		print "\rProcessing '%s'\n..." %bams[n],
 		sys.stdout.flush()
 		#Get the label for this sample
 		label = bams[n+1]
 		#Modify it to contain only alphanumeric caracters (avoid files generation with dangerous names)
 		modified_label = "_".join(re.findall(r"[\w']+", label))
-		if strand in ["reverse","fr-secondstrand"]:
+		if strandness in ["reverse","fr-secondstrand"]:
 			subprocess.call('bedtools genomecov -bg -split -strand - -ibam ' + bams[n] + ' > ' + modified_label + '.plus.bedgraph', shell=True)
 			subprocess.call('bedtools genomecov -bg -split -strand + -ibam ' + bams[n] + ' > ' + modified_label + '.minus.bedgraph', shell=True)
-		elif strand in ["forward","fr-firststrand"]:
+		elif strandness in ["forward","fr-firststrand"]:
 			subprocess.call('bedtools genomecov -bg -split -strand + -ibam ' + bams[n] + ' > ' + modified_label + '.plus.bedgraph', shell=True)
 			subprocess.call('bedtools genomecov -bg -split -strand - -ibam ' + bams[n] + ' > ' + modified_label + '.minus.bedgraph', shell=True)
 		else :
@@ -371,7 +371,7 @@ def read_counts_files(counts_files):
 				cpt_genome[feature]=float(line_split[2])
 	return cpt,cpt_genome,labels
 
-def intersect_bedgraphs_and_index_to_counts_categories(samples_files,samples_names,prios,genome_index, strand, biotype_prios = None):
+def intersect_bedgraphs_and_index_to_counts_categories(samples_files,samples_names,prios,genome_index, strandness, biotype_prios = None):
 	global gtf_line, gtf_chrom, gtf_start, gtf_stop, gtf_cat, endGTF
 	print "\n### Intersecting files with indexes"
 	cpt = {} # Counter for the nucleotides in the BAM input file(s)
@@ -380,22 +380,22 @@ def intersect_bedgraphs_and_index_to_counts_categories(samples_files,samples_nam
 		sample_name=samples_names[n]
 		# Initializing the category counter dict for this sample
 		init_dict(cpt, sample_name, {})
-		if strand == "unstranded":
+		if strandness == "unstranded":
 			strands = [("",".")]
 		else:
 			strands = [('.plus','+'), ('.minus','-')]
 			
 		# Intersecting the BEDGRAPH and genome index files
-		print "Processing '%s'\n. . ." %sample_file,
+		print "\rProcessing '%s'\n. . ." %sample_file,
 		sys.stdout.flush()
 
-		for strandd,sign in strands:
+		for strand,sign in strands:
 			prev_chrom = ''
 			endGTF = False # Reaching the next chr or the end of the GTF index
 			intergenic_adds = 0.0
 			i = 0
 			i_chgt = 0
-			with open(sample_file + strandd + '.bedgraph', 'r') as bam_count_file:
+			with open(sample_file + strand + '.bedgraph', 'r') as bam_count_file:
 				# Running through the BEDGRAPH file
 				for bam_line in bam_count_file:
 					i += 1
@@ -421,7 +421,7 @@ def intersect_bedgraphs_and_index_to_counts_categories(samples_files,samples_nam
 						while bam_chrom != gtf_chrom:
 							read_gtf(gtf_index_file, sign)
 							if endGTF:
-								if strandd == '.plus' or strandd == "" :
+								if strand == '.plus' or strand == "" :
 									print "\r                          \r Chromosome '" + bam_chrom + "' not found in the GTF file."
 								break
 						prev_chrom = bam_chrom
@@ -843,14 +843,14 @@ parser.add_argument('--chr_len', help='Tabulated file containing chromosome name
 parser.add_argument('-i','--input','--bam', dest='input', metavar=('BAM_FILE1 LABEL1',""), nargs='+', help='Input BAM file(s) and label(s). The BAM files must be sorted by position.\n\n')
 parser.add_argument('--bedgraph', action='store_const',default = False, const = True, help="Use this options if your input file(s) is(are) already in bedgraph format\n\n")
 parser.add_argument('-c','--counts',metavar=('COUNTS_FILE',""), nargs='+', help="Use this options instead of '-i/--input' to provide PROG_NAME counts files as input \ninstead of bam/bedgraph files.\n\n")
-parser.add_argument('-s','--strand', nargs=1, action = 'store', default = ['unstranded'], choices = ['unstranded','forward','reverse','fr-firststrand','fr-secondstrand'], metavar="", help ="Library orientation. Choose within: 'unstranded', 'forward'/'fr-firststrand' \nor 'reverse'/'fr-secondstrand'. (Default: 'unstranded')\n\n-----------\n\n")
+parser.add_argument('-s','--strandness', dest="strandness", nargs=1, action = 'store', default = ['unstranded'], choices = ['unstranded','forward','reverse','fr-firststrand','fr-secondstrand'], metavar="", help ="Library orientation. Choose within: 'unstranded', 'forward'/'fr-firststrand' \nor 'reverse'/'fr-secondstrand'. (Default: 'unstranded')\n\n-----------\n\n")
 
 # Options concernant le plot
 parser.add_argument('-biotype_filter',nargs=1,help=argparse.SUPPRESS)#"Make an extra plot of categories distribution using only counts of the specified biotype.")
 parser.add_argument('-d','--categories_depth', type=int, default='3', choices=range(1,5), help = "Depth of categories to be used (default=2): \n(1) gene,intergenic; \n(2) intron,exon,intergenic; \n(3) 5'UTR,CDS,3'UTR,intron,intergenic; \n(4) start_codon,5'UTR,CDS,3'UTR,stop_codon,intron,intergenic. \n\n")
 parser.add_argument('--pdf', nargs='?', default=False, help="Save produced plots in specified path ('categories_plots.pdf' if no argument provided)\n\n")
 parser.add_argument('-n','--no_plot', dest='quiet', action='store_const', default=False, const=True, help="Do not show plots\n\n")
-parser.add_argument('-t','--threshold', dest='threshold', nargs = 2, metavar=("ymin","ymax") , help="Set axis limits for enrichment plots\n\n")
+parser.add_argument('-t','--threshold', dest='threshold', nargs = 2, metavar=("ymin","ymax"), type=float , help="Set axis limits for enrichment plots\n\n")
 
 if len(sys.argv)==1:
     parser.print_usage()
@@ -921,7 +921,8 @@ if not options.counts:
 	# Declare genome_index variables
 	stranded_genome_index = genome_index_basename+".stranded.index"
 	unstranded_genome_index = genome_index_basename+".unstranded.index"
-	if options.strand[0] == "unstranded":
+	print options.strandness[0] == "unstranded"
+	if options.strandness[0] == "unstranded":
 		genome_index = unstranded_genome_index
 	else:
 		genome_index = stranded_genome_index
@@ -1004,14 +1005,14 @@ if intersect_reads:
 
 	if not options.bedgraph:
 		# Generating the BEDGRAPH files is the user provided BAM file(s) and get the samples labels (this names will be used in the plot legend)
-		samples_files, samples_names = create_bedgraph_files(options.input,options.strand[0])
+		samples_files, samples_names = create_bedgraph_files(options.input,options.strandness[0])
 	else:
 		# Just initialize the files list with the bedgraph paths
 		samples_files = [options.input[i] for i in range(0,len(options.input),2)]
 		# and get the labels
 		samples_names = [options.input[i] for i in range(1,len(options.input),2)]
 	#### Processing the BEDGRAPH files: intersecting the bedgraph with the genome index and count the number of aligned positions in each category
-	cpt = intersect_bedgraphs_and_index_to_counts_categories(samples_files,samples_names,prios,genome_index, options.strand[0], biotype_prios = None)
+	cpt = intersect_bedgraphs_and_index_to_counts_categories(samples_files,samples_names,prios,genome_index, options.strandness[0], biotype_prios = None)
 
 	#### Write the counts on disk
 	write_counts_in_files(cpt,cpt_genome)
