@@ -22,14 +22,15 @@ ALFA produces two outputs: plots and count files.
 ###Plots
 ![Output example](https://github.com/biocompibens/ALFA/blob/master/Images/Output_example.png)
 
-**Legend**: Two images display the nucleotides distributions among the different features, one for the categories (A) and another one for the biotypes (B). Each image is composed of two plots: the top one (A1/B1) represents the raw nucleotides fraction of each feature in the samples whereas the bottom one (A2/B2) represents the feature enrichment/depletion relative to the genome ”surface” occupied by this feature.
+**Legend**: Two images display the nucleotides distributions among the different features, one for the categories (A) and another one for the biotypes (B). Each image is composed of two plots: the top one (A1/B1) represents the raw nucleotides fraction of the reads that mapped to each feature in the samples whereas the bottom one (A2/B2) represents the feature enrichment/depletion relative to the genome ”surface” occupied by this feature.
 
 ###Count files
 For each input sample, a count table with the following information is produced:
  - category/biotype pair
  - count of nucleotides mapping to this feature pair in the sample
  - count of nucleotides belonging to this feature pair in the genome
-Using -c/--count option, this file can be used to plot again the results and avoid the whole program execution.
+
+> Using -c/--count option, this file can be used to plot again the results and avoid the whole program execution.
 
 ![Count file example](https://github.com/biocompibens/ALFA/blob/master/Images/counts_table.head.png)
 
@@ -53,7 +54,7 @@ There is a [toy dataset](https://github.com/biocompibens/ALFA/tree/master/Toy_da
 Here is an illustrated detailed example produced by ALFA from fake input files.
 
 The BAM file contains 10 reads fully mapped to unique genomic categories referring to a GTF file describing a genome made of only of one gene (without introns).
-The figure shows an illustration of the input BAM file reads distribution on the genome. These reads are converted to proportions on the top plot produced by ALFA. As an example, 60% of the reads (n=6) are mapped to a CDS region. This plot is then normalized according to categories surfaces computed from the input GTF file. Finally, the bottom plot produced by ALFA shows the enrichment/depletion of the different categories. For instance, the CDS regions are enriched by a factor of 1.2 since 60% of the nucleotides from the reads map to this feature although the genome is only composed of 50% of CDS regions.
+The figure shows an illustration of the input BAM file reads distribution on the genome. These reads are converted to proportions on the top plot produced by ALFA. As an example, 60% of the reads (n=6) are mapped to a CDS region. This plot is then normalized according to categories the "surface" that each category occupies within a given genome described in the input GTF file. Finally, the bottom plot produced by ALFA shows the enrichment/depletion of the different categories. For instance, the CDS regions are enriched by a factor of 1.2 since 60% of the nucleotides from the reads map to this feature although the genome is only composed of 50% of CDS regions.
 ![Detailed example](https://github.com/biocompibens/ALFA/blob/master/Images/detailed.png)
 
 ##Manual
@@ -62,7 +63,7 @@ The basic ALFA workflow consists in 2 steps performed at once or separately:
 
 * Generating genome index files (stranded and unstranded)
 
-> The user supplies an annotations file (in GTF format) to generate indexes that will be used in the 2nd step. The genome index files are saved and need only to be generated once for each annotation file.
+> The user supplies an annotations file (in GTF format) to generate indexes that will be used in the 2nd step. The genome index files are saved and need to be generated only once for each annotation file.
 
 * Intersecting mapped reads with the genome index files
 
@@ -76,7 +77,7 @@ Usage:
 Arguments:
 * _**-a/--annotation**_ specifies the path to the genomic annotation file (GTF format) to generate indexes.
 * _**-g/--genome_index**_ defines index files basename. In absence of this option, the annotation file basename will be used.
-* _**--chr_len specifies**_ the path to the tabulated text file defining chromosome names and lengths. In absence of this option, lengths will be estimated using the GTF file. Chr_len file example:
+* _**--chr_len specifies**_ the path to the tab-delimited text file defining chromosome names and lengths. In absence of this option, lengths will be estimated using the GTF file. Chr_len file example:
 
 > “Chr12    100000”
 
@@ -124,7 +125,8 @@ Here are the features considered in the 4 different levels:
 2. Exon / intron / intergenic
 3. 5’-UTR / CDS / 3’-UTR / intron / intergenic (default)
 4. 5’-UTR / start_codon / CDS / stop_codon / 3’-UTR / intron / intergenic
-Warning: using a non-homogeneous GTF file in term of deep level annotations may lead to inconsistent results due to the fact that, for instance, reads mapping to genes without UTR annotation will increase the CDS category count whereas on the other genes, the UTR categories may be increased.
+
+*Warning: using a non-homogeneous GTF file in term of deep level annotations may lead to inconsistent results due to the fact that, for instance, reads mapping to genes without UTR annotation will increase the CDS category count whereas on the other genes, the UTR categories may be increased.*
 
 ###Priorities
 By default, as GTF files are built on a hierarchical way, some assumptions are made on categories priorities.
