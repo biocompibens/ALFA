@@ -389,13 +389,13 @@ def intersect_bedgraphs_and_index_to_counts_categories(samples_files,samples_nam
 		print "Processing '%s'\n. . ." %sample_file,
 		sys.stdout.flush()
 
-		for strand,sign in strands:
+		for strandd,sign in strands:
 			prev_chrom = ''
 			endGTF = False # Reaching the next chr or the end of the GTF index
 			intergenic_adds = 0.0
 			i = 0
 			i_chgt = 0
-			with open(sample_file + strand + '.bedgraph', 'r') as bam_count_file:
+			with open(sample_file + strandd + '.bedgraph', 'r') as bam_count_file:
 				# Running through the BEDGRAPH file
 				for bam_line in bam_count_file:
 					i += 1
@@ -421,7 +421,7 @@ def intersect_bedgraphs_and_index_to_counts_categories(samples_files,samples_nam
 						while bam_chrom != gtf_chrom:
 							read_gtf(gtf_index_file, sign)
 							if endGTF:
-								if strand == '.plus' or strand == "" :
+								if strandd == '.plus' or strandd == "" :
 									print "\r                          \r Chromosome '" + bam_chrom + "' not found in the GTF file."
 								break
 						prev_chrom = bam_chrom
