@@ -30,9 +30,10 @@ RAM: 1 GB should be sufficient for a set aligned on the human genome
 Dependencies: Bedtools suite (v2.20.0 and above)
 
 ##Quick start
+There is a [toy dataset](https://github.com/biocompibens/ALFA/tree/master/Toy_dataset) in the respository in order to test the tool installation. To do so, one can go in the directory and can run the following command:
 
-    python ALFA.py -a toy_sample.gtf -g toy_reference -i toy_sample.bam toy
-![Standard output example](https://github.com/biocompibens/ALFA/blob/master/Images/screenshot.png)
+    python ALFA.py -a toy.gtf -g toy_reference -i toy.bam toy
+![Standard output example](https://github.com/biocompibens/ALFA/blob/master/Images/standard_output.png)
 
 ##Detailed example
 Here is an illustrated detailed example produced by ALFA from fake input files.
