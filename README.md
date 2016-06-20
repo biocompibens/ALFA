@@ -54,7 +54,7 @@ There is a [toy dataset](https://github.com/biocompibens/ALFA/tree/master/Toy_da
 Here is an illustrated detailed example produced by ALFA from fake input files.
 
 The BAM file contains 10 reads fully mapped to unique genomic categories referring to a GTF file describing a genome made of only of one gene (without introns).
-The figure shows an illustration of the input BAM file reads distribution on the genome. These reads are converted to proportions on the top plot produced by ALFA. As an example, 60% of the reads (n=6) are mapped to a CDS region. This plot is then normalized according to categories the "surface" that each category occupies within a given genome described in the input GTF file. Finally, the bottom plot produced by ALFA shows the enrichment/depletion of the different categories. For instance, the CDS regions are enriched by a factor of 1.2 since 60% of the nucleotides from the reads map to this feature although the genome is only composed of 50% of CDS regions.
+The figure shows an illustration of the input BAM file reads distribution on the genome. These reads are converted to proportions on the top plot produced by ALFA. As an example, 60% of the reads (n=6) are mapped to a CDS region. This plot is then normalized according to the "surface" that each category occupies within a given genome described in the input GTF file. Finally, the bottom plot produced by ALFA shows the enrichment/depletion of the different categories. For instance, the CDS regions are enriched by a factor of 1.2 since 60% of the nucleotides from the reads map to this feature although the genome is only composed of 50% of CDS regions.
 ![Detailed example](https://github.com/biocompibens/ALFA/blob/master/Images/detailed.png)
 
 ##Manual
@@ -121,6 +121,7 @@ Important: BAM files have to be sorted by position. Otherwise, you can use the '
 ###Categories depth
 ALFA can assign categories to nucleotides according to different hierarchical levels considered in the GTF file using the _**-d/--categories_depth**_ option.
 Here are the features considered in the 4 different levels:
+
 1. Gene / intergenic
 2. Exon / intron / intergenic
 3. 5’-UTR / CDS / 3’-UTR / intron / intergenic (default)
