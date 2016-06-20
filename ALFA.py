@@ -643,19 +643,22 @@ def make_plot(ordered_categs,samples_names,categ_counts,genome_counts,pdf,counts
 	for exp in xrange(n_exp):
 		for i in xrange(n_cat):
 			val = enrichment[exp][i]
-			if val < 1 and val !=0:
-				enrichment[exp][i] = -1/val+1
-			elif val !=0:
+			if val > 1: 
 				enrichment[exp][i] = val-1
-			else: enrichment[exp][i] = None
+			elif val == 1 or val == 0:
+				enrichment[exp][i] = 0
+			else:
+				enrichment[exp][i] = -1/val+1
 
 	#### Finally, produce the plot
 
 	##Get the colors from the colormap
-	#cmap= plt.get_cmap('gist_ncar')
-	cmap= plt.get_cmap('Spectral')
-	cols=[cmap(i) for i in xrange(0,256,256/n_exp)]
-
+	ncolor=16
+	cmap = ["#e47878", "#68b4e5", "#a3ea9b", "#ea9cf3", "#e5c957", "#a3ecd1", "#e97ca0", "#66d985", "#8e7ae5", "#b3e04b", "#b884e4", "#e4e758", "#738ee3", "#e76688", "#70dddd", "#e49261"]
+	if n_exp > ncolor:
+		cmap = plt.get_cmap('Set3',n_exp)
+		cmap = [cmap(i) for i in xrange(n_exp)]
+	
 	## Parameters for the plot
 	opacity = 1
 	#Create a vector which contains the position of each bar
@@ -678,18 +681,19 @@ def make_plot(ordered_categs,samples_names,categ_counts,genome_counts,pdf,counts
 		#First barplot: percentage of reads in each categorie
 		ax1.bar(index+i*bar_width, percentages[i], bar_width,
 					alpha=opacity,
-					color=cols[i],
-					label=samples_names[i])
+					color=cmap[i],
+					label=samples_names[i], edgecolor='#FFFFFF', lw=0)
 		#Second barplot: enrichment relative to the genome for each categ
 		# (the reads count in a categ is divided by the categ size in the genome)
 		rects.append( ax2.bar(index+i*bar_width, enrichment[i], bar_width,
 					alpha=opacity,
-					color=cols[i],
-					label=samples_names[i]))
+					color=cmap[i],
+					label=samples_names[i], edgecolor=cmap[i], lw=0))
 		
 	## Graphical options for the plot
 	# Adding of the legend
 	ax1.legend(loc='best',fancybox=True, shadow=True)
+	#ax2.legend(loc='upper center',bbox_to_anchor=(0.5,-0.1), fancybox=True, shadow=True)
 	# Main titles
 	if title:
 		ax1.set_title(title)
@@ -764,6 +768,8 @@ def make_plot(ordered_categs,samples_names,categ_counts,genome_counts,pdf,counts
 			rect.set_y(ax2.get_ylim()[0])
 			rect.set_height(ax2.get_ylim()[1] - ax2.get_ylim()[0])
 			rect.set_hatch('/')
+			rect.set_fill(False)
+			rect.set_linewidth(0)
 			#rect.set_color('lightgrey')
 			#rect.set_edgecolor('#EDEDED')
 			rect.set_color('#EDEDED')
@@ -772,15 +778,25 @@ def make_plot(ordered_categs,samples_names,categ_counts,genome_counts,pdf,counts
 	for i in xrange(n_exp):
 		for y in xrange(n_cat):
 			if percentages[i][y] == 0:
-				txt = ax1.text(y +  bar_width*(i+0.5), 0.02, 'Absent in sample', rotation = 'vertical', color = cols[i], horizontalalignment ='center', verticalalignment = 'bottom')
-				txt.set_path_effects([PathEffects.Stroke(linewidth=0.5, foreground='black'),PathEffects.Normal()])
-
+				txt = ax1.text(y +  bar_width*(i+0.5), 0.02, 'Absent in sample', rotation = 'vertical', color = cmap[i], horizontalalignment ='center', verticalalignment = 'bottom')
+				txt.set_path_effects([PathEffects.Stroke(linewidth=0.5),PathEffects.Normal()])
+			elif enrichment[i][y] == 0:
+				rects[i][y].set_linewidth(1)
+	
+	# Remove top/right/bottom axes
+	for ax in [ax1,ax2]:
+		ax.spines['top'].set_visible(False)
+		ax.spines['right'].set_visible(False)
+		ax.spines['bottom'].set_visible(False)
+		ax.tick_params(axis='x', which='both', bottom='on', top='off', labelbottom='on')
+		ax.tick_params(axis='y', which='both', left='on', right='off', labelleft='on')
+	
+	
+	
 	#ax1.legend(loc='center right', bbox_to_anchor=(1.2, 0),fancybox=True, shadow=True)
-
 	## Showing the plot
 	plt.tight_layout()
 	fig.subplots_adjust(wspace=0.2)
-	
 	if pdf:
 		pdf.savefig(format='pdf')
 		plt.close()
@@ -807,23 +823,23 @@ def filter_categs_on_biotype(selected_biotype,cpt) :
 def usage_message(name=None):                                                            
     return '''
     Generate genome indexes:
-         categories_plot.py -a GTF_FILE  [-g GENOME_INDEX]
+         python ALFA.py -a GTF_FILE  [-g GENOME_INDEX]
                                          [--chr_len CHR_LENGTHS_FILE]
     Process BAM file(s):
-         categories_plot.py -g GENOME_INDEX -i BAM1 LABEL1 [BAM2 LABEL2 ...]
+         python ALFA.py -g GENOME_INDEX -i BAM1 LABEL1 [BAM2 LABEL2 ...]
                                          [--bedgraph] [-s STRAND]
                                          [-n] [--pdf output.pdf]
                                          [-d {1,2,3,4}] [-t YMIN YMAX]
     Index genome + process BAM:
-         categories_plot.py -a GTF_FILE [-g GENOME_INDEX]
+         python ALFA.py -a GTF_FILE [-g GENOME_INDEX]
                             -i BAM1 LABEL1 [BAM2 LABEL2 ...]
                             [--chr_len CHR_LENGTHS_FILE]
                             [--bedgraph][-s STRAND]
                             [-n] [--pdf output.pdf]
                             [-d {1,2,3,4}] [-t YMIN YMAX]
                             
-    Process previously created PROG_NAME counts file(s):
-         categories_plot.py -c COUNTS1 [COUNTS2 ...]
+    Process previously created ALFA counts file(s):
+         python ALFA.py -c COUNTS1 [COUNTS2 ...]
                             [-s STRAND]
                             [-n] [--pdf output.pdf]
                             [-d {1,2,3,4}] [-t YMIN YMAX]
@@ -842,12 +858,12 @@ parser.add_argument('--chr_len', help='Tabulated file containing chromosome name
 # Options pour l'étape d'intersection
 parser.add_argument('-i','--input','--bam', dest='input', metavar=('BAM_FILE1 LABEL1',""), nargs='+', help='Input BAM file(s) and label(s). The BAM files must be sorted by position.\n\n')
 parser.add_argument('--bedgraph', action='store_const',default = False, const = True, help="Use this options if your input file(s) is(are) already in bedgraph format\n\n")
-parser.add_argument('-c','--counts',metavar=('COUNTS_FILE',""), nargs='+', help="Use this options instead of '-i/--input' to provide PROG_NAME counts files as input \ninstead of bam/bedgraph files.\n\n")
+parser.add_argument('-c','--counts',metavar=('COUNTS_FILE',""), nargs='+', help="Use this options instead of '-i/--input' to provide ALFA counts files as input \ninstead of bam/bedgraph files.\n\n")
 parser.add_argument('-s','--strandness', dest="strandness", nargs=1, action = 'store', default = ['unstranded'], choices = ['unstranded','forward','reverse','fr-firststrand','fr-secondstrand'], metavar="", help ="Library orientation. Choose within: 'unstranded', 'forward'/'fr-firststrand' \nor 'reverse'/'fr-secondstrand'. (Default: 'unstranded')\n\n-----------\n\n")
 
 # Options concernant le plot
 parser.add_argument('-biotype_filter',nargs=1,help=argparse.SUPPRESS)#"Make an extra plot of categories distribution using only counts of the specified biotype.")
-parser.add_argument('-d','--categories_depth', type=int, default='3', choices=range(1,5), help = "Depth of categories to be used (default=2): \n(1) gene,intergenic; \n(2) intron,exon,intergenic; \n(3) 5'UTR,CDS,3'UTR,intron,intergenic; \n(4) start_codon,5'UTR,CDS,3'UTR,stop_codon,intron,intergenic. \n\n")
+parser.add_argument('-d','--categories_depth', type=int, default='3', choices=range(1,5), help = "Use this option to set the hierarchical level that will be considered in the GTF file (default=2): \n(1) gene,intergenic; \n(2) intron,exon,intergenic; \n(3) 5'UTR,CDS,3'UTR,intron,intergenic; \n(4) start_codon,5'UTR,CDS,3'UTR,stop_codon,intron,intergenic. \n\n")
 parser.add_argument('--pdf', nargs='?', default=False, help="Save produced plots in specified path ('categories_plots.pdf' if no argument provided)\n\n")
 parser.add_argument('-n','--no_plot', dest='quiet', action='store_const', default=False, const=True, help="Do not show plots\n\n")
 parser.add_argument('-t','--threshold', dest='threshold', nargs = 2, metavar=("ymin","ymax"), type=float , help="Set axis limits for enrichment plots\n\n")
@@ -921,7 +937,6 @@ if not options.counts:
 	# Declare genome_index variables
 	stranded_genome_index = genome_index_basename+".stranded.index"
 	unstranded_genome_index = genome_index_basename+".unstranded.index"
-	print options.strandness[0] == "unstranded"
 	if options.strandness[0] == "unstranded":
 		genome_index = unstranded_genome_index
 	else:
@@ -1074,15 +1089,15 @@ for dic in cpt.values():
 	if ('antisense','antisense') in dic.keys(): break
 else:
 	cat_list.remove('antisense')
-make_plot(cat_list,samples_names,final_cat_cpt,final_genome_cpt,pdf,"Categories",options.threshold)
+make_plot(cat_list,samples_names,final_cat_cpt,final_genome_cpt,pdf,"categories",options.threshold)
 if selected_biotype :
-	make_plot(cat_list,samples_names,filtered_cat_cpt,final_genome_cpt,pdf,"Categories",options.threshold,title="Categories distribution for '"+selected_biotype+"' biotype")
+	make_plot(cat_list,samples_names,filtered_cat_cpt,final_genome_cpt,pdf,"categories",options.threshold,title="Categories distribution for '"+selected_biotype+"' biotype")
 
 #### Make the plot by biotypes
 	#### Recategorizing with the final categories
 final_cat_cpt,final_genome_cpt = group_counts_by_biotype(cpt,cpt_genome,biotypes)
 	#### Display the distribution of specified categories (or biotypes) in samples on a barplot
-make_plot(biotypes,samples_names,final_cat_cpt,final_genome_cpt,pdf,"Biotypes",options.threshold)
+make_plot(biotypes,samples_names,final_cat_cpt,final_genome_cpt,pdf,"biotypes",options.threshold)
 
 
 
