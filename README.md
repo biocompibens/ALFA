@@ -131,7 +131,7 @@ Here are the features considered in the 4 different levels:
 
 ###Priorities
 By default, as GTF files are built on a hierarchical way, some assumptions are made on categories priorities.
-> start_codon/stop_codon > five_prime_utr/three_prime_utr > exon > CDS > transcript > gene
+> start_codon/stop_codon > five_prime_utr/three_prime_utr/CDS > exon > transcript > gene
 
 This means, for example, that a nucleotide found in a *gene* as well as in a *transcript* will be counted within the *transcript* category.
 In case of a nucleotide found in two categories of equal priority, the count is split between them.

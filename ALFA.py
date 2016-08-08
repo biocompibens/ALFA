@@ -15,6 +15,9 @@ import matplotlib.colors as colors
 import matplotlib.patheffects as PathEffects
 import re
 from matplotlib.backends.backend_pdf import PdfPages
+# To correctly embbed the texts when saving plots in svg format
+import matplotlib
+matplotlib.rcParams['svg.fonttype'] = 'none'
 
 ##########################################################################
 #                         FUNCTIONS                                      #
@@ -371,9 +374,26 @@ def read_counts_files(counts_files):
 				cpt_genome[feature]=float(line_split[2])
 	return cpt,cpt_genome,labels
 
+
+def get_chromosome_names_in_index(genome_index):
+		chrom_list = []
+		with open(genome_index, 'r') as findex:
+			chrom = ""
+			for line in findex:
+				cur_chrom = line.split('\t')[0]
+				if cur_chrom == chrom:
+					pass
+				else:
+					chrom = cur_chrom
+					if chrom not in chrom_list:
+						chrom_list.append(chrom)
+		return set(chrom_list)
+
+
 def intersect_bedgraphs_and_index_to_counts_categories(samples_files,samples_names,prios,genome_index, strandness, biotype_prios = None):
 	global gtf_line, gtf_chrom, gtf_start, gtf_stop, gtf_cat, endGTF
 	print "\n### Intersecting files with indexes"
+	unknown_chrom = []
 	cpt = {} # Counter for the nucleotides in the BAM input file(s)
 	for n in range(len(samples_files)):
 		sample_file=samples_files[n]
@@ -408,6 +428,12 @@ def intersect_bedgraphs_and_index_to_counts_categories(samples_files,samples_nam
 					# Getting the BAM line info
 					bam_chrom = bam_line.split('\t')[0]
 					bam_start, bam_stop, bam_cpt = map(float, bam_line.split('\t')[1:4])
+					# Skip the line if the chromosome is not in the index
+					if bam_chrom not in chrom_list:
+						if bam_chrom not in unknown_chrom:
+							unknown_chrom.append(bam_chrom)
+							print "\r                          \r Chromosome '" + bam_chrom + "' not found in index."
+						continue
 					# If this is a new chromosome (or the first one)
 					if bam_chrom != prev_chrom:
 						i_chgt = i
@@ -421,8 +447,6 @@ def intersect_bedgraphs_and_index_to_counts_categories(samples_files,samples_nam
 						while bam_chrom != gtf_chrom:
 							read_gtf(gtf_index_file, sign)
 							if endGTF:
-								if strand == '.plus' or strand == "" :
-									print "\r                          \r Chromosome '" + bam_chrom + "' not found in the GTF file."
 								break
 						prev_chrom = bam_chrom
 
@@ -605,7 +629,7 @@ def one_sample_plot(ordered_categs, percentages, enrichment, n_cat, index, index
 	ax4.set_aspect('equal')
 	return fig, ax1, ax2
 
-def make_plot(ordered_categs,samples_names,categ_counts,genome_counts,pdf,counts_type, threshold, title = None):
+def make_plot(ordered_categs,samples_names,categ_counts,genome_counts,pdf, counts_type, threshold, title = None ,svg = None, png = None):
 	# From ordered_categs, keep only the features (categs or biotypes) that we can find in at least one sample.
 	existing_categs = set()
 	for sample in categ_counts.values():
@@ -692,7 +716,7 @@ def make_plot(ordered_categs,samples_names,categ_counts,genome_counts,pdf,counts
 		
 	## Graphical options for the plot
 	# Adding of the legend
-	ax1.legend(loc='best',fancybox=True, shadow=True)
+	ax1.legend(loc='best',frameon=False)
 	#ax2.legend(loc='upper center',bbox_to_anchor=(0.5,-0.1), fancybox=True, shadow=True)
 	# Main titles
 	if title:
@@ -759,6 +783,9 @@ def make_plot(ordered_categs,samples_names,categ_counts,genome_counts,pdf,counts
 	ax1.set_yticklabels([str(int(i*100)) for i in ax1.get_yticks()])
 	# Correct y-axis ticks labels for enrichment subplot
 	#ax2.set_yticklabels([str(i+1)+"$^{+1}$" if i>0 else 1 if i==0 else str(-(i-1))+"$^{-1}$" for i in ax2.get_yticks()])
+	yticks = list(ax2.get_yticks())
+	yticks = [ yticks[i]-1 if yticks[i]>9 else yticks[i]+1 if yticks[i]<-9 else yticks[i] for i in xrange(len(yticks))] 
+	ax2.set_yticks(yticks)
 	ax2.set_yticklabels([str(int(i+1))+"$^{+1}$" if i>0 and i%1==0 else str(i+1)+"$^{+1}$" if i>0 else 1 if i==0 else str(int(-(i-1)))+"$^{-1}$" if i<0 and i%1==0 else str(-(i-1))+"$^{-1}$" for i in ax2.get_yticks()])
 	#ax2.set_yticklabels([i+1 if i>0 else 1 if i==0 else "$\\frac{1}{%s}$" %-(i-1) for i in ax2.get_yticks()])
 	# Change appearance of 'antisense' bars on enrichment plot since we cannot calculate an enrichment for this artificial category
@@ -800,6 +827,22 @@ def make_plot(ordered_categs,samples_names,categ_counts,genome_counts,pdf,counts
 	if pdf:
 		pdf.savefig(format='pdf')
 		plt.close()
+	elif svg:
+		if svg == True:
+			plt.savefig(counts_type+'.svg')
+		else :
+			if os.path.splitext(svg)[1] == '.svg':
+				plt.savefig('.'.join((os.path.splitext(svg)[0],counts_type,'svg')))
+			else:
+				plt.savefig('.'.join((svg,counts_type,'svg')))
+	elif png:
+		if png == True:
+			plt.savefig(counts_type+'.png')
+		else :
+			if os.path.splitext(png)[1] == '.png':
+				plt.savefig('.'.join((os.path.splitext(png)[0],counts_type,'png')))
+			else:
+				plt.savefig('.'.join((png,counts_type,'png')))
 	else:
 		plt.show()
 	## Save on disk it as a png image 
@@ -863,8 +906,10 @@ parser.add_argument('-s','--strandness', dest="strandness", nargs=1, action = 's
 
 # Options concernant le plot
 parser.add_argument('-biotype_filter',nargs=1,help=argparse.SUPPRESS)#"Make an extra plot of categories distribution using only counts of the specified biotype.")
-parser.add_argument('-d','--categories_depth', type=int, default='3', choices=range(1,5), help = "Use this option to set the hierarchical level that will be considered in the GTF file (default=2): \n(1) gene,intergenic; \n(2) intron,exon,intergenic; \n(3) 5'UTR,CDS,3'UTR,intron,intergenic; \n(4) start_codon,5'UTR,CDS,3'UTR,stop_codon,intron,intergenic. \n\n")
-parser.add_argument('--pdf', nargs='?', default=False, help="Save produced plots in specified path ('categories_plots.pdf' if no argument provided)\n\n")
+parser.add_argument('-d','--categories_depth', type=int, default='3', choices=range(1,5), help = "Use this option to set the hierarchical level that will be considered in the GTF file (default=3): \n(1) gene,intergenic; \n(2) intron,exon,intergenic; \n(3) 5'UTR,CDS,3'UTR,intron,intergenic; \n(4) start_codon,5'UTR,CDS,3'UTR,stop_codon,intron,intergenic. \n\n")
+parser.add_argument('--pdf', nargs='?', default=False, help="Save produced plots in PDF format at specified path ('categories_plots.pdf' if no argument provided)\n\n")
+parser.add_argument('--png', nargs='?', default=False, const=True, help="Save produced plots in PNG format with provided argument as basename \nor 'categories.png' and 'biotypes.png' if no argument provided\n\n")
+parser.add_argument('--svg', nargs='?', default=False, const=True, help="Save produced plots in SVG format with provided argument as basename \nor 'categories.svg' and 'biotypes.svg' if no argument provided\n\n")
 parser.add_argument('-n','--no_plot', dest='quiet', action='store_const', default=False, const=True, help="Do not show plots\n\n")
 parser.add_argument('-t','--threshold', dest='threshold', nargs = 2, metavar=("ymin","ymax"), type=float , help="Set axis limits for enrichment plots\n\n")
 
@@ -873,7 +918,6 @@ if len(sys.argv)==1:
     sys.exit(1)
     
 options = parser.parse_args()
-
 
 def required_arg(arg, aliases):
 	if not arg:
@@ -1026,6 +1070,8 @@ if intersect_reads:
 		samples_files = [options.input[i] for i in range(0,len(options.input),2)]
 		# and get the labels
 		samples_names = [options.input[i] for i in range(1,len(options.input),2)]
+	#### Retrieving chromosome names saved in index
+	chrom_list = get_chromosome_names_in_index(genome_index)
 	#### Processing the BEDGRAPH files: intersecting the bedgraph with the genome index and count the number of aligned positions in each category
 	cpt = intersect_bedgraphs_and_index_to_counts_categories(samples_files,samples_names,prios,genome_index, options.strandness[0], biotype_prios = None)
 
@@ -1089,22 +1135,22 @@ for dic in cpt.values():
 	if ('antisense','antisense') in dic.keys(): break
 else:
 	cat_list.remove('antisense')
-make_plot(cat_list,samples_names,final_cat_cpt,final_genome_cpt,pdf,"categories",options.threshold)
+make_plot(cat_list,samples_names,final_cat_cpt,final_genome_cpt,pdf, "categories",options.threshold, svg = options.svg, png = options.png)
 if selected_biotype :
-	make_plot(cat_list,samples_names,filtered_cat_cpt,final_genome_cpt,pdf,"categories",options.threshold,title="Categories distribution for '"+selected_biotype+"' biotype")
+	make_plot(cat_list,samples_names,filtered_cat_cpt,final_genome_cpt,pdf, "categories",options.threshold,title="Categories distribution for '"+selected_biotype+"' biotype", svg = options.svg, png = options.png)
 
 #### Make the plot by biotypes
 	#### Recategorizing with the final categories
 final_cat_cpt,final_genome_cpt = group_counts_by_biotype(cpt,cpt_genome,biotypes)
 	#### Display the distribution of specified categories (or biotypes) in samples on a barplot
-make_plot(biotypes,samples_names,final_cat_cpt,final_genome_cpt,pdf,"biotypes",options.threshold)
+make_plot(biotypes,samples_names,final_cat_cpt,final_genome_cpt,pdf, "biotypes",options.threshold, svg = options.svg, png = options.png)
 
 
 
 	##### Recategorizing with the final categories
 #final_cat_cpt,final_genome_cpt = group_counts_by_biotype(cpt,cpt_genome,biotypes_group1)
 	##### Display the distribution of specified categories (or biotypes) in samples on a barplot
-#make_plot(biotypes_group1,samples_names,final_cat_cpt,final_genome_cpt,pdf,"Biotype groups",title="Biotypes distribution in mapped reads \n(biotypes are grouped by 'family')")
+#make_plot(biotypes_group1,samples_names,final_cat_cpt,final_genome_cpt,pdf,"Biotype groups", options.threshold, title="Biotypes distribution in mapped reads \n(biotypes are grouped by 'family')", svg = options.svg, png = options.png)
 
 
 if options.pdf:
