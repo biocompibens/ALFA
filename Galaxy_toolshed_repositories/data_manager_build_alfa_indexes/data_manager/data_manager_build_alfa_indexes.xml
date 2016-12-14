@@ -1,0 +1,57 @@
+<tool id="build_alfa_indexes" name="ALFA indexes" version="0.0.1" tool_type="manage_data">
+  <description>build ALFA indexes from automatically downloaded gtf annotation file</description>
+    <!-- ALFA requires bedtools suite v2.20.0 and above -->
+  <requirements>
+      <requirement type="package" version="2.24">bedtools</requirement>
+      <requirement type="package" version="1.2">samtools</requirement>
+      <requirement type="package" version="1.4">matplotlib</requirement>
+  </requirements>
+  
+  <command interpreter="python">data_manager_build_alfa_indexes.py -e "${reference_source['kingdom']}" "${reference_source['species_name']}" -o "${out_file}" "$__tool_directory__"</command>
+
+  <inputs>
+    <conditional name="reference_source">
+      <param name="reference_source_selector" type="select" label="Choose the source for the reference genome">
+        <option value="ensembl" selected="True">Ensembl Genomes Websites</option>
+      </param>
+      <when value="ensembl">
+        <param name="kingdom" type="select" label="Select the ensembl website where to fetch the genome">
+          <option value="vertebrates" selected="True">Ensembl (Vertebrates)</option>
+          <option value="bacteria" selected="True">Ensembl Bacteria</option>
+          <option value="fungi" selected="True">Ensembl Fungi</option>
+          <option value="metazoa" selected="True">Ensembl Metazoa</option>
+          <option value="plants" selected="True">Ensembl Plants</option>
+          <option value="protists" selected="True">Ensembl Protists</option>
+        </param>
+          <param name="species_name" type="text" value="Homo sapiens" label="Complete Species_Name" optional="False">
+          <validator type="empty_field" message="Please, enter a species name."/>
+        </param>
+      </when>
+    </conditional>
+  </inputs>
+  
+   <outputs>
+      <data name="out_file" format="data_manager_json"/>
+  </outputs>
+
+    <help>
+<![CDATA[
+**What it does**
+
+
+  | 1. The tool asks the admin to enter a *species_name* and automatically download the last release of the corresponding gtf annotation file on Ensembl. 
+  |
+  | 2. The tool calls ALFA.py to generate the alfa indexes from this gtf file.
+  |
+  | 3. Resulting indexes are stored in the child directory *alfa_indexes/* of the dir *<galaxy_data_manager_data_path>* defined in *config/galaxy.ini*
+  |
+  | 4. Finally, the tool adds the new entry to the table *alfa_indexes.loc*. This .loc file is where the data table *alfa_indexes* points, as defined in *config/shed_tool_data_table.conf.xml*
+  |
+  | 5. At the end of the process, when a user will use `alfa`_ , the built-in indexes corresponding to the *species_name* will be available
+
+  .. _alfa: https://toolshed.g2.bx.psu.edu/view/charles-bernard/alfa
+
+]]>
+     </help>
+
+</tool>

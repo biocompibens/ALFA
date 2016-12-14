@@ -1,0 +1,14 @@
+categories:
+- Graphics
+- Next Gen Mappers
+- Sequence Analysis
+- Visualization
+description: A tool to Compute and display distribution of reads by genomic categories
+long_description: |
+	ALFA provides a global overview of features distribution composing New Generation Sequencing dataset(s).
+	Given a set of aligned reads (BAM files) and an annotation file (GTF format), the tool produces plots of the raw and normalized distributions of those reads among genomic categories (stop codon, 5'-UTR, CDS, intergenic, etc.) and biotypes (protein coding genes, miRNA, tRNA, etc.). Whatever the sequencing technique, whatever the organism.
+	https://github.com/biocompibens/ALFA
+name: alfa
+owner: charles_bernard
+remote_repository_url: https://github.com/charles-bernard/Galaxy_tools/tree/master/ALFA
+type: unrestricted

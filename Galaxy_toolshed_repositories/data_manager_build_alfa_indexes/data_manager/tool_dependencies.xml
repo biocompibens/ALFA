@@ -1,0 +1,11 @@
+<tool_dependency>
+	<package name="bedtools" version="2.24">
+		<repository changeset_revision="3416a1d4a582" name="package_bedtools_2_24" owner="iuc" prior_installation_required="True" toolshed="https://toolshed.g2.bx.psu.edu" />
+	</package>
+    <package name="samtools" version="1.2">
+    	<repository changeset_revision="f6ae3ba3f3c1" name="package_samtools_1_2" owner="iuc" prior_installation_required="True" toolshed="https://toolshed.g2.bx.psu.edu" />
+    </package>
+    <package name="matplotlib" version="1.4">
+    	<repository changeset_revision="f7424e1cf115" name="package_python_2_7_matplotlib_1_4" owner="iuc" prior_installation_required="True" toolshed="https://toolshed.g2.bx.psu.edu" />
+    </package>
+</tool_dependency>

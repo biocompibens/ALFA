@@ -1,0 +1,13 @@
+categories:
+- Data Managers
+description: A tool to build ALFA indexes from automatically downloaded gtf annotation file
+long_description: |
+	1. The tool asks the admin to enter a 'species_name' and automatically download the last release of the corresponding gtf annotation file on Ensembl. 
+	2. The tool calls ALFA to generate the alfa indexes from this gtf file.
+	3. Resulting indexes are stored in the child directory 'alfa_indexes' of the dir <galaxy_data_manager_data_path> defined in config/galaxy.ini
+	4. Finally, the tool adds the new entry to the table 'alfa_indexes.loc'. This .loc file is where the data table 'alfa_indexes' points, as defined in config/shed_tool_data_table.conf.xml
+	5. At the end of the process, when a user will use alfa (https://toolshed.g2.bx.psu.edu/view/charles-bernard/alfa), the built-in indexes corresponding to the 'species_name' will be available
+name: data_manager_build_alfa_indexes
+owner: charles_bernard
+remote_repository_url: https://github.com/charles-bernard/Galaxy_tools/tree/master/data_manager_build_alfa_indexes
+type: unrestricted

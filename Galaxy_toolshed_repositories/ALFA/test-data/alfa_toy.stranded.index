@@ -1,0 +1,11 @@
+#Chr1	1250
+Chr1	249	374	+	protein_coding:gene,transcript
+Chr1	249	374	-	protein_coding:five_prime_utr
+Chr1	374	375	+	protein_coding:exon,CDS
+Chr1	374	375	-	protein_coding:five_prime_utr,three_prime_utr
+Chr1	375	999	+	protein_coding:exon,CDS
+Chr1	375	999	-	antisense
+Chr1	999	1000	+	protein_coding:exon,CDS
+Chr1	999	1000	-	protein_coding:three_prime_utr
+Chr1	1000	1250	+	protein_coding:gene,transcript
+Chr1	1000	1250	-	protein_coding:five_prime_utr,three_prime_utr,exon,CDS

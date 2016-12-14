@@ -1,0 +1,23 @@
+<?xml version="1.0"?>
+<data_managers>
+	<data_manager tool_file="data_manager/data_manager_build_alfa_indexes.xml" id="build_alfa_indexes">
+		<data_table name="alfa_indexes">
+			<output>
+				<column name="species" />
+				<column name="version" />
+				<column name="release" />
+				<column name="value" />
+				<column name="dbkey" />
+				<column name="name" />
+				<column name="prefix" output_ref="out_file">
+					<move type="directory">
+						<!-- <source>{prefix}</source> - out_file.extra_files_path is used as base by default -->
+						<target base="${GALAXY_DATA_MANAGER_DATA_PATH}">alfa_indexes/${dbkey}</target>
+					</move>
+					<value_translation>${GALAXY_DATA_MANAGER_DATA_PATH}/alfa_indexes/${dbkey}/${species}.${version}.${release}</value_translation>
+					<value_translation type="function">abspath</value_translation>
+				</column>
+			</output>
+		</data_table>
+	</data_manager>
+</data_managers>
