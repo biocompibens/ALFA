@@ -697,7 +697,10 @@ def make_plot(ordered_categs,samples_names,categ_counts,genome_counts,pdf, count
 		#fig, ax1, ax2 = one_sample_plot(ordered_categs, percentages[0], enrichment[0], n_cat, index, bar_width, counts_type, title)
 	## If more than one sample
 	#else:
-	fig, (ax1,ax2) = plt.subplots(2,figsize=(5+(n_cat+2*n_exp)/3,10))
+	if counts_type.lower() != 'categories':
+		fig, (ax1,ax2) = plt.subplots(2,figsize=(5+(n_cat+2*n_exp)/3,15))
+	else:
+		fig, (ax1,ax2) = plt.subplots(2,figsize=(5+(n_cat+2*n_exp)/3,10))
 	# Store the bars objects for enrichment plot
 	rects = []
 	#For each sample/experiment
@@ -716,7 +719,13 @@ def make_plot(ordered_categs,samples_names,categ_counts,genome_counts,pdf, count
 		
 	## Graphical options for the plot
 	# Adding of the legend
-	ax1.legend(loc='best',frameon=False)
+	if n_exp < 10:
+		legend_ncol=1
+	elif n_exp <19:
+		legend_ncol=2
+	else:
+		legend_ncol=3
+	ax1.legend(loc='best',frameon=False, ncol=legend_ncol)
 	#ax2.legend(loc='upper center',bbox_to_anchor=(0.5,-0.1), fancybox=True, shadow=True)
 	# Main titles
 	if title:
