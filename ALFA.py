@@ -697,7 +697,6 @@ def make_plot(ordered_categs,samples_names,categ_counts,genome_counts,pdf, count
 		#fig, ax1, ax2 = one_sample_plot(ordered_categs, percentages[0], enrichment[0], n_cat, index, bar_width, counts_type, title)
 	## If more than one sample
 	#else:
-	fig, (ax1,ax2) = plt.subplots(2,figsize=(5+(n_cat+2*n_exp)/3,10))
 	if counts_type.lower() != 'categories':
 		fig, (ax1,ax2) = plt.subplots(2,figsize=(5+(n_cat+2*n_exp)/3,10))
 	else:
