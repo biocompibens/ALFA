@@ -873,8 +873,8 @@ def filter_categs_on_biotype(selected_biotype,cpt) :
 #                           MAIN                                         #
 ##########################################################################
 
-def usage_message(name=None):                                                            
-    return '''
+def usage_message():
+	return '''
     Generate genome indexes:
          python ALFA.py -a GTF_FILE  [-g GENOME_INDEX]
                                          [--chr_len CHR_LENGTHS_FILE]
@@ -902,20 +902,20 @@ def usage_message(name=None):
 
 #### Parse command line arguments and store them in 'options'
 parser = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter, usage=usage_message())
-parser.add_argument('--version', action='version', version='version 1.0', help="show program's version number and exit\n\n-----------\n\n")
-# Options concernant l'index
+parser.add_argument('--version', action='version', version='version 1.0', help="Show program's version number and exit\n\n-----------\n\n")
+# Options regarding the index
 parser.add_argument('-g','--genome_index', help="Genome index files path and basename for existing index, or path and basename for new index creation\n\n")
 parser.add_argument('-a','--annotation', metavar = "GTF_FILE", help='Genomic annotations file (GTF format)\n\n')
 parser.add_argument('--chr_len', help='Tabulated file containing chromosome names and lengths\n\n-----------\n\n')
 
-# Options pour l'étape d'intersection
+# Options regarding the intersection step
 parser.add_argument('-i','--input','--bam', dest='input', metavar=('BAM_FILE1 LABEL1',""), nargs='+', help='Input BAM file(s) and label(s). The BAM files must be sorted by position.\n\n')
 parser.add_argument('--bedgraph', action='store_const',default = False, const = True, help="Use this options if your input file(s) is(are) already in bedgraph format\n\n")
 parser.add_argument('-c','--counts',metavar=('COUNTS_FILE',""), nargs='+', help="Use this options instead of '-i/--input' to provide ALFA counts files as input \ninstead of bam/bedgraph files.\n\n")
 parser.add_argument('-s','--strandness', dest="strandness", nargs=1, action = 'store', default = ['unstranded'], choices = ['unstranded','forward','reverse','fr-firststrand','fr-secondstrand'], metavar="", help ="Library orientation. Choose within: 'unstranded', 'forward'/'fr-firststrand' \nor 'reverse'/'fr-secondstrand'. (Default: 'unstranded')\n\n-----------\n\n")
 
-# Options concernant le plot
-parser.add_argument('-biotype_filter',nargs=1,help=argparse.SUPPRESS)#"Make an extra plot of categories distribution using only counts of the specified biotype.")
+# Options regarding the plot
+parser.add_argument('-biotype_filter',nargs=1,help=argparse.SUPPRESS) #"Make an extra plot of categories distribution using only counts of the specified biotype.")
 parser.add_argument('-d','--categories_depth', type=int, default='3', choices=range(1,5), help = "Use this option to set the hierarchical level that will be considered in the GTF file (default=3): \n(1) gene,intergenic; \n(2) intron,exon,intergenic; \n(3) 5'UTR,CDS,3'UTR,intron,intergenic; \n(4) start_codon,5'UTR,CDS,3'UTR,stop_codon,intron,intergenic. \n\n")
 parser.add_argument('--pdf', nargs='?', default=False, help="Save produced plots in PDF format at specified path ('categories_plots.pdf' if no argument provided)\n\n")
 parser.add_argument('--png', nargs='?', default=False, const=True, help="Save produced plots in PNG format with provided argument as basename \nor 'categories.png' and 'biotypes.png' if no argument provided\n\n")
@@ -924,8 +924,8 @@ parser.add_argument('-n','--no_plot', dest='quiet', action='store_const', defaul
 parser.add_argument('-t','--threshold', dest='threshold', nargs = 2, metavar=("ymin","ymax"), type=float , help="Set axis limits for enrichment plots\n\n")
 
 if len(sys.argv)==1:
-    parser.print_usage()
-    sys.exit(1)
+	parser.print_usage()
+	sys.exit(1)
     
 options = parser.parse_args()
 
@@ -934,9 +934,6 @@ def required_arg(arg, aliases):
 		print >> sys.stderr, "\nError: %s argument is missing.\n" %aliases
 		parser.print_usage()
 		sys.exit()
-
-def check_files_enxtension(files):
-	return
 
 # Booleans for steps to be executed
 make_index = False
@@ -953,23 +950,24 @@ if options.counts :
 	process_counts = True
 else:
 	if options.annotation :
-		# Vérifier si présence -gi
+		# If '-gi' parameter is present
 		if options.genome_index :
 			genome_index_basename = options.genome_index
 		else:
+			# Otherwise the GTF filename without extension will be the basename
 			genome_index_basename = options.annotation.split("/")[-1].split(".gtf")[0]
-		# Vérifier si un fichier existe déjà: 
+		# Check if the indexes were already created and warn the user
 		if os.path.isfile(genome_index_basename+".stranded.index") :
 			if options.input:
 				print >> sys.stderr, "\nWarning: an index file named '%s' already exists and will be used. If you want to create a new index, please delete this file or specify an other path." %(genome_index_basename+".stranded.index")
 			else:
 				sys.exit("Error: an index file named %s already exists. If you want to create a new index, please delete this file or specify an other path.\n" %(genome_index_basename+".stranded.index"))
-		# sinon -> action : index à faire
+		# Create them otherwise
 		else :
 			make_index = True
-	# si l'index n'est pas  à faire :
+	# If the index is already done
 	if options.input:
-		#	Arguments requis: input, genome_index
+		# Required arguments are the input and the genome_index
 		if 'genome_index_basename' not in locals():
 			required_arg(options.genome_index, "-g/--genome_index")
 			genome_index_basename = options.genome_index
@@ -980,10 +978,10 @@ else:
 				open(options.input[i])
 			except IOError:
 				sys.exit("Error: the input file " + options.input[i] + " was not found. Aborting.")
-			# Check whether the input file extensions are 'bam', 'bedgraph' or 'bg'
+			# Check whether the input file extensions are 'bam', 'bedgraph' or 'bg' and the label extension are no
 			try :
 				extension = os.path.splitext(options.input[i+1])[1]
-				if extension == ".bam" or extension == '.bedgraph' or extension == '.bg':
+				if extension in ('.bam', '.bedgraph', '.bg'):
 					sys.exit("Error: it seems input files and associated labels are not correctly provided.\n\
 					Make sure to follow the expected format : -i Input_file1 Label1 [Input_file2 Label2 ...].")
 			except:
