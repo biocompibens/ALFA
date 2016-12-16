@@ -697,10 +697,7 @@ def make_plot(ordered_categs,samples_names,categ_counts,genome_counts,pdf, count
 		#fig, ax1, ax2 = one_sample_plot(ordered_categs, percentages[0], enrichment[0], n_cat, index, bar_width, counts_type, title)
 	## If more than one sample
 	#else:
-	if counts_type.lower() != 'categories':
-		fig, (ax1,ax2) = plt.subplots(2,figsize=(5+(n_cat+2*n_exp)/3,15))
-	else:
-		fig, (ax1,ax2) = plt.subplots(2,figsize=(5+(n_cat+2*n_exp)/3,10))
+	fig, (ax1,ax2) = plt.subplots(2,figsize=(5+(n_cat+2*n_exp)/3,10))
 	# Store the bars objects for enrichment plot
 	rects = []
 	#For each sample/experiment
@@ -719,13 +716,7 @@ def make_plot(ordered_categs,samples_names,categ_counts,genome_counts,pdf, count
 		
 	## Graphical options for the plot
 	# Adding of the legend
-	if n_exp < 10:
-		legend_ncol=1
-	elif n_exp <19:
-		legend_ncol=2
-	else:
-		legend_ncol=3
-	ax1.legend(loc='best',frameon=False, ncol=legend_ncol)
+	ax1.legend(loc='best',frameon=False)
 	#ax2.legend(loc='upper center',bbox_to_anchor=(0.5,-0.1), fancybox=True, shadow=True)
 	# Main titles
 	if title:
@@ -942,12 +933,13 @@ make_index = False
 intersect_reads = False
 process_counts = False
 
-#### Check arguments conformity and define which steps have to be perfomed
+#### Check arguments conformity and define which steps have to be performed
+print "\n### Checking parameters"
 if options.counts :
-	# Aucun autre argument requis
+	# Aucun autre argument requis, precise that the other won't be used (if this is true!!)
 	# Vérifier extension input
 	
-	# Action : Faire le plot uniquement
+	# Action: Only do the plot
 	process_counts = True
 else:
 	if options.annotation :
@@ -959,9 +951,9 @@ else:
 		# Vérifier si un fichier existe déjà: 
 		if os.path.isfile(genome_index_basename+".stranded.index") :
 			if options.input:
-				print >> sys.stderr, "\nWarning: a index file named '%s' already exists and will be used. If you want to create a new index, please delete this file or specify an other path." %(genome_index_basename+".stranded.index")
+				print >> sys.stderr, "\nWarning: an index file named '%s' already exists and will be used. If you want to create a new index, please delete this file or specify an other path." %(genome_index_basename+".stranded.index")
 			else:
-				sys.exit("\nError: a index file named %s already exists. If you want to create a new index, please delete this file or specify an other path.\n" %(genome_index_basename+".stranded.index"))
+				sys.exit("Error: an index file named %s already exists. If you want to create a new index, please delete this file or specify an other path.\n" %(genome_index_basename+".stranded.index"))
 		# sinon -> action : index à faire
 		else :
 			make_index = True
@@ -973,6 +965,12 @@ else:
 			genome_index_basename = options.genome_index
 		required_arg(options.input, "-i/--input/--bam")
 		for i in xrange(0, len(options.input), 2):
+			# Check whether the input file exists
+			try:
+				open(options.input[i])
+			except IOError:
+				sys.exit("Error: the input file " + options.input[i] + " was not found. Aborting.")
+			# Check whether the input file extensions are 'bam', 'bedgraph' or 'bg'
 			try :
 				extension = os.path.splitext(options.input[i+1])[1]
 				if extension == ".bam" or extension == '.bedgraph' or extension == '.bg':
