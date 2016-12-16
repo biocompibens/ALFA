@@ -731,7 +731,7 @@ def make_plot(ordered_categs,samples_names,categ_counts,genome_counts,pdf, count
 	# Main titles
 	if title:
 		ax1.set_title(title)
-	else :
+	else:
 		ax1.set_title(counts_type+" distribution in mapped reads")
 	ax2.set_title('Normalized counts of '+counts_type)
 			
