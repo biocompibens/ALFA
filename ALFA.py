@@ -840,7 +840,7 @@ def make_plot(ordered_categs,samples_names,categ_counts,genome_counts,pdf, count
 	elif svg:
 		if svg == True:
 			plt.savefig(counts_type+'.svg')
-		else :
+		else:
 			if os.path.splitext(svg)[1] == '.svg':
 				plt.savefig('.'.join((os.path.splitext(svg)[0],counts_type,'svg')))
 			else:
