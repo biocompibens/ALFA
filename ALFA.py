@@ -910,7 +910,8 @@ parser.add_argument('--chr_len', help='Tabulated file containing chromosome name
 
 # Options regarding the intersection step
 parser.add_argument('-i','--input','--bam', dest='input', metavar=('BAM_FILE1 LABEL1',""), nargs='+', help='Input BAM file(s) and label(s). The BAM files must be sorted by position.\n\n')
-parser.add_argument('--bedgraph', action='store_const',default = False, const = True, help="Use this options if your input file(s) is(are) already in bedgraph format\n\n")
+#parser.add_argument('--bedgraph', action='store_const',default = False, const = True, help="Use this options if your input file(s) is(are) already in bedgraph format\n\n")
+parser.add_argument('--bedgraph', dest='bedgraph', action='store_const',default = False, const = True, help="Use this options if your input file(s) is(are) already in bedgraph format\n\n")
 parser.add_argument('-c','--counts',metavar=('COUNTS_FILE',""), nargs='+', help="Use this options instead of '-i/--input' to provide ALFA counts files as input \ninstead of bam/bedgraph files.\n\n")
 parser.add_argument('-s','--strandness', dest="strandness", nargs=1, action = 'store', default = ['unstranded'], choices = ['unstranded','forward','reverse','fr-firststrand','fr-secondstrand'], metavar="", help ="Library orientation. Choose within: 'unstranded', 'forward'/'fr-firststrand' \nor 'reverse'/'fr-secondstrand'. (Default: 'unstranded')\n\n-----------\n\n")
 
@@ -1082,7 +1083,8 @@ if intersect_reads:
 		samples_files, samples_names = create_bedgraph_files(options.input,options.strandness[0])
 	else:
 		# Just initialize the files list with the bedgraph paths
-		samples_files = [options.input[i] for i in range(0,len(options.input),2)]
+		#samples_files = [options.input[i] for i in range(0,len(options.input),2)]
+		samples_files = [re.sub('.bedgraph$', '', options.input[i]) for i in range(0,len(options.input),2)]
 		# and get the labels
 		samples_names = [options.input[i] for i in range(1,len(options.input),2)]
 	#### Retrieving chromosome names saved in index
