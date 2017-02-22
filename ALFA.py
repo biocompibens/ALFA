@@ -17,6 +17,7 @@ import re
 from matplotlib.backends.backend_pdf import PdfPages
 # To correctly embbed the texts when saving plots in svg format
 import matplotlib
+import progressbar
 
 matplotlib.rcParams['svg.fonttype'] = 'none'
 
@@ -213,20 +214,26 @@ def create_genome_index(annotation, unstranded_genome_index, stranded_genome_ind
             findex.write("#%s\t%s\n" % (key, value))
             fstrandedindex.write("#%s\t%s\n" % (key, value))
     # Running through the GTF file and writing into genome index files
+    nb_lines = sum(1 for line in open(annotation))
+    pbar = progressbar.ProgressBar(widgets=['Indexing the genome ', progressbar.Percentage(), ' ', progressbar.Bar(), progressbar.ETA()], max_value=nb_lines).start()
     with open(annotation, 'r') as gtf_file:
         for line in gtf_file:
-            # Print messages after X processed lines
             i += 1
+            # Update the progressbar every 10k lines
+            if i % 10000 == 1:
+                pbar.update(i)
+            '''
             if i % 100000 == 0:
                 print >> sys.stderr, '\r%s line processed...' % str(i)
-                print '\r                          \r. . .',
+                #print '\r                          \r. . .',
                 sys.stdout.flush()
             elif i % 20000 == 0:
-                print '\r                          \r. . .',
+                #print '\r                          \r. . .',
                 sys.stdout.flush()
             elif i % 2000 == 0:
-                print '.',
+                #print '.',
                 sys.stdout.flush()
+            '''
             # Processing lines except comment ones
             if not line.startswith('#'):
                 # Getting the line infos
@@ -255,7 +262,7 @@ def create_genome_index(annotation, unstranded_genome_index, stranded_genome_ind
                     intervals_dict = {strand: {start: {biotype: [cat]}, stop: {}}, antisense: {start: {}, stop: {}}}
                     max_value = stop
 
-                # Update the dictionary which represents intervals for every disctinct annotation
+                # Update the dictionary which represents intervals for every distinct annotation
                 else:
                     # Get intervals on the same strand as the current feature
                     stranded_intervals = intervals_dict[strand]
@@ -331,6 +338,7 @@ def create_genome_index(annotation, unstranded_genome_index, stranded_genome_ind
         # Store the categories of the last chromosome
         print_chrom(intervals_dict, chrom, stranded_genome_index, unstranded_genome_index, cpt_genome)
         print "\rChromosome '" + prev_chrom + "' registered.\nDone!"
+    pbar.finish()
 
 
 def create_bedgraph_files(bams, strandness):
