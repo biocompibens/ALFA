@@ -171,7 +171,7 @@ def add_info(cpt, feat_values, start, stop, chrom=None, unstranded_genome_index=
                     except:
                         # TODO Find a way to add unknown categories
                         if cat not in unknown_feature:
-                            print >> sys.stderr, "Warning: Unknown categorie %s found and ignored\n...\r" % cat,
+                            print >> sys.stderr, "Warning: Unknown categorie %s found and ignored\n" % cat,
                             unknown_feature.append(cat)
                         continue
                     if prio > cur_prio:
@@ -471,10 +471,11 @@ def intersect_bedgraphs_and_index_to_counts_categories(samples_files, samples_na
             strands = [('.plus', '+'), ('.minus', '-')]
 
         # Intersecting the BEDGRAPH and genome index files
-        print "\rProcessing '%s'\n. . ." % sample_file,
-        sys.stdout.flush()
-
         for strand, sign in strands:
+            nb_lines = sum(1 for line in open(sample_file + strand + '.bedgraph'))
+            pbar = progressbar.ProgressBar(widgets=['Processing ' + sample_file + strand + ' ',
+                                                    progressbar.Percentage(), progressbar.Bar(), progressbar.Timer()],
+                                           max_value=nb_lines).start()
             prev_chrom = ''
             endGTF = False  # Reaching the next chr or the end of the GTF index
             intergenic_adds = 0.0
@@ -485,11 +486,7 @@ def intersect_bedgraphs_and_index_to_counts_categories(samples_files, samples_na
                 for bam_line in bam_count_file:
                     i += 1
                     if i % 10000 == 0:
-                        print ".",
-                        sys.stdout.flush()
-                    if i % 100000 == 0:
-                        print "\r                              \r. . .",
-                        sys.stdout.flush()
+                        pbar.update(i)
                     # Getting the BAM line info
                     bam_chrom = bam_line.split('\t')[0]
                     bam_start, bam_stop, bam_cpt = map(float, bam_line.split('\t')[1:4])
@@ -565,7 +562,7 @@ def intersect_bedgraphs_and_index_to_counts_categories(samples_files, samples_na
                         except KeyError:
                             cpt[sample_name][('intergenic', 'intergenic')] = (bam_stop - bam_start) * bam_cpt
                 gtf_index_file.close()
-    print "\r                             \rDone!"
+            pbar.finish()
     return cpt
 
 
@@ -1179,13 +1176,9 @@ if __name__ == "__main__":
             # Generating the genome index files if the user didn't provide them
             create_genome_index(options.annotation, unstranded_genome_index, stranded_genome_index, cpt_genome, prios,
                                 biotypes, lengths)
-            index_chrom_list.sort(key=alphanum_key)
-            print 'Indexed chromosomes: ' + ', '.join((index_chrom_list))
-            sys.stdout.flush()
         else:
             # Retrieving chromosome names saved in index
             index_chrom_list = get_chromosome_names_in_index(genome_index)
-        print 'Indexed chromosomes: ' + ','.join((index_chrom_list))
 
 
         # print '\nChr lengths:', lengths
