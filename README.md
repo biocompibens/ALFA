@@ -48,7 +48,8 @@ Dependencies: Bedtools suite (v2.20.0 and above)
 There is a [toy dataset](https://github.com/biocompibens/ALFA/tree/master/Toy_dataset) in the respository in order to test the tool installation. To do so, one can go in the directory and run the following command:
 
     python ../ALFA.py -a toy.gtf -g toy_reference -i toy.bam toy
-![Standard output example](https://github.com/biocompibens/ALFA/blob/master/Images/standard_output.png)
+![Quick start terminal](https://github.com/biocompibens/ALFA/blob/master/Images/quick_start_terminal.png)
+![Quick start categories](https://github.com/biocompibens/ALFA/blob/master/Images/quick_start_categories) ![Quick start biotypes](https://github.com/biocompibens/ALFA/blob/master/Images/quick_start_biotypes)
 
 ##Detailed example
 Here is an illustrated detailed example produced by ALFA from fake input files.
