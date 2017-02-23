@@ -49,7 +49,7 @@ There is a [toy dataset](https://github.com/biocompibens/ALFA/tree/master/Toy_da
 
     python ../ALFA.py -a toy.gtf -g toy_reference -i toy.bam toy
 ![Quick start terminal](https://github.com/biocompibens/ALFA/blob/master/Images/quick_start_terminal.png)
-![Quick start categories](https://github.com/biocompibens/ALFA/blob/master/Images/quick_start_categories) ![Quick start biotypes](https://github.com/biocompibens/ALFA/blob/master/Images/quick_start_biotypes)
+![Quick start plots](https://github.com/biocompibens/ALFA/blob/master/Images/quick_start_plots.png)
 
 ##Detailed example
 Here is an illustrated detailed example produced by ALFA from fake input files.
