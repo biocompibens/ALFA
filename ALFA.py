@@ -232,27 +232,16 @@ def create_genome_index(annotation, unstranded_genome_index, stranded_genome_ind
         for key, value in chrom_sizes.items():
             findex.write("#%s\t%s\n" % (key, value))
             fstrandedindex.write("#%s\t%s\n" % (key, value))
-    # Running through the GTF file and writing into genome index files
+    # Progress bar to track the genome indexes creation
     nb_lines = sum(1 for line in open(annotation))
     pbar = progressbar.ProgressBar(widgets=['Indexing the genome ', progressbar.Percentage(), ' ', progressbar.Bar(), progressbar.ETA()], max_value=nb_lines).start()
+    # Running through the GTF file and writing into genome index files
     with open(annotation, 'r') as gtf_file:
         for line in gtf_file:
             i += 1
             # Update the progressbar every 1k lines
             if i % 1000 == 1:
                 pbar.update(i)
-            '''
-            if i % 100000 == 0:
-                print >> sys.stderr, '\r%s line processed...' % str(i)
-                #print '\r                          \r. . .',
-                sys.stdout.flush()
-            elif i % 20000 == 0:
-                #print '\r                          \r. . .',
-                sys.stdout.flush()
-            elif i % 2000 == 0:
-                #print '.',
-                sys.stdout.flush()
-            '''
             # Processing lines except comment ones
             if not line.startswith('#'):
                 # Getting the line infos
@@ -269,15 +258,6 @@ def create_genome_index(annotation, unstranded_genome_index, stranded_genome_ind
                 if start > max_value or chrom != prev_chrom:
                     # Write the previous features
                     if intervals_dict != 0:
-                        '''
-                        if chrom != prev_chrom:
-                            print_chrom(intervals_dict, prev_chrom, stranded_genome_index, unstranded_genome_index,
-                                        cpt_genome)
-                            print "\rChromosome '" + prev_chrom + "' registered."
-                        else:
-                            print_chrom(intervals_dict, chrom, stranded_genome_index, unstranded_genome_index,
-                                        cpt_genome)
-                        '''
                         print_chrom(intervals_dict, prev_chrom, stranded_genome_index, unstranded_genome_index,
                                     cpt_genome)
                     prev_chrom = chrom
@@ -360,7 +340,6 @@ def create_genome_index(annotation, unstranded_genome_index, stranded_genome_ind
 
         # Store the categories of the last chromosome
         print_chrom(intervals_dict, chrom, stranded_genome_index, unstranded_genome_index, cpt_genome)
-        #print "\rChromosome '" + prev_chrom + "' registered.\nDone!"
     pbar.finish()
 
 
@@ -368,6 +347,7 @@ def create_bedgraph_files(bams, strandness):
     samples_files = []
     labels = []
     print "\n### Generating the bedgraph files"
+    # Progress bar to track the bedgraph file creation
     pbar = progressbar.ProgressBar(widgets=['Generating the bedgraph files ', progressbar.Percentage(), progressbar.Bar(), progressbar.Timer()], max_value=len(bams)+1).start()
     pbar.update(1)
     for n in range(0, len(bams), 2):
@@ -463,24 +443,26 @@ def intersect_bedgraphs_and_index_to_counts_categories(samples_files, samples_na
     for n in range(len(samples_files)):
         sample_file = samples_files[n]
         sample_name = samples_names[n]
-        # Initializing the category counter dict for this sample
+        # Initializing the category counter dict for this sample and the number of lines to process for the progress bar
         init_dict(cpt, sample_name, {})
         if strandness == "unstranded":
             strands = [("", ".")]
+            nb_lines = sum(1 for line in open(sample_file + '.bedgraph'))
         else:
             strands = [('.plus', '+'), ('.minus', '-')]
+            nb_lines = sum(1 for line in open(sample_file + '.plus.bedgraph')) + sum(1 for line in open(sample_file + '.minus.bedgraph'))
+
+        # Progress bar to track the bedgraph and index intersection
+        pbar = progressbar.ProgressBar(widgets=['Processing ' + sample_file + ' ', progressbar.Percentage(),
+                                                progressbar.Bar(), progressbar.Timer()],
+                                           max_value=nb_lines).start()
+        i = 0
 
         # Intersecting the BEDGRAPH and genome index files
         for strand, sign in strands:
-            nb_lines = sum(1 for line in open(sample_file + strand + '.bedgraph'))
-            pbar = progressbar.ProgressBar(widgets=['Processing ' + sample_file + strand + ' ',
-                                                    progressbar.Percentage(), progressbar.Bar(), progressbar.Timer()],
-                                           max_value=nb_lines).start()
             prev_chrom = ''
             endGTF = False  # Reaching the next chr or the end of the GTF index
             intergenic_adds = 0.0
-            i = 0
-            i_chgt = 0
             with open(sample_file + strand + '.bedgraph', 'r') as bam_count_file:
                 # Running through the BEDGRAPH file
                 for bam_line in bam_count_file:
@@ -494,11 +476,10 @@ def intersect_bedgraphs_and_index_to_counts_categories(samples_files, samples_na
                     if bam_chrom not in index_chrom_list:
                         if bam_chrom not in unknown_chrom:
                             unknown_chrom.append(bam_chrom)
-                            print "\r                          \r Chromosome '" + bam_chrom + "' not found in index."
+                            print "\r                          \r Chromosome '" + bam_chrom + "' not found in index." # MB: to adapt with the progress bar
                         continue
                     # If this is a new chromosome (or the first one)
                     if bam_chrom != prev_chrom:
-                        i_chgt = i
                         intergenic_adds = 0.0
                         # (Re)opening the GTF index and looking for the first line of the matching chr
                         try:
@@ -562,7 +543,7 @@ def intersect_bedgraphs_and_index_to_counts_categories(samples_files, samples_na
                         except KeyError:
                             cpt[sample_name][('intergenic', 'intergenic')] = (bam_stop - bam_start) * bam_cpt
                 gtf_index_file.close()
-            pbar.finish()
+        pbar.finish()
     return cpt
 
 
@@ -1042,7 +1023,7 @@ if __name__ == "__main__":
     process_counts = False
 
     #### Check arguments conformity and define which steps have to be performed
-    print "\n### Checking parameters"
+    print "### Checking parameters"
     if options.counts:
         # Aucun autre argument requis, precise that the other won't be used (if this is true!!)
         # Vérifier extension input
@@ -1186,7 +1167,7 @@ if __name__ == "__main__":
     if intersect_reads:
         # If the indexes already exist, read them to compute the sizes of the categories in the genome and retrieve the chromosome lengths
         if not make_index:
-            print "\n### Reading genome indexes\n...\r",
+            print "\n### Reading genome indexes\n",
             sys.stdout.flush()
         lengths = {}
         with open(genome_index, 'r') as genome_index_file:
