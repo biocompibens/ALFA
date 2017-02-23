@@ -353,9 +353,9 @@ def create_bedgraph_files(bams, strandness):
     samples_files = []
     labels = []
     print "\n### Generating the bedgraph files"
+    pbar = progressbar.ProgressBar(widgets=['Generating the bedgraph files ', progressbar.Percentage(), progressbar.Bar(), progressbar.Timer()], max_value=len(bams)+1).start()
+    pbar.update(1)
     for n in range(0, len(bams), 2):
-        print "\rProcessing '%s'\n..." % bams[n],
-        sys.stdout.flush()
         # Get the label for this sample
         label = bams[n + 1]
         # Modify it to contain only alphanumeric caracters (avoid files generation with dangerous names)
@@ -364,22 +364,28 @@ def create_bedgraph_files(bams, strandness):
             subprocess.call(
                 'bedtools genomecov -bg -split -strand - -ibam ' + bams[n] + ' > ' + modified_label + '.plus.bedgraph',
                 shell=True)
+            pbar.update(n+1)
             subprocess.call(
                 'bedtools genomecov -bg -split -strand + -ibam ' + bams[n] + ' > ' + modified_label + '.minus.bedgraph',
                 shell=True)
+            pbar.update(n+1)
         elif strandness in ["forward", "fr-firststrand"]:
             subprocess.call(
                 'bedtools genomecov -bg -split -strand + -ibam ' + bams[n] + ' > ' + modified_label + '.plus.bedgraph',
                 shell=True)
+            pbar.update(n+1)
             subprocess.call(
                 'bedtools genomecov -bg -split -strand - -ibam ' + bams[n] + ' > ' + modified_label + '.minus.bedgraph',
                 shell=True)
+            pbar.update(n+1)
         else:
             subprocess.call('bedtools genomecov -bg -split -ibam ' + bams[n] + ' > ' + modified_label + '.bedgraph',
                             shell=True)
+            pbar.update(n+2)
         samples_files.append(modified_label)
         labels.append(label)
-    print "\rDone!"
+    pbar.finish()
+    print "Done!"
     return samples_files, labels
 
 
