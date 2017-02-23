@@ -31,6 +31,21 @@ def init_dict(d, key, init):
         d[key] = init
 
 
+def tryint(s):
+    """ Function called by 'alphanum_key' function to sort the chromosome names. """
+    try:
+        return int(s)
+    except:
+        return s
+
+
+def alphanum_key(s):
+    """ Turn a string into a list of string and number chunks.
+        "z23a" -> ["z", 23, "a"]
+    """
+    return [ tryint(c) for c in re.split('([0-9]+)', s) ]
+
+
 def get_chromosome_lengths(args):
     """
     Parse the file containing the chromosomes lengths.
@@ -1048,7 +1063,7 @@ if __name__ == "__main__":
             # Check if the indexes were already created and warn the user
             if os.path.isfile(genome_index_basename + ".stranded.index"):
                 if options.input:
-                    print >> sys.stderr, "\nWarning: an index file named '%s' already exists and will be used. If you want to create a new index, please delete this file or specify an other path." % (
+                    print >> sys.stderr, "Warning: an index file named '%s' already exists and will be used. If you want to create a new index, please delete this file or specify an other path." % (
                     genome_index_basename + ".stranded.index")
                 else:
                     sys.exit(
@@ -1146,7 +1161,7 @@ if __name__ == "__main__":
     for biot in ["miRNA", "snoRNA", "snRNA", "rRNA", "sRNA", "tRNA"]:
         biotypes_group1[biot] = [biot]
 
-    # # Initializing the unkown features lits
+    # Initializing the unknown features list
     unknown_feature = []
 
     # Initializing the genome category counter dict
@@ -1164,6 +1179,9 @@ if __name__ == "__main__":
             # Generating the genome index files if the user didn't provide them
             create_genome_index(options.annotation, unstranded_genome_index, stranded_genome_index, cpt_genome, prios,
                                 biotypes, lengths)
+            index_chrom_list.sort(key=alphanum_key)
+            print 'Indexed chromosomes: ' + ', '.join((index_chrom_list))
+            sys.stdout.flush()
         else:
             # Retrieving chromosome names saved in index
             index_chrom_list = get_chromosome_names_in_index(genome_index)
@@ -1185,6 +1203,10 @@ if __name__ == "__main__":
                 else:
                     add_info(cpt_genome, line.rstrip().split('\t')[4:], line.split('\t')[1], line.split('\t')[2],
                              biotype_prios=None, categ_prios=prios)
+
+        #print 'Indexed chromosomes: ' + ', '.join((sorted(index_chrom_list)))
+        index_chrom_list.sort(key=alphanum_key)
+        print 'Indexed chromosomes: ' + ', '.join((index_chrom_list))
 
         #### Computing the genome intergenic count: sum of the chr lengths minus sum of the genome annotated intervals
         cpt_genome[('intergenic', 'intergenic')] = sum(lengths.itervalues()) - sum(
