@@ -185,6 +185,10 @@ def add_info(cpt, feat_values, start, stop, chrom=None, unstranded_genome_index=
 
 
 def print_chrom(features_dict, chrom, stranded_index_file, unstranded_index_file, cpt_genome):
+    # Adding the chromosome to the list if not present
+    if chrom not in chrom_list:
+        chrom_list.append(chrom)
+    # Writing the chromosome in the index file
     with open(unstranded_index_file, 'a') as findex, open(stranded_index_file, 'a') as fstrandedindex:
         # Initialization of variables : start position of the first interval and associated features for +/- strands
         start = ""
@@ -219,8 +223,8 @@ def create_genome_index(annotation, unstranded_genome_index, stranded_genome_ind
     with open(annotation, 'r') as gtf_file:
         for line in gtf_file:
             i += 1
-            # Update the progressbar every 10k lines
-            if i % 10000 == 1:
+            # Update the progressbar every 1k lines
+            if i % 1000 == 1:
                 pbar.update(i)
             '''
             if i % 100000 == 0:
@@ -250,6 +254,7 @@ def create_genome_index(annotation, unstranded_genome_index, stranded_genome_ind
                 if start > max_value or chrom != prev_chrom:
                     # Write the previous features
                     if intervals_dict != 0:
+                        '''
                         if chrom != prev_chrom:
                             print_chrom(intervals_dict, prev_chrom, stranded_genome_index, unstranded_genome_index,
                                         cpt_genome)
@@ -257,6 +262,9 @@ def create_genome_index(annotation, unstranded_genome_index, stranded_genome_ind
                         else:
                             print_chrom(intervals_dict, chrom, stranded_genome_index, unstranded_genome_index,
                                         cpt_genome)
+                        '''
+                        print_chrom(intervals_dict, prev_chrom, stranded_genome_index, unstranded_genome_index,
+                                    cpt_genome)
                     prev_chrom = chrom
                     # (Re)Initializing the chromosome lists
                     intervals_dict = {strand: {start: {biotype: [cat]}, stop: {}}, antisense: {start: {}, stop: {}}}
@@ -337,7 +345,7 @@ def create_genome_index(annotation, unstranded_genome_index, stranded_genome_ind
 
         # Store the categories of the last chromosome
         print_chrom(intervals_dict, chrom, stranded_genome_index, unstranded_genome_index, cpt_genome)
-        print "\rChromosome '" + prev_chrom + "' registered.\nDone!"
+        #print "\rChromosome '" + prev_chrom + "' registered.\nDone!"
     pbar.finish()
 
 
@@ -416,8 +424,9 @@ def read_counts_files(counts_files):
 
 
 def get_chromosome_names_in_index(genome_index):
-    chrom_list = []
+    #chrom_list = []
     with open(genome_index, 'r') as findex:
+        '''
         chrom = ""
         for line in findex:
             cur_chrom = line.split('\t')[0]
@@ -428,6 +437,13 @@ def get_chromosome_names_in_index(genome_index):
                 if chrom not in chrom_list:
                     chrom_list.append(chrom)
     return set(chrom_list)
+        '''
+        for line in findex:
+            if not line.startswith('#'):
+                chrom = line.split('\t')[0]
+                if chrom not in chrom_list:
+                    chrom_list.append(chrom)
+    return chrom_list
 
 
 def intersect_bedgraphs_and_index_to_counts_categories(samples_files, samples_names, prios, genome_index, strandness,
@@ -1148,12 +1164,17 @@ if __name__ == "__main__":
             cpt, cpt_genome, samples_names = read_counts_files(options.counts)
         else:
             #### Create genome index if needed and get the sizes of categories
+            chrom_list = []
             if make_index:
                 #### Get the chromosome lengths
                 lengths = get_chromosome_lengths(options)
                 # Generating the genome index files if the user didn't provide them
                 create_genome_index(options.annotation, unstranded_genome_index, stranded_genome_index, cpt_genome, prios,
                                     biotypes, lengths)
+            else:
+                # Retrieving chromosome names saved in index
+                chrom_list = get_chromosome_names_in_index(genome_index)
+            print 'Indexed chromosomes: ' + ','.join((chrom_list))
 
 
             # print '\nChr lengths:', lengths
@@ -1194,7 +1215,7 @@ if __name__ == "__main__":
                 # and get the labels
                 samples_names = [options.input[i] for i in range(1, len(options.input), 2)]
             #### Retrieving chromosome names saved in index
-            chrom_list = get_chromosome_names_in_index(genome_index)
+            #chrom_list = get_chromosome_names_in_index(genome_index)
             #### Processing the BEDGRAPH files: intersecting the bedgraph with the genome index and count the number of aligned positions in each category
             cpt = intersect_bedgraphs_and_index_to_counts_categories(samples_files, samples_names, prios, genome_index,
                                                                      options.strandness[0], biotype_prios=None)
