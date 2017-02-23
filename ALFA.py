@@ -186,8 +186,8 @@ def add_info(cpt, feat_values, start, stop, chrom=None, unstranded_genome_index=
 
 def print_chrom(features_dict, chrom, stranded_index_file, unstranded_index_file, cpt_genome):
     # Adding the chromosome to the list if not present
-    if chrom not in chrom_list:
-        chrom_list.append(chrom)
+    if chrom not in index_chrom_list:
+        index_chrom_list.append(chrom)
     # Writing the chromosome in the index file
     with open(unstranded_index_file, 'a') as findex, open(stranded_index_file, 'a') as fstrandedindex:
         # Initialization of variables : start position of the first interval and associated features for +/- strands
@@ -424,26 +424,13 @@ def read_counts_files(counts_files):
 
 
 def get_chromosome_names_in_index(genome_index):
-    #chrom_list = []
     with open(genome_index, 'r') as findex:
-        '''
-        chrom = ""
-        for line in findex:
-            cur_chrom = line.split('\t')[0]
-            if cur_chrom == chrom:
-                pass
-            else:
-                chrom = cur_chrom
-                if chrom not in chrom_list:
-                    chrom_list.append(chrom)
-    return set(chrom_list)
-        '''
         for line in findex:
             if not line.startswith('#'):
                 chrom = line.split('\t')[0]
-                if chrom not in chrom_list:
-                    chrom_list.append(chrom)
-    return chrom_list
+                if chrom not in index_chrom_list:
+                    index_chrom_list.append(chrom)
+    return index_chrom_list
 
 
 def intersect_bedgraphs_and_index_to_counts_categories(samples_files, samples_names, prios, genome_index, strandness,
@@ -486,7 +473,7 @@ def intersect_bedgraphs_and_index_to_counts_categories(samples_files, samples_na
                     bam_chrom = bam_line.split('\t')[0]
                     bam_start, bam_stop, bam_cpt = map(float, bam_line.split('\t')[1:4])
                     # Skip the line if the chromosome is not in the index
-                    if bam_chrom not in chrom_list:
+                    if bam_chrom not in index_chrom_list:
                         if bam_chrom not in unknown_chrom:
                             unknown_chrom.append(bam_chrom)
                             print "\r                          \r Chromosome '" + bam_chrom + "' not found in index."
@@ -1164,7 +1151,7 @@ if __name__ == "__main__":
         cpt, cpt_genome, samples_names = read_counts_files(options.counts)
     else:
         #### Create genome index if needed and get the sizes of categories
-        chrom_list = []
+        index_chrom_list = []
         if make_index:
             #### Get the chromosome lengths
             lengths = get_chromosome_lengths(options)
@@ -1173,8 +1160,8 @@ if __name__ == "__main__":
                                 biotypes, lengths)
         else:
             # Retrieving chromosome names saved in index
-            chrom_list = get_chromosome_names_in_index(genome_index)
-        print 'Indexed chromosomes: ' + ','.join((chrom_list))
+            index_chrom_list = get_chromosome_names_in_index(genome_index)
+        print 'Indexed chromosomes: ' + ','.join((index_chrom_list))
 
 
         # print '\nChr lengths:', lengths
