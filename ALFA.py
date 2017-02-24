@@ -46,6 +46,14 @@ def alphanum_key(s):
     return [ tryint(c) for c in re.split('([0-9]+)', s) ]
 
 
+def required_arg(arg, aliases):
+    """ Function to display the help and quit if a required argument is missing. """
+    if not arg:
+        print >> sys.stderr, "\nError: %s argument is missing.\n" % aliases
+        parser.print_usage()
+        sys.exit()
+
+
 def get_chromosome_lengths(args):
     """
     Parse the file containing the chromosomes lengths.
@@ -1008,13 +1016,6 @@ if __name__ == "__main__":
         sys.exit(1)
 
     options = parser.parse_args()
-
-
-    def required_arg(arg, aliases):
-        if not arg:
-            print >> sys.stderr, "\nError: %s argument is missing.\n" % aliases
-            parser.print_usage()
-            sys.exit()
 
 
     # Booleans for steps to be executed
