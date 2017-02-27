@@ -17,6 +17,7 @@ import re
 from matplotlib.backends.backend_pdf import PdfPages
 # To correctly embbed the texts when saving plots in svg format
 import matplotlib
+import progressbar
 
 matplotlib.rcParams['svg.fonttype'] = 'none'
 
@@ -28,6 +29,29 @@ matplotlib.rcParams['svg.fonttype'] = 'none'
 def init_dict(d, key, init):
     if key not in d:
         d[key] = init
+
+
+def tryint(s):
+    """ Function called by 'alphanum_key' function to sort the chromosome names. """
+    try:
+        return int(s)
+    except:
+        return s
+
+
+def alphanum_key(s):
+    """ Turn a string into a list of string and number chunks.
+        "z23a" -> ["z", 23, "a"]
+    """
+    return [ tryint(c) for c in re.split('([0-9]+)', s) ]
+
+
+def required_arg(arg, aliases):
+    """ Function to display the help and quit if a required argument is missing. """
+    if not arg:
+        print >> sys.stderr, "\nError: %s argument is missing.\n" % aliases
+        parser.print_usage()
+        sys.exit()
 
 
 def get_chromosome_lengths(args):
@@ -155,7 +179,7 @@ def add_info(cpt, feat_values, start, stop, chrom=None, unstranded_genome_index=
                     except:
                         # TODO Find a way to add unknown categories
                         if cat not in unknown_feature:
-                            print >> sys.stderr, "Warning: Unknown categorie %s found and ignored\n...\r" % cat,
+                            print >> sys.stderr, "Warning: Unknown categorie %s found and ignored\n" % cat,
                             unknown_feature.append(cat)
                         continue
                     if prio > cur_prio:
@@ -184,6 +208,10 @@ def add_info(cpt, feat_values, start, stop, chrom=None, unstranded_genome_index=
 
 
 def print_chrom(features_dict, chrom, stranded_index_file, unstranded_index_file, cpt_genome):
+    # Adding the chromosome to the list if not present
+    if chrom not in index_chrom_list:
+        index_chrom_list.append(chrom)
+    # Writing the chromosome in the index file
     with open(unstranded_index_file, 'a') as findex, open(stranded_index_file, 'a') as fstrandedindex:
         # Initialization of variables : start position of the first interval and associated features for +/- strands
         start = ""
@@ -212,21 +240,16 @@ def create_genome_index(annotation, unstranded_genome_index, stranded_genome_ind
         for key, value in chrom_sizes.items():
             findex.write("#%s\t%s\n" % (key, value))
             fstrandedindex.write("#%s\t%s\n" % (key, value))
+    # Progress bar to track the genome indexes creation
+    nb_lines = sum(1 for line in open(annotation))
+    pbar = progressbar.ProgressBar(widgets=['Indexing the genome ', progressbar.Percentage(), ' ', progressbar.Bar(), progressbar.ETA()], max_value=nb_lines).start()
     # Running through the GTF file and writing into genome index files
     with open(annotation, 'r') as gtf_file:
         for line in gtf_file:
-            # Print messages after X processed lines
             i += 1
-            if i % 100000 == 0:
-                print >> sys.stderr, '\r%s line processed...' % str(i)
-                print '\r                          \r. . .',
-                sys.stdout.flush()
-            elif i % 20000 == 0:
-                print '\r                          \r. . .',
-                sys.stdout.flush()
-            elif i % 2000 == 0:
-                print '.',
-                sys.stdout.flush()
+            # Update the progressbar every 1k lines
+            if i % 1000 == 1:
+                pbar.update(i)
             # Processing lines except comment ones
             if not line.startswith('#'):
                 # Getting the line infos
@@ -243,19 +266,14 @@ def create_genome_index(annotation, unstranded_genome_index, stranded_genome_ind
                 if start > max_value or chrom != prev_chrom:
                     # Write the previous features
                     if intervals_dict != 0:
-                        if chrom != prev_chrom:
-                            print_chrom(intervals_dict, prev_chrom, stranded_genome_index, unstranded_genome_index,
-                                        cpt_genome)
-                            print "\rChromosome '" + prev_chrom + "' registered."
-                        else:
-                            print_chrom(intervals_dict, chrom, stranded_genome_index, unstranded_genome_index,
-                                        cpt_genome)
+                        print_chrom(intervals_dict, prev_chrom, stranded_genome_index, unstranded_genome_index,
+                                    cpt_genome)
                     prev_chrom = chrom
                     # (Re)Initializing the chromosome lists
                     intervals_dict = {strand: {start: {biotype: [cat]}, stop: {}}, antisense: {start: {}, stop: {}}}
                     max_value = stop
 
-                # Update the dictionary which represents intervals for every disctinct annotation
+                # Update the dictionary which represents intervals for every distinct annotation
                 else:
                     # Get intervals on the same strand as the current feature
                     stranded_intervals = intervals_dict[strand]
@@ -330,16 +348,17 @@ def create_genome_index(annotation, unstranded_genome_index, stranded_genome_ind
 
         # Store the categories of the last chromosome
         print_chrom(intervals_dict, chrom, stranded_genome_index, unstranded_genome_index, cpt_genome)
-        print "\rChromosome '" + prev_chrom + "' registered.\nDone!"
+    pbar.finish()
 
 
 def create_bedgraph_files(bams, strandness):
     samples_files = []
     labels = []
     print "\n### Generating the bedgraph files"
+    # Progress bar to track the bedgraph file creation
+    pbar = progressbar.ProgressBar(widgets=['Generating the bedgraph files ', progressbar.Percentage(), progressbar.Bar(), progressbar.Timer()], max_value=len(bams)+1).start()
+    pbar.update(1)
     for n in range(0, len(bams), 2):
-        print "\rProcessing '%s'\n..." % bams[n],
-        sys.stdout.flush()
         # Get the label for this sample
         label = bams[n + 1]
         # Modify it to contain only alphanumeric caracters (avoid files generation with dangerous names)
@@ -348,22 +367,28 @@ def create_bedgraph_files(bams, strandness):
             subprocess.call(
                 'bedtools genomecov -bg -split -strand - -ibam ' + bams[n] + ' > ' + modified_label + '.plus.bedgraph',
                 shell=True)
+            pbar.update(n+1)
             subprocess.call(
                 'bedtools genomecov -bg -split -strand + -ibam ' + bams[n] + ' > ' + modified_label + '.minus.bedgraph',
                 shell=True)
+            pbar.update(n+1)
         elif strandness in ["forward", "fr-firststrand"]:
             subprocess.call(
                 'bedtools genomecov -bg -split -strand + -ibam ' + bams[n] + ' > ' + modified_label + '.plus.bedgraph',
                 shell=True)
+            pbar.update(n+1)
             subprocess.call(
                 'bedtools genomecov -bg -split -strand - -ibam ' + bams[n] + ' > ' + modified_label + '.minus.bedgraph',
                 shell=True)
+            pbar.update(n+1)
         else:
             subprocess.call('bedtools genomecov -bg -split -ibam ' + bams[n] + ' > ' + modified_label + '.bedgraph',
                             shell=True)
+            pbar.update(n+2)
         samples_files.append(modified_label)
         labels.append(label)
-    print "\rDone!"
+    pbar.finish()
+    print "Done!"
     return samples_files, labels
 
 
@@ -408,18 +433,13 @@ def read_counts_files(counts_files):
 
 
 def get_chromosome_names_in_index(genome_index):
-    chrom_list = []
     with open(genome_index, 'r') as findex:
-        chrom = ""
         for line in findex:
-            cur_chrom = line.split('\t')[0]
-            if cur_chrom == chrom:
-                pass
-            else:
-                chrom = cur_chrom
-                if chrom not in chrom_list:
-                    chrom_list.append(chrom)
-    return set(chrom_list)
+            if not line.startswith('#'):
+                chrom = line.split('\t')[0]
+                if chrom not in index_chrom_list:
+                    index_chrom_list.append(chrom)
+    return index_chrom_list
 
 
 def intersect_bedgraphs_and_index_to_counts_categories(samples_files, samples_names, prios, genome_index, strandness,
@@ -431,45 +451,43 @@ def intersect_bedgraphs_and_index_to_counts_categories(samples_files, samples_na
     for n in range(len(samples_files)):
         sample_file = samples_files[n]
         sample_name = samples_names[n]
-        # Initializing the category counter dict for this sample
+        # Initializing the category counter dict for this sample and the number of lines to process for the progress bar
         init_dict(cpt, sample_name, {})
         if strandness == "unstranded":
             strands = [("", ".")]
+            nb_lines = sum(1 for line in open(sample_file + '.bedgraph'))
         else:
             strands = [('.plus', '+'), ('.minus', '-')]
+            nb_lines = sum(1 for line in open(sample_file + '.plus.bedgraph')) + sum(1 for line in open(sample_file + '.minus.bedgraph'))
+
+        # Progress bar to track the bedgraph and index intersection
+        pbar = progressbar.ProgressBar(widgets=['Processing ' + sample_file + ' ', progressbar.Percentage(),
+                                                progressbar.Bar(), progressbar.Timer()],
+                                           max_value=nb_lines).start()
+        i = 0
 
         # Intersecting the BEDGRAPH and genome index files
-        print "\rProcessing '%s'\n. . ." % sample_file,
-        sys.stdout.flush()
-
         for strand, sign in strands:
             prev_chrom = ''
             endGTF = False  # Reaching the next chr or the end of the GTF index
             intergenic_adds = 0.0
-            i = 0
-            i_chgt = 0
             with open(sample_file + strand + '.bedgraph', 'r') as bam_count_file:
                 # Running through the BEDGRAPH file
                 for bam_line in bam_count_file:
                     i += 1
                     if i % 10000 == 0:
-                        print ".",
-                        sys.stdout.flush()
-                    if i % 100000 == 0:
-                        print "\r                              \r. . .",
-                        sys.stdout.flush()
+                        pbar.update(i)
                     # Getting the BAM line info
                     bam_chrom = bam_line.split('\t')[0]
                     bam_start, bam_stop, bam_cpt = map(float, bam_line.split('\t')[1:4])
                     # Skip the line if the chromosome is not in the index
-                    if bam_chrom not in chrom_list:
+                    if bam_chrom not in index_chrom_list:
                         if bam_chrom not in unknown_chrom:
                             unknown_chrom.append(bam_chrom)
-                            print "\r                          \r Chromosome '" + bam_chrom + "' not found in index."
+                            print "\r                          \r Chromosome '" + bam_chrom + "' not found in index." # MB: to adapt with the progress bar
                         continue
                     # If this is a new chromosome (or the first one)
                     if bam_chrom != prev_chrom:
-                        i_chgt = i
                         intergenic_adds = 0.0
                         # (Re)opening the GTF index and looking for the first line of the matching chr
                         try:
@@ -533,7 +551,7 @@ def intersect_bedgraphs_and_index_to_counts_categories(samples_files, samples_na
                         except KeyError:
                             cpt[sample_name][('intergenic', 'intergenic')] = (bam_stop - bam_start) * bam_cpt
                 gtf_index_file.close()
-    print "\r                             \rDone!"
+        pbar.finish()
     return cpt
 
 
@@ -955,322 +973,323 @@ def usage_message():
 
 if __name__ == "__main__":
 
-        #### Parse command line arguments and store them in 'options'
-        parser = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter, usage=usage_message())
-        parser.add_argument('--version', action='version', version='version 1.0',
-                            help="Show program's version number and exit\n\n-----------\n\n")
-        # Options regarding the index
-        parser.add_argument('-g', '--genome_index',
-                            help="Genome index files path and basename for existing index, or path and basename for new index creation\n\n")
-        parser.add_argument('-a', '--annotation', metavar="GTF_FILE", help='Genomic annotations file (GTF format)\n\n')
-        parser.add_argument('--chr_len', help='Tabulated file containing chromosome names and lengths\n\n-----------\n\n')
+    #### Parse command line arguments and store them in 'options'
+    parser = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter, usage=usage_message())
+    parser.add_argument('--version', action='version', version='version 1.0',
+                        help="Show program's version number and exit\n\n-----------\n\n")
+    # Options regarding the index
+    parser.add_argument('-g', '--genome_index',
+                        help="Genome index files path and basename for existing index, or path and basename for new index creation\n\n")
+    parser.add_argument('-a', '--annotation', metavar="GTF_FILE", help='Genomic annotations file (GTF format)\n\n')
+    parser.add_argument('--chr_len', help='Tabulated file containing chromosome names and lengths\n\n-----------\n\n')
 
-        # Options regarding the intersection step
-        parser.add_argument('-i', '--input', '--bam', dest='input', metavar=('BAM_FILE1 LABEL1', ""), nargs='+',
-                            help='Input BAM file(s) and label(s). The BAM files must be sorted by position.\n\n')
-        # parser.add_argument('--bedgraph', action='store_const',default = False, const = True, help="Use this options if your input file(s) is(are) already in bedgraph format\n\n")
-        parser.add_argument('--bedgraph', dest='bedgraph', action='store_const', default=False, const=True,
-                            help="Use this options if your input file(s) is(are) already in bedgraph format\n\n")
-        parser.add_argument('-c', '--counts', metavar=('COUNTS_FILE', ""), nargs='+',
-                            help="Use this options instead of '-i/--input' to provide ALFA counts files as input \ninstead of bam/bedgraph files.\n\n")
-        parser.add_argument('-s', '--strandness', dest="strandness", nargs=1, action='store', default=['unstranded'],
-                            choices=['unstranded', 'forward', 'reverse', 'fr-firststrand', 'fr-secondstrand'], metavar="",
-                            help="Library orientation. Choose within: 'unstranded', 'forward'/'fr-firststrand' \nor 'reverse'/'fr-secondstrand'. (Default: 'unstranded')\n\n-----------\n\n")
+    # Options regarding the intersection step
+    parser.add_argument('-i', '--input', '--bam', dest='input', metavar=('BAM_FILE1 LABEL1', ""), nargs='+',
+                        help='Input BAM file(s) and label(s). The BAM files must be sorted by position.\n\n')
+    # parser.add_argument('--bedgraph', action='store_const',default = False, const = True, help="Use this options if your input file(s) is(are) already in bedgraph format\n\n")
+    parser.add_argument('--bedgraph', dest='bedgraph', action='store_const', default=False, const=True,
+                        help="Use this options if your input file(s) is(are) already in bedgraph format\n\n")
+    parser.add_argument('-c', '--counts', metavar=('COUNTS_FILE', ""), nargs='+',
+                        help="Use this options instead of '-i/--input' to provide ALFA counts files as input \ninstead of bam/bedgraph files.\n\n")
+    parser.add_argument('-s', '--strandness', dest="strandness", nargs=1, action='store', default=['unstranded'],
+                        choices=['unstranded', 'forward', 'reverse', 'fr-firststrand', 'fr-secondstrand'], metavar="",
+                        help="Library orientation. Choose within: 'unstranded', 'forward'/'fr-firststrand' \nor 'reverse'/'fr-secondstrand'. (Default: 'unstranded')\n\n-----------\n\n")
 
-        # Options regarding the plot
-        parser.add_argument('-biotype_filter', nargs=1,
-                            help=argparse.SUPPRESS)  # "Make an extra plot of categories distribution using only counts of the specified biotype.")
-        parser.add_argument('-d', '--categories_depth', type=int, default='3', choices=range(1, 5),
-                            help="Use this option to set the hierarchical level that will be considered in the GTF file (default=3): \n(1) gene,intergenic; \n(2) intron,exon,intergenic; \n(3) 5'UTR,CDS,3'UTR,intron,intergenic; \n(4) start_codon,5'UTR,CDS,3'UTR,stop_codon,intron,intergenic. \n\n")
-        parser.add_argument('--pdf', nargs='?', default=False,
-                            help="Save produced plots in PDF format at specified path ('categories_plots.pdf' if no argument provided)\n\n")
-        parser.add_argument('--png', nargs='?', default=False, const=True,
-                            help="Save produced plots in PNG format with provided argument as basename \nor 'categories.png' and 'biotypes.png' if no argument provided\n\n")
-        parser.add_argument('--svg', nargs='?', default=False, const=True,
-                            help="Save produced plots in SVG format with provided argument as basename \nor 'categories.svg' and 'biotypes.svg' if no argument provided\n\n")
-        parser.add_argument('-n', '--no_plot', dest='quiet', action='store_const', default=False, const=True,
-                            help="Do not show plots\n\n")
-        parser.add_argument('-t', '--threshold', dest='threshold', nargs=2, metavar=("ymin", "ymax"), type=float,
-                            help="Set axis limits for enrichment plots\n\n")
+    # Options regarding the plot
+    parser.add_argument('-biotype_filter', nargs=1,
+                        help=argparse.SUPPRESS)  # "Make an extra plot of categories distribution using only counts of the specified biotype.")
+    parser.add_argument('-d', '--categories_depth', type=int, default='3', choices=range(1, 5),
+                        help="Use this option to set the hierarchical level that will be considered in the GTF file (default=3): \n(1) gene,intergenic; \n(2) intron,exon,intergenic; \n(3) 5'UTR,CDS,3'UTR,intron,intergenic; \n(4) start_codon,5'UTR,CDS,3'UTR,stop_codon,intron,intergenic. \n\n")
+    parser.add_argument('--pdf', nargs='?', default=False,
+                        help="Save produced plots in PDF format at specified path ('categories_plots.pdf' if no argument provided)\n\n")
+    parser.add_argument('--png', nargs='?', default=False, const=True,
+                        help="Save produced plots in PNG format with provided argument as basename \nor 'categories.png' and 'biotypes.png' if no argument provided\n\n")
+    parser.add_argument('--svg', nargs='?', default=False, const=True,
+                        help="Save produced plots in SVG format with provided argument as basename \nor 'categories.svg' and 'biotypes.svg' if no argument provided\n\n")
+    parser.add_argument('-n', '--no_plot', dest='quiet', action='store_const', default=False, const=True,
+                        help="Do not show plots\n\n")
+    parser.add_argument('-t', '--threshold', dest='threshold', nargs=2, metavar=("ymin", "ymax"), type=float,
+                        help="Set axis limits for enrichment plots\n\n")
 
-        if len(sys.argv) == 1:
-            parser.print_usage()
-            sys.exit(1)
+    if len(sys.argv) == 1:
+        parser.print_usage()
+        sys.exit(1)
 
-        options = parser.parse_args()
-
-
-        def required_arg(arg, aliases):
-            if not arg:
-                print >> sys.stderr, "\nError: %s argument is missing.\n" % aliases
-                parser.print_usage()
-                sys.exit()
+    options = parser.parse_args()
 
 
-        # Booleans for steps to be executed
-        make_index = False
-        intersect_reads = False
-        process_counts = False
+    # Booleans for steps to be executed
+    make_index = False
+    intersect_reads = False
+    process_counts = False
 
-        #### Check arguments conformity and define which steps have to be performed
-        print "\n### Checking parameters"
-        if options.counts:
-            # Aucun autre argument requis, precise that the other won't be used (if this is true!!)
-            # Vérifier extension input
+    #### Check arguments conformity and define which steps have to be performed
+    print "### Checking parameters"
+    if options.counts:
+        # Aucun autre argument requis, precise that the other won't be used (if this is true!!)
+        # Vérifier extension input
 
-            # Action: Only do the plot
-            process_counts = True
-        else:
-            if options.annotation:
-                # If '-gi' parameter is present
-                if options.genome_index:
-                    genome_index_basename = options.genome_index
-                else:
-                    # Otherwise the GTF filename without extension will be the basename
-                    genome_index_basename = options.annotation.split("/")[-1].split(".gtf")[0]
-                # Check if the indexes were already created and warn the user
-                if os.path.isfile(genome_index_basename + ".stranded.index"):
-                    if options.input:
-                        print >> sys.stderr, "\nWarning: an index file named '%s' already exists and will be used. If you want to create a new index, please delete this file or specify an other path." % (
-                        genome_index_basename + ".stranded.index")
-                    else:
-                        sys.exit(
-                            "Error: an index file named %s already exists. If you want to create a new index, please delete this file or specify an other path.\n" % (
-                            genome_index_basename + ".stranded.index"))
-                # Create them otherwise
-                else:
-                    make_index = True
-            # If the index is already done
-            if options.input:
-                # Required arguments are the input and the genome_index
-                if 'genome_index_basename' not in locals():
-                    required_arg(options.genome_index, "-g/--genome_index")
-                    genome_index_basename = options.genome_index
-                required_arg(options.input, "-i/--input/--bam")
-                for i in xrange(0, len(options.input), 2):
-                    # Check whether the input file exists
-                    try:
-                        open(options.input[i])
-                    except IOError:
-                        sys.exit("Error: the input file " + options.input[i] + " was not found. Aborting.")
-                    # Check whether the input file extensions are 'bam', 'bedgraph' or 'bg' and the label extension are no
-                    try:
-                        extension = os.path.splitext(options.input[i + 1])[1]
-                        if extension in ('.bam', '.bedgraph', '.bg'):
-                            sys.exit("Error: it seems input files and associated labels are not correctly provided.\n\
-                            Make sure to follow the expected format : -i Input_file1 Label1 [Input_file2 Label2 ...].")
-                    except:
-                        sys.exit(
-                            "Error: it seems input files and associated labels are not correctly provided.\nMake sure to follow the expected format : -i Input_file1 Label1 [Input_file2 Label2 ...].")
-
-                intersect_reads = True
-            # Vérifier input's extension
-            # TODO
-        if not (options.counts or options.input or options.annotation):
-            sys.exit(
-                "\nError : some arguments are missing At least '-a', '-c' or '-i' is required. Please refer to help (-h/--help) and usage cases for more details.\n")
-        if not options.counts:
-            # Declare genome_index variables
-            stranded_genome_index = genome_index_basename + ".stranded.index"
-            unstranded_genome_index = genome_index_basename + ".unstranded.index"
-            if options.strandness[0] == "unstranded":
-                genome_index = unstranded_genome_index
+        # Action: Only do the plot
+        process_counts = True
+    else:
+        if options.annotation:
+            # If '-gi' parameter is present
+            if options.genome_index:
+                genome_index_basename = options.genome_index
             else:
-                genome_index = stranded_genome_index
-
-        #### Initialization of some variables
-
-        # Initializing the category priority order, coding biotypes and the final list
-        prios = {'start_codon': 7, 'stop_codon': 7, 'five_prime_utr': 6, 'three_prime_utr': 6, 'UTR': 6, 'CDS': 5, 'exon': 4,
-                 'transcript': 3, 'gene': 2, 'antisense': 1, 'intergenic': 0}
-
-        biotype_prios = None
-        # biotype_prios = {"protein_coding":1, "miRNA":2}
-
-        # Possibles groups of categories to plot
-        categs_group1 = {'start': ['start_codon'], '5UTR': ['five_prime_utr', 'UTR'], 'CDS': ['CDS', 'exon'],
-                         '3UTR': ['three_prime_utr'], 'stop': ['stop_codon'], 'introns': ['transcript', 'gene'],
-                         'intergenic': ['intergenic'], 'antisense': ['antisense']}
-        categs_group2 = {'5UTR': ['five_prime_utr', 'UTR'], 'CDS': ['CDS', 'exon', 'start_codon', 'stop_codon'],
-                         '3UTR': ['three_prime_utr'], 'introns': ['transcript', 'gene'], 'intergenic': ['intergenic'],
-                         'antisense': ['antisense']}
-        categs_group3 = {'exons': ['five_prime_utr', 'three_prime_utr', 'UTR', 'CDS', 'exon', 'start_codon', 'stop_codon'],
-                         'introns': ['transcript', 'gene'], 'intergenic': ['intergenic'], 'antisense': ['antisense']}
-        categs_group4 = {
-            'gene': ['five_prime_utr', 'three_prime_utr', 'UTR', 'CDS', 'exon', 'start_codon', 'stop_codon', 'transcript',
-                     'gene'], 'intergenic': ['intergenic'], 'antisense': ['antisense']}
-        categs_groups = [categs_group4, categs_group3, categs_group2, categs_group1]  # Order and merging for the final plot
-        cat_list = ['5UTR', 'start', 'CDS', 'stop', '3UTR', 'exons', 'introns', 'gene', 'intergenic', 'antisense']
-
-        # biotypes list
-        biotypes = {'protein_coding', 'polymorphic_pseudogene', 'TR_C_gene', 'TR_D_gene', 'TR_J_gene', 'TR_V_gene', 'IG_C_gene',
-                    'IG_D_gene', 'IG_J_gene', 'IG_V_gene', "3prime_overlapping_ncrna", "lincRNA", "macro_lncRNA", "miRNA",
-                    "misc_RNA", "Mt_rRNA", "Mt_tRNA", "processed_transcript", "ribozyme", "rRNA", "scaRNA", "sense_intronic",
-                    "sense_overlapping", "snoRNA", "snRNA", "sRNA", "TEC", "vaultRNA", "antisense",
-                    "transcribed_processed_pseudogene", "transcribed_unitary_pseudogene", "transcribed_unprocessed_pseudogene",
-                    "translated_unprocessed_pseudogene", "TR_J_pseudogene", "TR_V_pseudogene", "unitary_pseudogene",
-                    "unprocessed_pseudogene", "processed_pseudogene", "IG_C_pseudogene", "IG_J_pseudogene", "IG_V_pseudogene",
-                    "pseudogene", "ncRNA", "tRNA"}  # Type: set (to access quickly)
-
-        # Grouping of biotypes:
-        biotypes_group1 = {'protein_coding': ['protein_coding'],
-                           'pseudogenes': ['polymorphic_pseudogene', "transcribed_processed_pseudogene",
-                                           "transcribed_unitary_pseudogene", "transcribed_unprocessed_pseudogene",
-                                           "translated_unprocessed_pseudogene", "TR_J_pseudogene", "TR_V_pseudogene",
-                                           "unitary_pseudogene", "unprocessed_pseudogene", "processed_pseudogene",
-                                           "IG_C_pseudogene", "IG_J_pseudogene", "IG_V_pseudogene", "pseudogene"],
-                           'TR': ['TR_C_gene', 'TR_D_gene', 'TR_J_gene', 'TR_V_gene'],
-                           'IG': ['IG_C_gene', 'IG_D_gene', 'IG_J_gene', 'IG_V_gene'], \
-                           'MT_RNA': ["Mt_rRNA", "Mt_tRNA"], \
-                           'ncRNA': ["lincRNA", "macro_lncRNA", "3prime_overlapping_ncrna", "ncRNA"], \
-                           "others": ["misc_RNA", "processed_transcript", "ribozyme", "scaRNA", "sense_intronic",
-                                      "sense_overlapping", "TEC", "vaultRNA"],
-                           "antisense": ["antisense"]}
-        for biot in ["miRNA", "snoRNA", "snRNA", "rRNA", "sRNA", "tRNA"]:
-            biotypes_group1[biot] = [biot]
-
-        # # Initializing the unkown features lits
-        unknown_feature = []
-
-        # Initializing the genome category counter dict
-        cpt_genome = {}
-
-        if process_counts:
-            #### If input files are the categories counts, just load them and continue to recategorization step
-            cpt, cpt_genome, samples_names = read_counts_files(options.counts)
-        else:
-            #### Create genome index if needed and get the sizes of categories
-            if make_index:
-                #### Get the chromosome lengths
-                lengths = get_chromosome_lengths(options)
-                # Generating the genome index files if the user didn't provide them
-                create_genome_index(options.annotation, unstranded_genome_index, stranded_genome_index, cpt_genome, prios,
-                                    biotypes, lengths)
-
-
-            # print '\nChr lengths:', lengths
-
-        if intersect_reads:
-            # If the indexes already exist, read them to compute the sizes of the categories in the genome and retrieve the chromosome lengths
-            if not make_index:
-                print "\n### Reading genome indexes\n...\r",
-                sys.stdout.flush()
-            lengths = {}
-            with open(genome_index, 'r') as genome_index_file:
-                for line in genome_index_file:
-                    if line[0] == "#":
-                        lengths[line.split('\t')[0][1:]] = int(line.split('\t')[1])
-                    else:
-                        add_info(cpt_genome, line.rstrip().split('\t')[4:], line.split('\t')[1], line.split('\t')[2],
-                                 biotype_prios=None, categ_prios=prios)
-
-            #### Computing the genome intergenic count: sum of the chr lengths minus sum of the genome annotated intervals
-            cpt_genome[('intergenic', 'intergenic')] = sum(lengths.itervalues()) - sum(
-                [v for x, v in cpt_genome.iteritems() if x != ('antisense', 'antisense')])
-            if not make_index:
-                print "Done!"
-            # print '\nGenome category counts:'
-            # for key,val in cpt_genome.iteritems():
-            # print key,"\t",val
-
-
-            #### Create the Bedgraph files if needed and get the files list
-
-            if not options.bedgraph:
-                # Generating the BEDGRAPH files is the user provided BAM file(s) and get the samples labels (this names will be used in the plot legend)
-                samples_files, samples_names = create_bedgraph_files(options.input, options.strandness[0])
+                # Otherwise the GTF filename without extension will be the basename
+                genome_index_basename = options.annotation.split("/")[-1].split(".gtf")[0]
+            # Check if the indexes were already created and warn the user
+            if os.path.isfile(genome_index_basename + ".stranded.index"):
+                if options.input:
+                    print >> sys.stderr, "Warning: an index file named '%s' already exists and will be used. If you want to create a new index, please delete this file or specify an other path." % (
+                    genome_index_basename + ".stranded.index")
+                else:
+                    sys.exit(
+                        "Error: an index file named %s already exists. If you want to create a new index, please delete this file or specify an other path.\n" % (
+                        genome_index_basename + ".stranded.index"))
+            # Create them otherwise
             else:
-                # Just initialize the files list with the bedgraph paths
-                # samples_files = [options.input[i] for i in range(0,len(options.input),2)]
-                samples_files = [re.sub('.bedgraph$', '', options.input[i]) for i in range(0, len(options.input), 2)]
-                # and get the labels
-                samples_names = [options.input[i] for i in range(1, len(options.input), 2)]
-            #### Retrieving chromosome names saved in index
-            chrom_list = get_chromosome_names_in_index(genome_index)
-            #### Processing the BEDGRAPH files: intersecting the bedgraph with the genome index and count the number of aligned positions in each category
-            cpt = intersect_bedgraphs_and_index_to_counts_categories(samples_files, samples_names, prios, genome_index,
-                                                                     options.strandness[0], biotype_prios=None)
+                make_index = True
+        # If the index is already done
+        if options.input:
+            # Required arguments are the input and the genome_index
+            if 'genome_index_basename' not in locals():
+                required_arg(options.genome_index, "-g/--genome_index")
+                genome_index_basename = options.genome_index
+            required_arg(options.input, "-i/--input/--bam")
+            for i in xrange(0, len(options.input), 2):
+                # Check whether the input file exists
+                try:
+                    open(options.input[i])
+                except IOError:
+                    sys.exit("Error: the input file " + options.input[i] + " was not found. Aborting.")
+                # Check whether the input file extensions are 'bam', 'bedgraph' or 'bg' and the label extension are no
+                try:
+                    extension = os.path.splitext(options.input[i + 1])[1]
+                    if extension in ('.bam', '.bedgraph', '.bg'):
+                        sys.exit("Error: it seems input files and associated labels are not correctly provided.\n\
+                        Make sure to follow the expected format : -i Input_file1 Label1 [Input_file2 Label2 ...].")
+                except:
+                    sys.exit(
+                        "Error: it seems input files and associated labels are not correctly provided.\nMake sure to follow the expected format : -i Input_file1 Label1 [Input_file2 Label2 ...].")
 
-            #### Write the counts on disk
-            write_counts_in_files(cpt, cpt_genome)
-
-        if not (intersect_reads or process_counts) or (options.quiet and options.pdf == False):
-            quit("\n### End of program")
-        print "\n### Generating plots"
-        # Updating the biotypes lists (biotypes and 'biotype_group1'): adding the 'unknow biotypes' found in gtf/index
-        if unknown_feature == []:  # 'unknown_feature' is define only during the index generation
-            # Browse the feature to determine whether some biotypes are 'unknown'
-            for sample, counts in cpt.items():
-                for (cat, biot) in counts:
-                    if biot not in biotypes and cat not in unknown_feature:
-                        unknown_feature.append(biot)
-        for new_biot in unknown_feature:
-            biotypes.add(new_biot)
-            biotypes_group1["others"].append(new_biot)
-        biotypes = sorted(biotypes)
-        # move antisense categ to the end of the list
-        biotypes.remove('antisense')
-        biotypes.append('antisense')
-        biotypes_group1 = sorted(biotypes_group1)
-
-        # print '\nCounts for every category/biotype pair: ',cpt
-
-        # Generating plots
-        if options.pdf != False:
-            if options.pdf == None:
-                options.pdf = "categories_plots.pdf"
-            pdf = PdfPages(options.pdf)
+            intersect_reads = True
+        # Vérifier input's extension
+        # TODO
+    if not (options.counts or options.input or options.annotation):
+        sys.exit(
+            "\nError : some arguments are missing At least '-a', '-c' or '-i' is required. Please refer to help (-h/--help) and usage cases for more details.\n")
+    if not options.counts:
+        # Declare genome_index variables
+        stranded_genome_index = genome_index_basename + ".stranded.index"
+        unstranded_genome_index = genome_index_basename + ".unstranded.index"
+        if options.strandness[0] == "unstranded":
+            genome_index = unstranded_genome_index
         else:
-            pdf = False
+            genome_index = stranded_genome_index
 
-        selected_biotype = None
-        if options.biotype_filter:
-            options.biotype_filter = options.biotype_filter[0]
-            for sample in cpt:
-                for feature in cpt[sample]:
-                    biotype = feature[1]
-                    if options.biotype_filter.lower() == biotype.lower():
-                        selected_biotype = biotype
-                        break
-            if selected_biotype == None:
-                print "\nError: biotype '" + options.biotype_filter + "' not found. Please check the biotype name and that this biotype exists in your sample(s)."
-                sys.exit()
+    #### Initialization of some variables
 
-        # Print a warning message if the UTRs are not specified as 5' or 3' (they will be ploted as 5'UTR)
-        if 'UTR' in [categ[0] for counts in cpt.values() for categ in counts.keys()]:
-            print '''\nWARNING: (some) 5'UTR/3'UTR are not precisely defined. Consequently, positions annotated as "UTR" will be counted as "5'UTR"\n'''
+    # Initializing the category priority order, coding biotypes and the final list
+    prios = {'start_codon': 7, 'stop_codon': 7, 'five_prime_utr': 6, 'three_prime_utr': 6, 'UTR': 6, 'CDS': 5, 'exon': 4,
+             'transcript': 3, 'gene': 2, 'antisense': 1, 'intergenic': 0}
 
-        #### Make the plot by categories
-        #### Recategorizing with the final categories
-        final_cats = categs_groups[options.categories_depth - 1]
-        final_cat_cpt, final_genome_cpt, filtered_cat_cpt = group_counts_by_categ(cpt, cpt_genome, final_cats, selected_biotype)
-        #### Display the distribution of specified categories (or biotypes) in samples on a barplot
-        # Remove the 'antisense' category if the library type is 'unstranded'
-        for dic in cpt.values():
-            if ('antisense', 'antisense') in dic.keys(): break
+    biotype_prios = None
+    # biotype_prios = {"protein_coding":1, "miRNA":2}
+
+    # Possibles groups of categories to plot
+    categs_group1 = {'start': ['start_codon'], '5UTR': ['five_prime_utr', 'UTR'], 'CDS': ['CDS', 'exon'],
+                     '3UTR': ['three_prime_utr'], 'stop': ['stop_codon'], 'introns': ['transcript', 'gene'],
+                     'intergenic': ['intergenic'], 'antisense': ['antisense']}
+    categs_group2 = {'5UTR': ['five_prime_utr', 'UTR'], 'CDS': ['CDS', 'exon', 'start_codon', 'stop_codon'],
+                     '3UTR': ['three_prime_utr'], 'introns': ['transcript', 'gene'], 'intergenic': ['intergenic'],
+                     'antisense': ['antisense']}
+    categs_group3 = {'exons': ['five_prime_utr', 'three_prime_utr', 'UTR', 'CDS', 'exon', 'start_codon', 'stop_codon'],
+                     'introns': ['transcript', 'gene'], 'intergenic': ['intergenic'], 'antisense': ['antisense']}
+    categs_group4 = {
+        'gene': ['five_prime_utr', 'three_prime_utr', 'UTR', 'CDS', 'exon', 'start_codon', 'stop_codon', 'transcript',
+                 'gene'], 'intergenic': ['intergenic'], 'antisense': ['antisense']}
+    categs_groups = [categs_group4, categs_group3, categs_group2, categs_group1]  # Order and merging for the final plot
+    cat_list = ['5UTR', 'start', 'CDS', 'stop', '3UTR', 'exons', 'introns', 'gene', 'intergenic', 'antisense']
+
+    # biotypes list
+    biotypes = {'protein_coding', 'polymorphic_pseudogene', 'TR_C_gene', 'TR_D_gene', 'TR_J_gene', 'TR_V_gene', 'IG_C_gene',
+                'IG_D_gene', 'IG_J_gene', 'IG_V_gene', "3prime_overlapping_ncrna", "lincRNA", "macro_lncRNA", "miRNA",
+                "misc_RNA", "Mt_rRNA", "Mt_tRNA", "processed_transcript", "ribozyme", "rRNA", "scaRNA", "sense_intronic",
+                "sense_overlapping", "snoRNA", "snRNA", "sRNA", "TEC", "vaultRNA", "antisense",
+                "transcribed_processed_pseudogene", "transcribed_unitary_pseudogene", "transcribed_unprocessed_pseudogene",
+                "translated_unprocessed_pseudogene", "TR_J_pseudogene", "TR_V_pseudogene", "unitary_pseudogene",
+                "unprocessed_pseudogene", "processed_pseudogene", "IG_C_pseudogene", "IG_J_pseudogene", "IG_V_pseudogene",
+                "pseudogene", "ncRNA", "tRNA"}  # Type: set (to access quickly)
+
+    # Grouping of biotypes:
+    biotypes_group1 = {'protein_coding': ['protein_coding'],
+                       'pseudogenes': ['polymorphic_pseudogene', "transcribed_processed_pseudogene",
+                                       "transcribed_unitary_pseudogene", "transcribed_unprocessed_pseudogene",
+                                       "translated_unprocessed_pseudogene", "TR_J_pseudogene", "TR_V_pseudogene",
+                                       "unitary_pseudogene", "unprocessed_pseudogene", "processed_pseudogene",
+                                       "IG_C_pseudogene", "IG_J_pseudogene", "IG_V_pseudogene", "pseudogene"],
+                       'TR': ['TR_C_gene', 'TR_D_gene', 'TR_J_gene', 'TR_V_gene'],
+                       'IG': ['IG_C_gene', 'IG_D_gene', 'IG_J_gene', 'IG_V_gene'], \
+                       'MT_RNA': ["Mt_rRNA", "Mt_tRNA"], \
+                       'ncRNA': ["lincRNA", "macro_lncRNA", "3prime_overlapping_ncrna", "ncRNA"], \
+                       "others": ["misc_RNA", "processed_transcript", "ribozyme", "scaRNA", "sense_intronic",
+                                  "sense_overlapping", "TEC", "vaultRNA"],
+                       "antisense": ["antisense"]}
+    for biot in ["miRNA", "snoRNA", "snRNA", "rRNA", "sRNA", "tRNA"]:
+        biotypes_group1[biot] = [biot]
+
+    # Initializing the unknown features list
+    unknown_feature = []
+
+    # Initializing the genome category counter dict
+    cpt_genome = {}
+
+    if process_counts:
+        #### If input files are the categories counts, just load them and continue to recategorization step
+        cpt, cpt_genome, samples_names = read_counts_files(options.counts)
+    else:
+        #### Create genome index if needed and get the sizes of categories
+        index_chrom_list = []
+        if make_index:
+            #### Get the chromosome lengths
+            lengths = get_chromosome_lengths(options)
+            # Generating the genome index files if the user didn't provide them
+            create_genome_index(options.annotation, unstranded_genome_index, stranded_genome_index, cpt_genome, prios,
+                                biotypes, lengths)
         else:
-            cat_list.remove('antisense')
-        make_plot(cat_list, samples_names, final_cat_cpt, final_genome_cpt, pdf, "categories", options.threshold,
-                  svg=options.svg, png=options.png)
-        if selected_biotype:
-            make_plot(cat_list, samples_names, filtered_cat_cpt, final_genome_cpt, pdf, "categories", options.threshold,
-                      title="Categories distribution for '" + selected_biotype + "' biotype", svg=options.svg, png=options.png)
-
-        #### Make the plot by biotypes
-        #### Recategorizing with the final categories
-        final_cat_cpt, final_genome_cpt = group_counts_by_biotype(cpt, cpt_genome, biotypes)
-        #### Display the distribution of specified categories (or biotypes) in samples on a barplot
-        make_plot(biotypes, samples_names, final_cat_cpt, final_genome_cpt, pdf, "biotypes", options.threshold, svg=options.svg,
-                  png=options.png)
-
-        ##### Recategorizing with the final categories
-        # final_cat_cpt,final_genome_cpt = group_counts_by_biotype(cpt,cpt_genome,biotypes_group1)
-        ##### Display the distribution of specified categories (or biotypes) in samples on a barplot
-        # make_plot(biotypes_group1,samples_names,final_cat_cpt,final_genome_cpt,pdf,"Biotype groups", options.threshold, title="Biotypes distribution in mapped reads \n(biotypes are grouped by 'family')", svg = options.svg, png = options.png)
+            # Retrieving chromosome names saved in index
+            index_chrom_list = get_chromosome_names_in_index(genome_index)
 
 
-        if options.pdf:
-            pdf.close()
-            print "\n### Plots saved in pdf file: %s" % options.pdf
+        # print '\nChr lengths:', lengths
 
-        print "\n### End of program"
+    if intersect_reads:
+        # If the indexes already exist, read them to compute the sizes of the categories in the genome and retrieve the chromosome lengths
+        if not make_index:
+            print "\n### Reading genome indexes\n",
+            sys.stdout.flush()
+        lengths = {}
+        with open(genome_index, 'r') as genome_index_file:
+            for line in genome_index_file:
+                if line[0] == "#":
+                    lengths[line.split('\t')[0][1:]] = int(line.split('\t')[1])
+                else:
+                    add_info(cpt_genome, line.rstrip().split('\t')[4:], line.split('\t')[1], line.split('\t')[2],
+                             biotype_prios=None, categ_prios=prios)
+
+        #print 'Indexed chromosomes: ' + ', '.join((sorted(index_chrom_list)))
+        index_chrom_list.sort(key=alphanum_key)
+        print 'Indexed chromosomes: ' + ', '.join((index_chrom_list))
+
+        #### Computing the genome intergenic count: sum of the chr lengths minus sum of the genome annotated intervals
+        cpt_genome[('intergenic', 'intergenic')] = sum(lengths.itervalues()) - sum(
+            [v for x, v in cpt_genome.iteritems() if x != ('antisense', 'antisense')])
+        if not make_index:
+            print "Done!"
+        # print '\nGenome category counts:'
+        # for key,val in cpt_genome.iteritems():
+        # print key,"\t",val
+
+
+        #### Create the Bedgraph files if needed and get the files list
+
+        if not options.bedgraph:
+            # Generating the BEDGRAPH files is the user provided BAM file(s) and get the samples labels (this names will be used in the plot legend)
+            samples_files, samples_names = create_bedgraph_files(options.input, options.strandness[0])
+        else:
+            # Just initialize the files list with the bedgraph paths
+            # samples_files = [options.input[i] for i in range(0,len(options.input),2)]
+            samples_files = [re.sub('.bedgraph$', '', options.input[i]) for i in range(0, len(options.input), 2)]
+            # and get the labels
+            samples_names = [options.input[i] for i in range(1, len(options.input), 2)]
+        #### Retrieving chromosome names saved in index
+        #chrom_list = get_chromosome_names_in_index(genome_index)
+        #### Processing the BEDGRAPH files: intersecting the bedgraph with the genome index and count the number of aligned positions in each category
+        cpt = intersect_bedgraphs_and_index_to_counts_categories(samples_files, samples_names, prios, genome_index,
+                                                                 options.strandness[0], biotype_prios=None)
+
+        #### Write the counts on disk
+        write_counts_in_files(cpt, cpt_genome)
+
+    if not (intersect_reads or process_counts) or (options.quiet and options.pdf == False):
+        quit("\n### End of program")
+    print "\n### Generating plots"
+    # Updating the biotypes lists (biotypes and 'biotype_group1'): adding the 'unknow biotypes' found in gtf/index
+    if unknown_feature == []:  # 'unknown_feature' is define only during the index generation
+        # Browse the feature to determine whether some biotypes are 'unknown'
+        for sample, counts in cpt.items():
+            for (cat, biot) in counts:
+                if biot not in biotypes and cat not in unknown_feature:
+                    unknown_feature.append(biot)
+    for new_biot in unknown_feature:
+        biotypes.add(new_biot)
+        biotypes_group1["others"].append(new_biot)
+    biotypes = sorted(biotypes)
+    # move antisense categ to the end of the list
+    biotypes.remove('antisense')
+    biotypes.append('antisense')
+    biotypes_group1 = sorted(biotypes_group1)
+
+    # print '\nCounts for every category/biotype pair: ',cpt
+
+    # Generating plots
+    if options.pdf != False:
+        if options.pdf == None:
+            options.pdf = "categories_plots.pdf"
+        pdf = PdfPages(options.pdf)
+    else:
+        pdf = False
+
+    selected_biotype = None
+    if options.biotype_filter:
+        options.biotype_filter = options.biotype_filter[0]
+        for sample in cpt:
+            for feature in cpt[sample]:
+                biotype = feature[1]
+                if options.biotype_filter.lower() == biotype.lower():
+                    selected_biotype = biotype
+                    break
+        if selected_biotype == None:
+            print "\nError: biotype '" + options.biotype_filter + "' not found. Please check the biotype name and that this biotype exists in your sample(s)."
+            sys.exit()
+
+    # Print a warning message if the UTRs are not specified as 5' or 3' (they will be ploted as 5'UTR)
+    if 'UTR' in [categ[0] for counts in cpt.values() for categ in counts.keys()]:
+        print '''\nWARNING: (some) 5'UTR/3'UTR are not precisely defined. Consequently, positions annotated as "UTR" will be counted as "5'UTR"\n'''
+
+    #### Make the plot by categories
+    #### Recategorizing with the final categories
+    final_cats = categs_groups[options.categories_depth - 1]
+    final_cat_cpt, final_genome_cpt, filtered_cat_cpt = group_counts_by_categ(cpt, cpt_genome, final_cats, selected_biotype)
+    #### Display the distribution of specified categories (or biotypes) in samples on a barplot
+    # Remove the 'antisense' category if the library type is 'unstranded'
+    for dic in cpt.values():
+        if ('antisense', 'antisense') in dic.keys(): break
+    else:
+        cat_list.remove('antisense')
+    make_plot(cat_list, samples_names, final_cat_cpt, final_genome_cpt, pdf, "categories", options.threshold,
+              svg=options.svg, png=options.png)
+    if selected_biotype:
+        make_plot(cat_list, samples_names, filtered_cat_cpt, final_genome_cpt, pdf, "categories", options.threshold,
+                  title="Categories distribution for '" + selected_biotype + "' biotype", svg=options.svg, png=options.png)
+
+    #### Make the plot by biotypes
+    #### Recategorizing with the final categories
+    final_cat_cpt, final_genome_cpt = group_counts_by_biotype(cpt, cpt_genome, biotypes)
+    #### Display the distribution of specified categories (or biotypes) in samples on a barplot
+    make_plot(biotypes, samples_names, final_cat_cpt, final_genome_cpt, pdf, "biotypes", options.threshold, svg=options.svg,
+              png=options.png)
+
+    ##### Recategorizing with the final categories
+    # final_cat_cpt,final_genome_cpt = group_counts_by_biotype(cpt,cpt_genome,biotypes_group1)
+    ##### Display the distribution of specified categories (or biotypes) in samples on a barplot
+    # make_plot(biotypes_group1,samples_names,final_cat_cpt,final_genome_cpt,pdf,"Biotype groups", options.threshold, title="Biotypes distribution in mapped reads \n(biotypes are grouped by 'family')", svg = options.svg, png = options.png)
+
+
+    if options.pdf:
+        pdf.close()
+        print "\n### Plots saved in pdf file: %s" % options.pdf
+
+    print "\n### End of program"
