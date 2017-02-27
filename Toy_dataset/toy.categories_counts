@@ -1,5 +1,5 @@
-#Category,biotype Counts_in_bam Size_in_genome
-CDS,protein_coding  300.0 624.0
-five_prime_utr,protein_coding 50.0  126.0
-three_prime_utr,protein_coding  50.0  251.0
-intergenic,intergenic 100.0 249.0
+#Category,biotype	Counts_in_bam	Size_in_genome
+CDS,protein_coding	300.0	625.0
+five_prime_utr,protein_coding	50.0	125.0
+three_prime_utr,protein_coding	50.0	250.0
+intergenic,intergenic	100.0	500.0
