@@ -54,58 +54,60 @@ def required_arg(arg, aliases):
         sys.exit()
 
 
-def get_chromosome_lengths(args):
+def get_chromosome_lengths():
     """
-    Parse the file containing the chromosomes lengths.
-    If no length file is provided, browse the annotation file (GTF) to estimate the chromosome sizes (
+    Parse the file containing the chromosome lengths.
+    If no length file is provided, browse the annotation file (GTF) to estimate the chromosome sizes.
     """
     lengths = {}
     gtf_chrom_names = set()
     force_get_lengths = False
-    # If the user provided the chromosome length file
-    if args.chr_len:
-        with open(args.chr_len, 'r') as chr_len_file:
+    # If the user provided a chromosome length file
+    if options.chr_len:
+        # Getting the chromosome lengths from the chromosome lengths file
+        with open(options.chr_len, 'r') as chr_len_file:
             for line in chr_len_file:
-                lengths[line.split('\t')[0]] = int(line.rstrip().split('\t')[1])
-        with open(args.annotation, 'r') as gtf_file:
+                try:
+                    lengths[line.split('\t')[0]] = int(line.rstrip().split('\t')[1])
+                except IndexError:
+                    sys.exit('Error: The chromosome lengths file is not correctly formed. It is supposed to be tabulated file with two fields per line.')
+        # Getting the chromosome lengths from the GTF file
+        with open(options.annotation, 'r') as gtf_file:
             for line in gtf_file:
                 if not line.startswith('#'):
-                    chrom = line.split('\t')[0]
-                    if chrom not in gtf_chrom_names:
-                        gtf_chrom_names.add(chrom)
-        for chrom in lengths.keys():
+                    gtf_chrom_names.add(line.split('\t')[0])
+        # Checking if the chromosomes from the chromosome lengths file are present in the GTF file
+        for chrom in lengths:
             if chrom not in gtf_chrom_names:
-                print "Warning: at least one chromosome name ('" + chrom + "') of the file '" + args.chr_len + "'does not match any chromosome name if GTF and was ignored."
-                # del lengths[chrom]
-                break
+                print >> sys.stderr, "Warning: chromosome '" + chrom + "' of the chromosome lengths file does not match any chromosome name in the GTF file provided and was ignored."
+        # Checking if the chromosomes from the GTF file are present in the lengths file
         for chrom in gtf_chrom_names:
             if force_get_lengths: break
-            if chrom not in lengths.keys():
-                print "WARNING: chromosome name '" + chrom + "' was found in gtf and does not match any chromosome name provided in", args.chr_len + ". "
-                print "\t=> The chromosome lenghts will be approximated using annotations in the GTF file."
+            if chrom not in lengths:
+                print >> sys.stderr, "Warning: at least one chromosome ('" + chrom + "') was found in the GTF file and does not match any chromosome provided in the lengths file."
+                print >> sys.stderr, "\t=> All the chromosome lengths will be approximated using annotations in the GTF file."
                 continue_value = ""
-                while continue_value not in {"yes", "y", "no", "n"}:
-                    continue_value = raw_input(
-                        "\tDo you want to continue ('yes' or 'y')?\n\tElse write 'no' or 'n' to exit the script and check your file of lengths.\n")
-                    if continue_value == "no" or continue_value == "n":
-                        sys.exit("Exiting")
-                    elif continue_value == "yes" or continue_value == "y":
+                while continue_value not in ["yes", "y", "no", "n"]:
+                    continue_value = raw_input("\tDo you want to continue? ('yes'/'y' or 'no/n' to exit and check your chromosome lengths file)\n")
+                    if continue_value in ['no', 'n']:
+                        sys.exit("### End of program")
+                    if continue_value in ['yes', 'y']:
                         force_get_lengths = True
                         break
-                    print "Error: use 'yes/y/no/n' only"
+                    print >> sys.stderr, "\nError: the answer should be one of 'yes/y/no/n' only."
+        # If the all the chromosomes from the GTF file are in the chromosome lengths file
         if not force_get_lengths:
             return lengths
     # Otherwise, (or if at least one chromosome was missing in chromosome lengths file) we consider the end of the last annotation of the chromosome in the GTF file as the chromosome length
-    with open(args.annotation, 'r') as gtf_file:
+    with open(options.annotation, 'r') as gtf_file:
         for line in gtf_file:
             if not line.startswith('#'):
                 chrom = line.split('\t')[0]
                 end = int(line.split('\t')[4])
                 init_dict(lengths, chrom, 0)
                 lengths[chrom] = max(lengths[chrom], end)
-        if force_get_lengths:
-            print "The chromosome lenghts have been approximated using the last annotations in the GTF file."
-        return lengths
+    print "The chromosome lengths have been approximated using the last annotations in the GTF file."
+    return lengths
 
 
 def write_feature_on_index(feat, chrom, start, stop, sign, stranded_genome_index, unstranded_genome_index=None):
@@ -939,6 +941,11 @@ def filter_categs_on_biotype(selected_biotype, cpt):
     return filtered_cpt
 
 
+def unnecessary_param(param, message):
+    """ Function to display a warning on the standard error. """
+    if param:
+        print >> sys.stderr, message
+
 
 def usage_message():
     return '''
@@ -984,11 +991,15 @@ if __name__ == "__main__":
     parser.add_argument('--chr_len', help='Tabulated file containing chromosome names and lengths\n\n-----------\n\n')
 
     # Options regarding the intersection step
-    parser.add_argument('-i', '--input', '--bam', dest='input', metavar=('BAM_FILE1 LABEL1', ""), nargs='+',
-                        help='Input BAM file(s) and label(s). The BAM files must be sorted by position.\n\n')
+    #parser.add_argument('-i', '--input', '--bam', dest='input', metavar=('BAM_FILE1 LABEL1', ""), nargs='+',
+                        #help='Input BAM file(s) and label(s). The BAM files must be sorted by position.\n\n')
+    parser.add_argument('--bam', dest='bam', metavar=('BAM_FILE1 LABEL1', ""), nargs='+',
+                        help='Input BAM file(s) and label(s). The BAM files must be sorted by position.\n\n') ## MB: position AND chr??
     # parser.add_argument('--bedgraph', action='store_const',default = False, const = True, help="Use this options if your input file(s) is(are) already in bedgraph format\n\n")
-    parser.add_argument('--bedgraph', dest='bedgraph', action='store_const', default=False, const=True,
-                        help="Use this options if your input file(s) is(are) already in bedgraph format\n\n")
+    #parser.add_argument('--bedgraph', dest='bedgraph', action='store_const', default=False, const=True,
+                        #help="Use this options if your input file(s) is(are) already in bedgraph format\n\n")
+    parser.add_argument('--bedgraph', dest='bedgraph', metavar=('BEDGRAPH_FILE1 LABEL1', ""), nargs='+',
+                        help="Use this options if your input is/are BedGraph file(s).\n\n")
     parser.add_argument('-c', '--counts', metavar=('COUNTS_FILE', ""), nargs='+',
                         help="Use this options instead of '-i/--input' to provide ALFA counts files as input \ninstead of bam/bedgraph files.\n\n")
     parser.add_argument('-s', '--strandness', dest="strandness", nargs=1, action='store', default=['unstranded'],
@@ -1011,13 +1022,13 @@ if __name__ == "__main__":
     parser.add_argument('-t', '--threshold', dest='threshold', nargs=2, metavar=("ymin", "ymax"), type=float,
                         help="Set axis limits for enrichment plots\n\n")
 
-    if len(sys.argv) == 1:
+    if len(sys.argv) == 1: ## MB: Why??? If only counts for example it works no?
         parser.print_usage()
         sys.exit(1)
 
     options = parser.parse_args()
 
-
+    '''
     # Booleans for steps to be executed
     make_index = False
     intersect_reads = False
@@ -1088,7 +1099,7 @@ if __name__ == "__main__":
             genome_index = unstranded_genome_index
         else:
             genome_index = stranded_genome_index
-
+    '''
     #### Initialization of some variables
 
     # Initializing the category priority order, coding biotypes and the final list
@@ -1145,7 +1156,7 @@ if __name__ == "__main__":
 
     # Initializing the genome category counter dict
     cpt_genome = {}
-
+    '''
     if process_counts:
         #### If input files are the categories counts, just load them and continue to recategorization step
         cpt, cpt_genome, samples_names = read_counts_files(options.counts)
@@ -1257,7 +1268,7 @@ if __name__ == "__main__":
 
     # Print a warning message if the UTRs are not specified as 5' or 3' (they will be ploted as 5'UTR)
     if 'UTR' in [categ[0] for counts in cpt.values() for categ in counts.keys()]:
-        print '''\nWARNING: (some) 5'UTR/3'UTR are not precisely defined. Consequently, positions annotated as "UTR" will be counted as "5'UTR"\n'''
+        print "\nWARNING: (some) 5'UTR/3'UTR are not precisely defined. Consequently, positions annotated as "UTR" will be counted as "5'UTR"\n"
 
     #### Make the plot by categories
     #### Recategorizing with the final categories
@@ -1293,3 +1304,35 @@ if __name__ == "__main__":
         print "\n### Plots saved in pdf file: %s" % options.pdf
 
     print "\n### End of program"
+    '''
+print '### ALFA ###'
+if not (options.annotation or options.bam or options.bedgraph):
+    print >> sys.stderr, "\nError: At least one argument among '-a/--annotation', '--bam' or '--bedgraph' is required. " \
+                         "Please refer to help (-h/--help) and usage cases for more details.\n"
+    parser.print_usage()
+    sys.exit()
+
+## Step: Index creation
+if options.annotation:
+    # Getting the genome index basename
+    if options.genome_index:
+        genome_index_basename = options.genome_index
+    else:
+        # Otherwise the GTF filename without extension will be the basename
+        genome_index_basename = options.annotation.split("/")[-1].split(".gtf")[0]
+    # Checking if the index files already exist
+    if os.path.isfile(genome_index_basename + ".stranded.index"):
+        sys.exit("\nError: index files named '" + genome_index_basename + ".stranded.index' already exists but you provided a GTF file. If you want to create a new index, please delete these files or specify an other path.\n### End of program")
+    # Checking if the step is unnecessary
+    if options.counts:
+        unnecessary_param(options.annotation, "Warning: the parameter '-a/--annotation' will not be used because the counts are already provided.")
+        unnecessary_param(options.genome_index, "Warning: the parameter '-g/--genome_index' will not be used because the counts are already provided.")
+        unnecessary_param(options.chr_len, "Warning: the parameter '--chr_len' will not be used because the counts are already provided.")
+    else:
+        # Creating the index
+        #### Get the chromosome lengths
+        print '# Creating the genome index files'
+        lengths = get_chromosome_lengths()
+        # Generating the genome index files if the user didn't provide them
+        #create_genome_index(options.annotation, unstranded_genome_index, stranded_genome_index, cpt_genome, prios, biotypes, lengths)
+print '### End of program ###'
