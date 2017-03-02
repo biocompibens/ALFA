@@ -7,6 +7,7 @@ __author__ = 'noel & bahin'
 import argparse
 import os
 import numpy
+import copy
 import sys
 import subprocess
 import matplotlib.pyplot as plt
@@ -284,13 +285,13 @@ def create_genome_index(annotation, unstranded_genome_index, stranded_genome_ind
                         # print
                         # While the position is below the feature's interval, store the features
                         if pos < start:
-                            cur_cat_dict = dict(stranded_intervals[pos])
-                            cur_antisense_dict = dict(intervals_dict[antisense][pos])
+                            cur_cat_dict = copy.deepcopy(stranded_intervals[pos])
+                            cur_antisense_dict = copy.deepcopy(intervals_dict[antisense][pos])
 
                         # If the start position already exists: update it by addind the new feature
                         elif pos == start:
-                            cur_cat_dict = dict(stranded_intervals[pos])
-                            cur_antisense_dict = dict(intervals_dict[antisense][pos])
+                            cur_cat_dict = copy.deepcopy(stranded_intervals[pos])
+                            cur_antisense_dict = copy.deepcopy(intervals_dict[antisense][pos])
                             # print "cur",cur_cat_dict
                             try:
                                 stranded_intervals[pos][biotype] = stranded_intervals[pos][biotype] + [cat]
@@ -303,23 +304,25 @@ def create_genome_index(annotation, unstranded_genome_index, stranded_genome_ind
                             # Create a new entry for the start position if necessary
                             if not start_added:
                                 # print "cur",cur_cat_dict
-                                stranded_intervals[start] = dict(cur_cat_dict)
-                                stranded_intervals[start][biotype] = [cat]
-                                # stranded_intervals[pos][biotype].append(cat)
+                                stranded_intervals[start] = copy.deepcopy(cur_cat_dict)
+                                try:
+                                    stranded_intervals[start][biotype].append(cat)
+                                except KeyError:
+                                    stranded_intervals[start][biotype] = [cat]
                                 intervals_dict[antisense][start] = cur_antisense_dict
                                 start_added = True
                             # print "cur",cur_cat_dict
                             # While the position is below the stop, just add the new feature
                             if pos < stop:
-                                cur_cat_dict = dict(stranded_intervals[pos])
-                                cur_antisense_dict = dict(intervals_dict[antisense][pos])
+                                cur_cat_dict = copy.deepcopy(stranded_intervals[pos])
+                                cur_antisense_dict = copy.deepcopy(intervals_dict[antisense][pos])
                                 try:
                                     stranded_intervals[pos][biotype] = stranded_intervals[pos][biotype] + [cat]
                                 except KeyError:
                                     stranded_intervals[pos][biotype] = [cat]
                             # Close the created interval : create an entry at the stop position and restore the features
                             elif pos > stop:
-                                stranded_intervals[stop] = dict(cur_cat_dict)
+                                stranded_intervals[stop] = copy.deepcopy(cur_cat_dict)
                                 intervals_dict[antisense][stop] = cur_antisense_dict
                                 break
                             else:
