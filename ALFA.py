@@ -7,6 +7,7 @@ __author__ = 'noel & bahin'
 import argparse
 import os
 import numpy
+import copy
 import sys
 import subprocess
 import matplotlib.pyplot as plt
