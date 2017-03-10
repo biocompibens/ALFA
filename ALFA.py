@@ -15,7 +15,7 @@ import matplotlib.colors as colors
 import matplotlib.patheffects as PathEffects
 import re
 from matplotlib.backends.backend_pdf import PdfPages
-# To correctly embbed the texts when saving plots in svg format
+# To correctly embed the texts when saving plots in svg format
 import matplotlib
 import progressbar
 
@@ -35,7 +35,7 @@ def tryint(s):
     """ Function called by 'alphanum_key' function to sort the chromosome names. """
     try:
         return int(s)
-    except:
+    except ValueError:
         return s
 
 
@@ -54,6 +54,12 @@ def required_arg(arg, aliases):
         sys.exit()
 
 
+def existing_file(filename):
+    """ Checks if filename already exists and exit if so. """
+    if os.path.isfile(filename):
+        sys.exit("Error: The file '" + filename + "' is about to be produced but already exists in the directory. \n### End of program")
+
+
 def get_chromosome_lengths():
     """
     Parse the file containing the chromosome lengths.
@@ -61,107 +67,186 @@ def get_chromosome_lengths():
     """
     lengths = {}
     gtf_chrom_names = set()
-    force_get_lengths = False
     # If the user provided a chromosome length file
     if options.chr_len:
         # Getting the chromosome lengths from the chromosome lengths file
-        with open(options.chr_len, 'r') as chr_len_file:
+        with open(options.chr_len, "r") as chr_len_file:
             for line in chr_len_file:
                 try:
-                    lengths[line.split('\t')[0]] = int(line.rstrip().split('\t')[1])
+                    lengths[line.split("\t")[0]] = int(line.rstrip().split("\t")[1])
                 except IndexError:
-                    sys.exit('Error: The chromosome lengths file is not correctly formed. It is supposed to be tabulated file with two fields per line.')
+                    sys.exit("Error: The chromosome lengths file is not correctly formed. It is supposed to be tabulated file with two fields per line.")
         # Getting the chromosome lengths from the GTF file
-        with open(options.annotation, 'r') as gtf_file:
+        with open(options.annotation, "r") as gtf_file:
             for line in gtf_file:
-                if not line.startswith('#'):
-                    gtf_chrom_names.add(line.split('\t')[0])
+                if not line.startswith("#"):
+                    gtf_chrom_names.add(line.split("\t")[0])
         # Checking if the chromosomes from the chromosome lengths file are present in the GTF file
         for chrom in lengths:
             if chrom not in gtf_chrom_names:
                 print >> sys.stderr, "Warning: chromosome '" + chrom + "' of the chromosome lengths file does not match any chromosome name in the GTF file provided and was ignored."
         # Checking if the chromosomes from the GTF file are present in the lengths file
         for chrom in gtf_chrom_names:
-            if force_get_lengths: break
             if chrom not in lengths:
                 print >> sys.stderr, "Warning: at least one chromosome ('" + chrom + "') was found in the GTF file and does not match any chromosome provided in the lengths file."
                 print >> sys.stderr, "\t=> All the chromosome lengths will be approximated using annotations in the GTF file."
-                continue_value = ""
-                while continue_value not in ["yes", "y", "no", "n"]:
-                    continue_value = raw_input("\tDo you want to continue? ('yes'/'y' or 'no/n' to exit and check your chromosome lengths file)\n")
-                    if continue_value in ['no', 'n']:
-                        sys.exit("### End of program")
-                    if continue_value in ['yes', 'y']:
-                        force_get_lengths = True
-                        break
-                    print >> sys.stderr, "\nError: the answer should be one of 'yes/y/no/n' only."
-        # If the all the chromosomes from the GTF file are in the chromosome lengths file
-        if not force_get_lengths:
+                break
+        else:
             return lengths
-    # Otherwise, (or if at least one chromosome was missing in chromosome lengths file) we consider the end of the last annotation of the chromosome in the GTF file as the chromosome length
-    with open(options.annotation, 'r') as gtf_file:
+    # If no chromosome lengths file was provided or if at least one chromosome was missing in the file, the end of the last annotation of the chromosome in the GTF file is considered as the chromosome length
+    with open(options.annotation, "r") as gtf_file:
         for line in gtf_file:
-            if not line.startswith('#'):
-                chrom = line.split('\t')[0]
-                end = int(line.split('\t')[4])
+            if not line.startswith("#"):
+                chrom = line.split("\t")[0]
+                end = int(line.split("\t")[4])
                 init_dict(lengths, chrom, 0)
                 lengths[chrom] = max(lengths[chrom], end)
-    print "The chromosome lengths have been approximated using the last annotations in the GTF file."
+    print "The chromosome lengths have been approximated using the GTF file annotations (the stop position of the last annotation of each chromosome is considered as its length)."
     return lengths
 
 
-def write_feature_on_index(feat, chrom, start, stop, sign, stranded_genome_index, unstranded_genome_index=None):
+def write_feature_on_index(feat, chrom, start, stop, sign, stranded_genome_index):
+    """ Write one new line in the stranded index file and, if necessary, the unstranded index file. """
     grouped_by_biotype_features = []
     for biotype, categs in feat.iteritems():
         categ_list = []
         for cat in set(categs):
             categ_list.append(cat)
         grouped_by_biotype_features.append(":".join((str(biotype), ",".join(categ_list))))
+
+    #stranded_genome_index.write('\t'.join((chrom, start, stop, sign, '')) + '\t'.join(grouped_by_biotype_features) + '\n')
     stranded_genome_index.write(
-        '\t'.join((chrom, start, stop, sign, '')) + '\t'.join(grouped_by_biotype_features) + '\n')
-    if unstranded_genome_index:
+        '\t'.join((chrom, start, stop, sign)) + '\t' + '\t'.join(grouped_by_biotype_features) + '\n')
+    if unstranded_genome_index: ## MB: Why? Not always unstranded and stranded??
+        #unstranded_genome_index.write('\t'.join((chrom, start, stop, '.', '')) + '\t'.join(grouped_by_biotype_features) + '\n')
         unstranded_genome_index.write(
-            '\t'.join((chrom, start, stop, '.', '')) + '\t'.join(grouped_by_biotype_features) + '\n')
+            '\t'.join((chrom, start, stop, '.')) + '\t' + '\t'.join(grouped_by_biotype_features) + '\n')
 
 
+def write_index_line(feat, chrom, start, stop, sign, fh):
+    """ Write a new line in an index file. """
+    # Formatting the features info
+    feat_by_biotype = []
+    for biot, cat in feat.iteritems():
+        #feat_by_biotype.append(":".join((str(biot), ",".join(set(cat)))))
+        feat_by_biotype.append(":".join((str(biot), ",".join(set(cat)))))
+    # Writing the features info in the index file
+    fh.write('\t'.join((chrom, start, stop, sign)) + '\t' + '\t'.join(feat_by_biotype) + '\n')
+
+
+def write_index(feat_values, chrom, start, stop, stranded_genome_index, unstranded_genome_index):
+    """ Writing the features info in the proper index files. """
+    # Writing info to the stranded indexes
+    if feat_values[0] != {}:
+        write_index_line(feat_values[0], chrom, start, stop, '+', stranded_genome_index)
+    else:
+        stranded_genome_index.write('\t'.join((chrom, start, stop, '+', 'antisense\n')))
+    if feat_values[1] != {}:
+        write_index_line(feat_values[1], chrom, start, stop, '-', stranded_genome_index)
+    else:
+        stranded_genome_index.write('\t'.join((chrom, start, stop, '-', 'antisense\n')))
+    # Writing info to the unstranded index
+    unstranded_feat = dict(feat_values[0], **feat_values[1])
+    for name in set(feat_values[0]) & set(feat_values[1]):
+        unstranded_feat[name] += feat_values[0][name]
+    write_index_line(unstranded_feat, chrom, start, stop, '.', unstranded_genome_index)
+
+
+def count_genome_features(cpt, features, start, stop, coverage=1):
+    """ Reads genome index and registers feature counts. """
+    # If no biotype priority: category with the highest priority for each found biotype has the same weight (1/n_biotypes)
+    if not biotype_prios:
+        nb_biot = len(features)
+        # For each categ(s)/biotype pairs
+        for feat in features:
+            cur_prio = 0
+            # Separate categorie(s) and biotype
+            try:
+                biot, cats = feat.split(":")
+            # Error if the feature is "antisense": update the "antisense/antisense" counts
+            except ValueError:
+                try:
+                    cpt[("antisense", "antisense")] += (int(stop) - int(start)) * coverage / float(nb_biot)
+                except KeyError:
+                    cpt[("antisense", "antisense")] = (int(stop) - int(start)) * coverage / float(nb_biot)
+                return None
+            # Browse the categories and get only the one(s) with highest priority
+            for cat in cats.split(","):
+                try:
+                    prio = prios[cat]
+                except KeyError:
+                    # TODO: Find a way to add unknown categories
+                    if cat not in unknown_cat:
+                        print >> sys.stderr, "Warning: Unknown categorie '%s' found and ignored.\n" % cat,
+                    unknown_cat.add(cat)
+                    continue
+                # Check if the category has a highest priority than the current one
+                if prio > cur_prio:
+                    cur_prio = prio
+                    cur_cat = {cat}
+                if prio == cur_prio:
+                    cur_cat.add(cat)
+            # Increase each counts by the coverage divided by the number of categories and biotypes
+            nb_cat = len(cur_cat)
+            for cat in cur_cat:
+                try:
+                    cpt[(cat, biot)] += (int(stop) - int(start)) * coverage / (float(nb_biot * nb_cat))
+                except KeyError:
+                    cpt[(cat, biot)] = (int(stop) - int(start)) * coverage / (float(nb_biot * nb_cat))
+    else:
+        # TODO: Add an option to provide biotype priorities and handle it
+        pass
+
+'''
 def add_info(cpt, feat_values, start, stop, chrom=None, unstranded_genome_index=None, stranded_genome_index=None,
              biotype_prios=None, coverage=1, categ_prios=None):
     """
-    From an annotated genomic interval (start/stop positions and associated feature : one or more category(ies)/biotype pair(s) )
+    From an annotated genomic interval (start/stop positions and associated feature: one or more category(ies)/biotype pair(s) )
     - If a file is provided: write the  information at the end of the index file being generated;
-    - else : browse the features and update the counts of categories/biotypes found in the genome.
+    - else: browse the features and update the counts of categories/biotypes found in the genome.
     """
-    ## Writing in the file is it was provided
+    ## Writing in the file if it was provided
     if stranded_genome_index:
-        unstranded_features = None
         # If only one strand has a feature, this feature will directly be written on the unstranded index
         if feat_values[0] == {}:
-            # A interval with no feature corresponds to a region annotated only on the reverse strand : update 'antisense' counts
             stranded_genome_index.write('\t'.join((chrom, start, stop, '+', 'antisense\n')))
-            write_feature_on_index(feat_values[1], chrom, start, stop, '-', stranded_genome_index,
-                                   unstranded_genome_index)
-        else:
-            if feat_values[1] == {}:
-                write_feature_on_index(feat_values[0], chrom, start, stop, '+', stranded_genome_index,
-                                       unstranded_genome_index)
-                stranded_genome_index.write('\t'.join((chrom, start, stop, '-', 'antisense\n')))
+        elif feat_values[1] == {}:
+            stranded_genome_index.write('\t'.join((chrom, start, stop, '-', 'antisense\n')))
 
-            # Else, the unstranded index should contain the union of plus and minus features
-            else:
+        write_feature_on_index(feat_values[0], chrom, start, stop, '+', stranded_genome_index)
+        write_feature_on_index(feat_values[1], chrom, start, stop, '-', stranded_genome_index)
+        unstranded_feat = dict(feat_values[0], **feat_values[1])
+        for name in set(feat_values[0]) & set(feat_values[1]):
+            unstranded_feat[name] += feat_values[0][name]
+        write_feature_on_index(unstranded_feat, chrom, start, stop, '.', unstranded_genome_index)
+
+        if feat_values[0] == {}:
+            # An interval with no feature corresponds to a region annotated only on the reverse strand: update 'antisense' counts
+            stranded_genome_index.write('\t'.join((chrom, start, stop, '+', 'antisense\n')))
+            #write_feature_on_index(feat_values[1], chrom, start, stop, '-', stranded_genome_index, unstranded_genome_index)
+            write_feature_on_index(feat_values[1], chrom, start, stop, '-', stranded_genome_index)
+            write_feature_on_index(feat_values[1], chrom, start, stop, '.', unstranded_genome_index)
+        elif feat_values[1] == {}:
+                #write_feature_on_index(feat_values[0], chrom, start, stop, '+', stranded_genome_index, unstranded_genome_index)
                 write_feature_on_index(feat_values[0], chrom, start, stop, '+', stranded_genome_index)
-                write_feature_on_index(feat_values[1], chrom, start, stop, '-', stranded_genome_index)
-                unstranded_feat = dict(feat_values[0], **feat_values[1])
-                for name in set(feat_values[0]) & set(feat_values[1]):
-                    unstranded_feat[name] += feat_values[0][name]
-                write_feature_on_index(unstranded_feat, chrom, start, stop, '.', unstranded_genome_index)
+                write_feature_on_index(feat_values[0], chrom, start, stop, '.', unstranded_genome_index)
+                stranded_genome_index.write('\t'.join((chrom, start, stop, '-', 'antisense\n')))
+        # Else, the unstranded index should contain the union of plus and minus features
+        else:
+            write_feature_on_index(feat_values[0], chrom, start, stop, '+', stranded_genome_index)
+            write_feature_on_index(feat_values[1], chrom, start, stop, '-', stranded_genome_index)
+            unstranded_feat = dict(feat_values[0], **feat_values[1])
+            for name in set(feat_values[0]) & set(feat_values[1]):
+                unstranded_feat[name] += feat_values[0][name]
+            write_feature_on_index(unstranded_feat, chrom, start, stop, '.', unstranded_genome_index)
 
     ## Increasing category counter(s)
-    else:
+    else: ##MB Why increase if file not provided??
         # Default behavior if no biotype priorities : category with the highest priority for each found biotype has the same weight (1/n_biotypes)
         if not biotype_prios:
-            nb_feat = len(feat_values)
+            nb_feat = len(feat_values) ## MB: nb biotypes??
             # For every categ(s)/biotype pairs
-            for feat in feat_values:
+            for feat in feat_values: ## MB: for each biotype
                 cur_prio = 0
                 selected_categ = []
                 # Separate categorie(s) and biotype
@@ -170,29 +255,29 @@ def add_info(cpt, feat_values, start, stop, chrom=None, unstranded_genome_index=
                 # Error if feature equal "antisense" : update the 'antisense/antisense' counts
                 except ValueError:
                     try:
-                        cpt[(feat, feat)] += (int(stop) - int(start)) * coverage / float(nb_feat)
-                    except:
+                        cpt[(feat, feat)] += (int(stop) - int(start)) * coverage / float(nb_feat) ## MB: clearly write 'antisense'??
+                    except: ## MB: add a KeyError exception??
                         cpt[(feat, feat)] = (int(stop) - int(start)) * coverage / float(nb_feat)
                     return
                 # Browse the categories and get only the one(s) with highest priority
                 for cat in cats.split(','):
                     try:
                         prio = prios[cat]
-                    except:
+                    except: ## MB: KeyError??
                         # TODO Find a way to add unknown categories
                         if cat not in unknown_feature:
-                            print >> sys.stderr, "Warning: Unknown categorie %s found and ignored\n" % cat,
+                            print >> sys.stderr, "Warning: Unknown categorie %s found and ignored.\n" % cat,
                             unknown_feature.append(cat)
                         continue
                     if prio > cur_prio:
                         cur_prio = prio
                         selected_categ = [cat]
                     if prio == cur_prio:
-                        if cat != selected_categ:
+                        if cat != selected_categ: ## MB: work with set??
                             try:
                                 if cat not in selected_categ:
                                     selected_categ.append(cat)
-                            except TypeError:
+                            except TypeError: ## What TypeError??
                                 selected_categ = [selected_categ, cat]
                 # Increase each counts by the coverage divided by the number of categories and biotypes
                 nb_cats = len(selected_categ)
@@ -207,45 +292,45 @@ def add_info(cpt, feat_values, start, stop, chrom=None, unstranded_genome_index=
         else:
             # TODO Add an option to pass biotype priorities and handle it
             pass
+'''
 
-
-def print_chrom(features_dict, chrom, stranded_index_file, unstranded_index_file, cpt_genome):
+def register_interval(features_dict, chrom, stranded_index_fh, unstranded_index_fh):
+    """ Write the interval features info into the genome index files. """
     # Adding the chromosome to the list if not present
-    if chrom not in index_chrom_list:
-        index_chrom_list.append(chrom)
+    index_chrom_list.append(chrom)
     # Writing the chromosome in the index file
-    with open(unstranded_index_file, 'a') as findex, open(stranded_index_file, 'a') as fstrandedindex:
-        # Initialization of variables : start position of the first interval and associated features for +/- strands
-        start = ""
-        for pos in sorted(features_dict['+'].keys()):
-            if start != "":
-                add_info(cpt_genome, [features_plus, features_minus], str(start), str(pos), chrom,
-                         stranded_genome_index=fstrandedindex, unstranded_genome_index=findex)
-            start = pos
-            features_plus = features_dict['+'][pos]
-            features_minus = features_dict['-'][pos]
+    with open(unstranded_index_fh, 'a') as findex, open(stranded_index_fh, 'a') as fstrandedindex:
+        # Initializing the first interval start and features
+        sorted_pos = sorted(features_dict['+'].keys())
+        interval_start = sorted_pos[0]
+        features_plus = features_dict['+'][interval_start]
+        features_minus = features_dict['-'][interval_start]
+        # Browsing the interval boundaries
+        for interval_stop in sorted_pos[1:]:
+            # Writing the current interval features to the indexes
+            write_index([features_plus, features_minus], chrom, str(interval_start), str(interval_stop), fstrandedindex, findex)
+            # Initializing the new interval start and features
+            interval_start = interval_stop
+            features_plus = features_dict['+'][interval_start]
+            features_minus = features_dict['-'][interval_start]
 
 
-def create_genome_index(annotation, unstranded_genome_index, stranded_genome_index, cpt_genome, prios, biotypes,
-                        chrom_sizes):
-    ''' Create an index of the genome annotations and save it in a file'''
-    print '\n### Generating genome indexes\n',
-    sys.stdout.flush()
+def generate_genome_index(annotation, unstranded_genome_index, stranded_genome_index, chrom_sizes):
+    """ Create an index of the genome annotations and save it in a file. """
     # Initializations
-    intervals_dict = 0
+    intervals_dict = {}
     max_value = -1
     prev_chrom = ''
-    reverse_strand = {'+': '-', '-': '+'}
     i = 0  # Line counter
-    # Write the chromosomes lengths as comment lines before the genome index
+    # Write the chromosome lengths as comment lines before the genome index
     with open(unstranded_genome_index, 'w') as findex, open(stranded_genome_index, 'w') as fstrandedindex:
         for key, value in chrom_sizes.items():
             findex.write("#%s\t%s\n" % (key, value))
             fstrandedindex.write("#%s\t%s\n" % (key, value))
     # Progress bar to track the genome indexes creation
-    nb_lines = sum(1 for line in open(annotation))
+    nb_lines = sum(1 for _ in open(annotation))
     pbar = progressbar.ProgressBar(widgets=['Indexing the genome ', progressbar.Percentage(), ' ', progressbar.Bar(), progressbar.ETA()], max_value=nb_lines).start()
-    # Running through the GTF file and writing into genome index files
+    # Browsing the GTF file and writing into genome index files
     with open(annotation, 'r') as gtf_file:
         for line in gtf_file:
             i += 1
@@ -254,8 +339,8 @@ def create_genome_index(annotation, unstranded_genome_index, stranded_genome_ind
                 pbar.update(i)
             # Processing lines except comment ones
             if not line.startswith('#'):
-                # Getting the line infos
-                line_split = line[:-1].split('\t')
+                # Getting the line info
+                line_split = line.rstrip().split('\t')
                 chrom = line_split[0]
                 cat = line_split[2]
                 start = int(line_split[3]) - 1
@@ -263,135 +348,105 @@ def create_genome_index(annotation, unstranded_genome_index, stranded_genome_ind
                 strand = line_split[6]
                 antisense = reverse_strand[strand]
                 biotype = line_split[8].split('biotype')[1].split(';')[0].strip('" ')
-                feat = [(cat, biotype)]
-                # Registering chromosome info in the genome index file if this is a new chromosome or a annotation not overlapping previously recorded features
+                # Registering stored features info in the genome index file(s) if the new line concerns a new chromosome or the new line concerns an annotation not overlapping previously recorded ones
                 if start > max_value or chrom != prev_chrom:
                     # Write the previous features
-                    if intervals_dict != 0:
-                        print_chrom(intervals_dict, prev_chrom, stranded_genome_index, unstranded_genome_index,
-                                    cpt_genome)
+                    if intervals_dict:
+                        register_interval(intervals_dict, prev_chrom, stranded_genome_index, unstranded_genome_index)
                     prev_chrom = chrom
-                    # (Re)Initializing the chromosome lists
+                    # (Re)Initializing the intervals info dict
                     intervals_dict = {strand: {start: {biotype: [cat]}, stop: {}}, antisense: {start: {}, stop: {}}}
                     max_value = stop
 
                 # Update the dictionary which represents intervals for every distinct annotation
                 else:
-                    # Get intervals on the same strand as the current feature
+                    # Storing the intervals on the strand of the current feature
                     stranded_intervals = intervals_dict[strand]
-                    start_added = False
-                    for pos in sorted(stranded_intervals.keys()):
-                        # print pos
-                        # print stranded_intervals[pos]
-                        # print
-                        # While the position is below the feature's interval, store the features
-                        if pos < start:
-                            cur_cat_dict = dict(stranded_intervals[pos])
-                            cur_antisense_dict = dict(intervals_dict[antisense][pos])
+                    added_info = False # Variable to know if the features info were already added
+                    # Browsing the existing boundaries
+                    for boundary in sorted(stranded_intervals):
+                        # While the GTF line start is after the browsed boundary: keep the browsed boundary features info in case the GTF line start is before the next boundary
+                        if boundary < start:
+                            stored_feat = {strand: dict(stranded_intervals[boundary]), antisense: dict(intervals_dict[antisense][boundary])}
 
-                        # If the start position already exists: update it by addind the new feature
-                        elif pos == start:
-                            cur_cat_dict = dict(stranded_intervals[pos])
-                            cur_antisense_dict = dict(intervals_dict[antisense][pos])
-                            # print "cur",cur_cat_dict
+                        # The GTF line start is already an existing boundary: store the existing features info (to manage after the GTF line stop) and update it with the GTF line features info
+                        elif boundary == start:
+                            stored_feat = {strand: dict(stranded_intervals[boundary]), antisense: dict(intervals_dict[antisense][boundary])}
+                            # Adding the GTF line features info to the interval
                             try:
-                                stranded_intervals[pos][biotype] = stranded_intervals[pos][biotype] + [cat]
-                            except KeyError:
-                                stranded_intervals[pos][biotype] = [cat]
-                            start_added = True
-                        # print "cur",cur_cat_dict
+                                stranded_intervals[boundary][biotype] = stranded_intervals[boundary][biotype] + [cat]
+                            except KeyError: # If the GTF line features info regard an unregistered biotype
+                                stranded_intervals[boundary][biotype] = [cat]
+                            added_info = True # The features info were added
 
-                        elif pos > start:
-                            # Create a new entry for the start position if necessary
-                            if not start_added:
-                                # print "cur",cur_cat_dict
-                                stranded_intervals[start] = dict(cur_cat_dict)
+                        # The browsed boundary is after the GTF line start: add the GTF line features info
+                        elif boundary > start:
+                            # Create a new boundary for the GTF line start if necessary (if it is between 2 existing boundaries, it was not created before)
+                            if not added_info:
+                                stranded_intervals[start] = dict(stored_feat[strand])
                                 stranded_intervals[start][biotype] = [cat]
-                                # stranded_intervals[pos][biotype].append(cat)
-                                intervals_dict[antisense][start] = cur_antisense_dict
-                                start_added = True
-                            # print "cur",cur_cat_dict
-                            # While the position is below the stop, just add the new feature
-                            if pos < stop:
-                                cur_cat_dict = dict(stranded_intervals[pos])
-                                cur_antisense_dict = dict(intervals_dict[antisense][pos])
+                                intervals_dict[antisense][start] = stored_feat[antisense]
+                                added_info = True # The features info were added
+                            # While the browsed boundary is before the GTF line stop: store the existing features info (to manage after the GTF line stop) and update it with the GTF line features info
+                            if boundary < stop:
+                                stored_feat = {strand: dict(stranded_intervals[boundary]), antisense: dict(intervals_dict[antisense][boundary])}
                                 try:
-                                    stranded_intervals[pos][biotype] = stranded_intervals[pos][biotype] + [cat]
+                                    stranded_intervals[boundary][biotype] = stranded_intervals[boundary][biotype] + [cat]
                                 except KeyError:
-                                    stranded_intervals[pos][biotype] = [cat]
-                            # Close the created interval : create an entry at the stop position and restore the features
-                            elif pos > stop:
-                                stranded_intervals[stop] = dict(cur_cat_dict)
-                                intervals_dict[antisense][stop] = cur_antisense_dict
+                                    stranded_intervals[boundary][biotype] = [cat]
+                            # The GTF line stop is already exists, nothing more to do, the GTF line features info are integrated
+                            elif boundary == stop:
                                 break
-                            else:
-                                break
-                            # try:
-                            # cur_cat_dict = list(stranded_intervals[pos][biotype])
-                            # except KeyError: cur_cat_dict = list()
-                            # print stranded_intervals[pos]
-                            # print
-                    # Extend the dictionary if necessary
+                            # The browsed boundary is after the GTF line stop: create a new boundary for the GTF line stop (with the stored features info)
+                            else: # boundary > stop
+                                stranded_intervals[stop] = dict(stored_feat[strand])
+                                intervals_dict[antisense][stop] = stored_feat[antisense]
+                                break # The GTF line features info are integrated
+                    # If the GTF line stop is after the last boundary, extend the dictionary
                     if stop > max_value:
                         max_value = stop
                         stranded_intervals[stop] = {}
                         intervals_dict[antisense][stop] = {}
-                    # except KeyError:
-                    # print intervals_dict
-                    # quit()
-                    # intervals_dict[strand] = {strand:{start:{biotype:[cat]}, stop:{}},antisense:{start:{},stop:{}}}
-                    # continue
-                    # for sign in ['-','+']:
-                    # print sign
-                    # for key,val in sorted(intervals_dict[sign].iteritems()):
-                    # print key,'\t',val
-                    # print
-                    # print "-------\n"
 
         # Store the categories of the last chromosome
-        print_chrom(intervals_dict, chrom, stranded_genome_index, unstranded_genome_index, cpt_genome)
+        register_interval(intervals_dict, chrom, stranded_genome_index, unstranded_genome_index)
     pbar.finish()
 
 
-def create_bedgraph_files(bams, strandness):
-    samples_files = []
-    labels = []
-    print "\n### Generating the bedgraph files"
-    # Progress bar to track the bedgraph file creation
-    pbar = progressbar.ProgressBar(widgets=['Generating the bedgraph files ', progressbar.Percentage(), progressbar.Bar(), progressbar.Timer()], max_value=len(bams)+1).start()
+def generate_bedgraph_files(bam_files):
+    """ Creates BedGraph files from BAM ones and return filenames and labels. """
+    sample_files = []
+    sample_labels = []
+    # Progress bar to track the BedGraph file creation
+    pbar = progressbar.ProgressBar(widgets=['Generating the BedGraph files ', progressbar.Percentage(),
+                                            progressbar.Bar(), progressbar.Timer()], max_value=len(bam_files)+1).start()
     pbar.update(1)
-    for n in range(0, len(bams), 2):
+    for n in range(0, len(bam_files), 2):
         # Get the label for this sample
-        label = bams[n + 1]
-        # Modify it to contain only alphanumeric caracters (avoid files generation with dangerous names)
-        modified_label = "_".join(re.findall(r"[\w']+", label))
-        if strandness in ["reverse", "fr-secondstrand"]:
-            subprocess.call(
-                'bedtools genomecov -bg -split -strand - -ibam ' + bams[n] + ' > ' + modified_label + '.plus.bedgraph',
-                shell=True)
-            pbar.update(n+1)
-            subprocess.call(
-                'bedtools genomecov -bg -split -strand + -ibam ' + bams[n] + ' > ' + modified_label + '.minus.bedgraph',
-                shell=True)
-            pbar.update(n+1)
-        elif strandness in ["forward", "fr-firststrand"]:
-            subprocess.call(
-                'bedtools genomecov -bg -split -strand + -ibam ' + bams[n] + ' > ' + modified_label + '.plus.bedgraph',
-                shell=True)
-            pbar.update(n+1)
-            subprocess.call(
-                'bedtools genomecov -bg -split -strand - -ibam ' + bams[n] + ' > ' + modified_label + '.minus.bedgraph',
-                shell=True)
-            pbar.update(n+1)
+        sample_labels.append(bam_files[n + 1])
+        # Modify it to contain only alphanumeric characters (avoid files generation with dangerous names)
+        modified_label = "_".join(re.findall(r"[\w']+", bam_files[n + 1]))
+        if options.strandness in ["reverse", "fr-secondstrand"]:
+            subprocess.call('bedtools genomecov -bg -split -strand - -ibam ' + bam_files[n] + ' > ' + modified_label
+                            + '.plus.bedgraph', shell=True)
+            pbar.update(n + 1)
+            subprocess.call('bedtools genomecov -bg -split -strand + -ibam ' + bam_files[n] + ' > ' + modified_label
+                            + '.minus.bedgraph', shell=True)
+            pbar.update(n + 1)
+        elif options.strandness in ["forward", "fr-firststrand"]:
+            subprocess.call('bedtools genomecov -bg -split -strand + -ibam ' + bam_files[n] + ' > ' + modified_label
+                            + '.plus.bedgraph', shell=True)
+            pbar.update(n + 1)
+            subprocess.call('bedtools genomecov -bg -split -strand - -ibam ' + bam_files[n] + ' > ' + modified_label
+                            + '.minus.bedgraph', shell=True)
+            pbar.update(n + 1)
         else:
-            subprocess.call('bedtools genomecov -bg -split -ibam ' + bams[n] + ' > ' + modified_label + '.bedgraph',
-                            shell=True)
-            pbar.update(n+2)
-        samples_files.append(modified_label)
-        labels.append(label)
+            subprocess.call('bedtools genomecov -bg -split -ibam ' + bam_files[n] + ' > ' + modified_label
+                            + '.bedgraph', shell=True)
+            pbar.update(n + 2)
+        sample_files.append(modified_label)
     pbar.finish()
-    print "Done!"
-    return samples_files, labels
+    return sample_files, sample_labels
 
 
 def read_gtf(gtf_index_file, sign):
@@ -415,7 +470,8 @@ def read_gtf(gtf_index_file, sign):
     return endGTF
 
 
-def read_counts_files(counts_files):
+def read_counts(counts_files):
+    """ Reads the counts from an input file. """
     cpt = {}
     cpt_genome = {}
     labels = []
@@ -423,58 +479,67 @@ def read_counts_files(counts_files):
         label = os.path.splitext(os.path.basename(fcounts))[0]
         labels.append(label)
         cpt[label] = {}
-        with open(fcounts, "r") as f:
-            for line in f:
-                if line[0] == "#":
-                    continue
-                line_split = line[:-1].split('\t')
-                feature = tuple(line_split[0].split(','))
-                cpt[label][feature] = float(line_split[1])
-                cpt_genome[feature] = float(line_split[2])
+        with open(fcounts, "r") as counts_fh:
+            for line in counts_fh:
+                if not line.startswith("#"):
+                    feature = tuple(line.split("\t")[0].split(','))
+                    cpt[label][feature] = float(line.split("\t")[1])
+                    cpt_genome[feature] = float(line.rstrip().split("\t")[2])
     return cpt, cpt_genome, labels
 
 
 def get_chromosome_names_in_index(genome_index):
+    """ Returns the chromosome names in a genome index file. """
     with open(genome_index, 'r') as findex:
         for line in findex:
-            if not line.startswith('#'):
-                chrom = line.split('\t')[0]
-                if chrom not in index_chrom_list:
-                    index_chrom_list.append(chrom)
+            if not line.startswith('#') and (line.split('\t')[0] not in index_chrom_list):
+                index_chrom_list.append(line.split('\t')[0])
     return index_chrom_list
 
 
-def intersect_bedgraphs_and_index_to_counts_categories(samples_files, samples_names, prios, genome_index, strandness,
-                                                       biotype_prios=None):
+def read_index():
+    """ Parse index files info (chromosomes list, lengths and genome features). """
+    with open(genome_index, "r") as genome_index_fh:
+        for line in genome_index_fh:
+            if line.startswith("#"):
+                lengths[line.split("\t")[0][1:]] = int(line.split("\t")[1])
+            else:
+                chrom = line.split('\t')[0]
+                if chrom not in index_chrom_list:
+                    index_chrom_list.append(chrom)
+                count_genome_features(cpt_genome, line.rstrip().split('\t')[4:], line.split('\t')[1], line.split('\t')[2])
+
+
+def intersect_bedgraphs_and_index_to_counts_categories(sample_files, sample_labels, prios, genome_index,
+                                                       biotype_prios=None): ## MB: To review
     global gtf_line, gtf_chrom, gtf_start, gtf_stop, gtf_cat, endGTF
-    print "\n### Intersecting files with indexes"
     unknown_chrom = []
     cpt = {}  # Counter for the nucleotides in the BAM input file(s)
-    for n in range(len(samples_files)):
-        sample_file = samples_files[n]
-        sample_name = samples_names[n]
+    for n in range(len(sample_files)):
+        sample_file = sample_files[n]
+        sample_name = sample_labels[n]
         # Initializing the category counter dict for this sample and the number of lines to process for the progress bar
         init_dict(cpt, sample_name, {})
-        if strandness == "unstranded":
-            strands = [("", ".")]
-            nb_lines = sum(1 for line in open(sample_file + '.bedgraph'))
+        if options.strandness == 'unstranded':
+            strands = [('', '.')]
+            nb_lines = sum(1 for _ in open(sample_file + '.bedgraph'))
         else:
             strands = [('.plus', '+'), ('.minus', '-')]
-            nb_lines = sum(1 for line in open(sample_file + '.plus.bedgraph')) + sum(1 for line in open(sample_file + '.minus.bedgraph'))
+            nb_lines = sum(1 for _ in open(sample_file + '.plus.bedgraph')) + sum(1 for _ in open(sample_file + '.minus.bedgraph'))
 
-        # Progress bar to track the bedgraph and index intersection
+        # Progress bar to track the BedGraph and index intersection
         pbar = progressbar.ProgressBar(widgets=['Processing ' + sample_file + ' ', progressbar.Percentage(),
                                                 progressbar.Bar(), progressbar.Timer()],
                                            max_value=nb_lines).start()
         i = 0
 
-        # Intersecting the BEDGRAPH and genome index files
+        # Intersecting the BedGraph and index files
         for strand, sign in strands:
             prev_chrom = ''
             endGTF = False  # Reaching the next chr or the end of the GTF index
             intergenic_adds = 0.0
             with open(sample_file + strand + '.bedgraph', 'r') as bam_count_file:
-                # Running through the BEDGRAPH file
+                # Running through the BedGraph file
                 for bam_line in bam_count_file:
                     i += 1
                     if i % 10000 == 0:
@@ -529,8 +594,8 @@ def intersect_bedgraphs_and_index_to_counts_categories(samples_files, samples_na
                     # We can start the crossover
                     while not endGTF:
                         # Update category counter
-                        add_info(cpt[sample_name], gtf_features, bam_start, min(bam_stop, gtf_stop), coverage=bam_cpt,
-                                 categ_prios=prios)
+                        #add_info(cpt[sample_name], gtf_features, bam_start, min(bam_stop, gtf_stop), coverage=bam_cpt)
+                        count_genome_features(cpt[sample_name], gtf_features, bam_start, min(bam_stop, gtf_stop), coverage=bam_cpt)
                         # Read the next GTF file line if the BAM line is not entirely covered
                         if bam_stop > gtf_stop:
                             # Update the BAM start pointer
@@ -558,12 +623,13 @@ def intersect_bedgraphs_and_index_to_counts_categories(samples_files, samples_na
 
 
 def write_counts_in_files(cpt, genome_counts):
-    for label, dico in cpt.items():
-        label = "_".join(re.findall(r"[\w']+", label))
-        with open(label + ".categories_counts", "w") as fout:
+    """ Writes the biotype/category counts in an output file. """
+    for sample_label, counters in cpt.items():
+        sample_label = "_".join(re.findall(r"[\w']+", sample_label))
+        with open(sample_label + ".feature_counts.tsv", "w") as fout:
             fout.write("#Category,biotype\tCounts_in_bam\tSize_in_genome\n")
-            for feature, counts in dico.items():
-                fout.write("%s\t%s\t%s\n" % (','.join(feature), counts, genome_counts[feature]))
+            for features_pair, counts in counters.items():
+                fout.write("%s\t%s\t%s\n" % (','.join(features_pair), counts, genome_counts[features_pair]))
 
 
 def recategorize_the_counts(cpt, cpt_genome, final):
@@ -659,9 +725,9 @@ def one_sample_plot(ordered_categs, percentages, enrichment, n_cat, index, index
     cmap = plt.get_cmap('Spectral')
     cols = [cmap(x) for x in xrange(0, 256, 256 / n_cat)]
     if title:
-        ax1.set_title(title + "in: %s" % samples_names[0])
+        ax1.set_title(title + "in: %s" % sample_labels[0])
     else:
-        ax1.set_title(counts_type + " distribution in mapped reads in: %s" % samples_names[0])
+        ax1.set_title(counts_type + " distribution in mapped reads in: %s" % sample_labels[0])
     ax2.set_title('Normalized counts of ' + counts_type)
 
     ### Barplots
@@ -696,7 +762,7 @@ def one_sample_plot(ordered_categs, percentages, enrichment, n_cat, index, index
     return fig, ax1, ax2
 
 
-def make_plot(ordered_categs, samples_names, categ_counts, genome_counts, pdf, counts_type, threshold, title=None,
+def make_plot(ordered_categs, sample_names, categ_counts, genome_counts, pdf, counts_type, threshold, title=None,
               svg=None, png=None):
     # From ordered_categs, keep only the features (categs or biotypes) that we can find in at least one sample.
     existing_categs = set()
@@ -704,13 +770,13 @@ def make_plot(ordered_categs, samples_names, categ_counts, genome_counts, pdf, c
         existing_categs |= set(sample.keys())
     ordered_categs = filter(existing_categs.__contains__, ordered_categs)
     n_cat = len(ordered_categs)
-    n_exp = len(samples_names)
+    n_exp = len(sample_names)
     ##Initialization of the matrix of counts (nrow=nb_experiements, ncol=nb_categorie)
     counts = numpy.matrix(numpy.zeros(shape=(n_exp, n_cat)))
-    for exp in xrange(len(samples_names)):
+    for exp in xrange(len(sample_names)):
         for cat in xrange(len(ordered_categs)):
             try:
-                counts[exp, cat] = categ_counts[samples_names[exp]][ordered_categs[cat]]
+                counts[exp, cat] = categ_counts[sample_names[exp]][ordered_categs[cat]]
             except:
                 pass
 
@@ -731,7 +797,7 @@ def make_plot(ordered_categs, samples_names, categ_counts, genome_counts, pdf, c
     ## Create the enrichment array (counts divided by the categorie sizes in the genome)
     enrichment = numpy.array(percentages / sizes)
     if 'antisense_pos' in locals():
-        for i in xrange(len(samples_names)):
+        for i in xrange(len(sample_names)):
             enrichment[i][antisense_pos] = 0
     # enrichment=numpy.log(numpy.array(percentages/sizes))
     for exp in xrange(n_exp):
@@ -779,13 +845,13 @@ def make_plot(ordered_categs, samples_names, categ_counts, genome_counts, pdf, c
         ax1.bar(index + i * bar_width, percentages[i], bar_width,
                 alpha=opacity,
                 color=cmap[i],
-                label=samples_names[i], edgecolor='#FFFFFF', lw=0)
+                label=sample_names[i], edgecolor='#FFFFFF', lw=0)
         # Second barplot: enrichment relative to the genome for each categ
         # (the reads count in a categ is divided by the categ size in the genome)
         rects.append(ax2.bar(index + i * bar_width, enrichment[i], bar_width,
                              alpha=opacity,
                              color=cmap[i],
-                             label=samples_names[i], edgecolor=cmap[i], lw=0))
+                             label=sample_names[i], edgecolor=cmap[i], lw=0))
 
     ## Graphical options for the plot
     # Adding of the legend
@@ -906,7 +972,7 @@ def make_plot(ordered_categs, samples_names, categ_counts, genome_counts, pdf, c
     ## Showing the plot
     plt.tight_layout()
     fig.subplots_adjust(wspace=0.2)
-    if pdf:
+    if pdf: ## TODO: allow several output formats
         pdf.savefig(format='pdf')
         plt.close()
     elif svg:
@@ -982,45 +1048,46 @@ if __name__ == "__main__":
 
     #### Parse command line arguments and store them in 'options'
     parser = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter, usage=usage_message())
-    parser.add_argument('--version', action='version', version='version 1.0',
+    parser.add_argument("--version", action="version", version="version 1.0",
                         help="Show program's version number and exit\n\n-----------\n\n")
     # Options regarding the index
-    parser.add_argument('-g', '--genome_index',
+    parser.add_argument("-g", "--genome_index",
                         help="Genome index files path and basename for existing index, or path and basename for new index creation\n\n")
-    parser.add_argument('-a', '--annotation', metavar="GTF_FILE", help='Genomic annotations file (GTF format)\n\n')
-    parser.add_argument('--chr_len', help='Tabulated file containing chromosome names and lengths\n\n-----------\n\n')
+    parser.add_argument("-a", "--annotation", metavar="GTF_FILE", help="Genomic annotations file (GTF format)\n\n")
+    parser.add_argument("--chr_len", help="Tabulated file containing chromosome names and lengths\n\n-----------\n\n")
 
     # Options regarding the intersection step
     #parser.add_argument('-i', '--input', '--bam', dest='input', metavar=('BAM_FILE1 LABEL1', ""), nargs='+',
                         #help='Input BAM file(s) and label(s). The BAM files must be sorted by position.\n\n')
-    parser.add_argument('--bam', dest='bam', metavar=('BAM_FILE1 LABEL1', ""), nargs='+',
-                        help='Input BAM file(s) and label(s). The BAM files must be sorted by position.\n\n') ## MB: position AND chr??
+    parser.add_argument("--bam", metavar=("BAM_FILE1 LABEL1", ""), nargs="+",
+                        help="Input BAM file(s) and label(s). The BAM files must be sorted by position.\n\n") ## MB: position AND chr??
     # parser.add_argument('--bedgraph', action='store_const',default = False, const = True, help="Use this options if your input file(s) is(are) already in bedgraph format\n\n")
     #parser.add_argument('--bedgraph', dest='bedgraph', action='store_const', default=False, const=True,
                         #help="Use this options if your input file(s) is(are) already in bedgraph format\n\n")
-    parser.add_argument('--bedgraph', dest='bedgraph', metavar=('BEDGRAPH_FILE1 LABEL1', ""), nargs='+',
+    parser.add_argument("--bedgraph", metavar=("BEDGRAPH_FILE1 LABEL1", ""), nargs="+",
                         help="Use this options if your input is/are BedGraph file(s).\n\n")
-    parser.add_argument('-c', '--counts', metavar=('COUNTS_FILE', ""), nargs='+',
+    parser.add_argument("-c", "--counts", metavar=("COUNTS_FILE", ""), nargs="+",
                         help="Use this options instead of '-i/--input' to provide ALFA counts files as input \ninstead of bam/bedgraph files.\n\n")
-    parser.add_argument('-s', '--strandness', dest="strandness", nargs=1, action='store', default=['unstranded'],
-                        choices=['unstranded', 'forward', 'reverse', 'fr-firststrand', 'fr-secondstrand'], metavar="",
-                        help="Library orientation. Choose within: 'unstranded', 'forward'/'fr-firststrand' \nor 'reverse'/'fr-secondstrand'. (Default: 'unstranded')\n\n-----------\n\n")
+    #parser.add_argument('-s', '--strandness', dest="strandness", nargs=1, action='store', default=['unstranded'], choices=['unstranded', 'forward', 'reverse', 'fr-firststrand', 'fr-secondstrand'], metavar="", help="Library orientation. Choose within: 'unstranded', 'forward'/'fr-firststrand' \nor 'reverse'/'fr-secondstrand'. (Default: 'unstranded')\n\n-----------\n\n")
+    parser.add_argument("-s", "--strandness", default="unstranded",
+                        choices=["unstranded", "forward", "reverse", "fr-firststrand", "fr-secondstrand"], metavar="",
+                        help="Library orientation. Choose within: 'unstranded', "
+                             "'forward'/'fr-firststrand' \nor 'reverse'/'fr-secondstrand'. "
+                             "(Default: 'unstranded')\n\n-----------\n\n")
 
     # Options regarding the plot
-    parser.add_argument('-biotype_filter', nargs=1,
-                        help=argparse.SUPPRESS)  # "Make an extra plot of categories distribution using only counts of the specified biotype.")
-    parser.add_argument('-d', '--categories_depth', type=int, default='3', choices=range(1, 5),
+    parser.add_argument("--biotype_filter", help=argparse.SUPPRESS)  # "Make an extra plot of categories distribution using only counts of the specified biotype." ## MB: TO DISPLAY (no suppress)
+    parser.add_argument("-d", "--categories_depth", type=int, default=3, choices=range(1, 5),
                         help="Use this option to set the hierarchical level that will be considered in the GTF file (default=3): \n(1) gene,intergenic; \n(2) intron,exon,intergenic; \n(3) 5'UTR,CDS,3'UTR,intron,intergenic; \n(4) start_codon,5'UTR,CDS,3'UTR,stop_codon,intron,intergenic. \n\n")
-    parser.add_argument('--pdf', nargs='?', default=False,
-                        help="Save produced plots in PDF format at specified path ('categories_plots.pdf' if no argument provided)\n\n")
-    parser.add_argument('--png', nargs='?', default=False, const=True,
-                        help="Save produced plots in PNG format with provided argument as basename \nor 'categories.png' and 'biotypes.png' if no argument provided\n\n")
-    parser.add_argument('--svg', nargs='?', default=False, const=True,
-                        help="Save produced plots in SVG format with provided argument as basename \nor 'categories.svg' and 'biotypes.svg' if no argument provided\n\n")
-    parser.add_argument('-n', '--no_plot', dest='quiet', action='store_const', default=False, const=True,
-                        help="Do not show plots\n\n")
-    parser.add_argument('-t', '--threshold', dest='threshold', nargs=2, metavar=("ymin", "ymax"), type=float,
-                        help="Set axis limits for enrichment plots\n\n")
+    parser.add_argument("--pdf", nargs="?", const="ALFA_plots.pdf",
+                        help="Save produced plots in PDF format at specified path ('categories_plots.pdf' if no argument provided).\n\n")
+    parser.add_argument("--png", nargs="?", const="ALFA_plots.png",
+                        help="Save produced plots in PNG format with provided argument as basename \nor 'categories.png' and 'biotypes.png' if no argument provided.\n\n")
+    parser.add_argument("--svg", nargs="?", const="ALFA_plots.svg",
+                        help="Save produced plots in SVG format with provided argument as basename \nor 'categories.svg' and 'biotypes.svg' if no argument provided.\n\n")
+    parser.add_argument("-n", "--no_display", action="store_const", const=None, help="Do not display plots.\n\n") # We have to add "const=None" to avoid a bug in argparse
+    parser.add_argument("-t", "--threshold", dest="threshold", nargs=2, metavar=("ymin", "ymax"), type=float,
+                        help="Set axis limits for enrichment plots.\n\n")
 
     if len(sys.argv) == 1: ## MB: Why??? If only counts for example it works no?
         parser.print_usage()
@@ -1102,6 +1169,9 @@ if __name__ == "__main__":
     '''
     #### Initialization of some variables
 
+    # Miscellaneous variables
+    reverse_strand = {'+': '-', '-': '+'}
+
     # Initializing the category priority order, coding biotypes and the final list
     prios = {'start_codon': 7, 'stop_codon': 7, 'five_prime_utr': 6, 'three_prime_utr': 6, 'UTR': 6, 'CDS': 5, 'exon': 4,
              'transcript': 3, 'gene': 2, 'antisense': 1, 'intergenic': 0}
@@ -1152,7 +1222,8 @@ if __name__ == "__main__":
         biotypes_group1[biot] = [biot]
 
     # Initializing the unknown features list
-    unknown_feature = []
+    unknown_cat = set()
+    unknown_biot= set()
 
     # Initializing the genome category counter dict
     cpt_genome = {}
@@ -1269,7 +1340,7 @@ if __name__ == "__main__":
     # Print a warning message if the UTRs are not specified as 5' or 3' (they will be ploted as 5'UTR)
     if 'UTR' in [categ[0] for counts in cpt.values() for categ in counts.keys()]:
         print "\nWARNING: (some) 5'UTR/3'UTR are not precisely defined. Consequently, positions annotated as "UTR" will be counted as "5'UTR"\n"
-
+##MB
     #### Make the plot by categories
     #### Recategorizing with the final categories
     final_cats = categs_groups[options.categories_depth - 1]
@@ -1305,34 +1376,248 @@ if __name__ == "__main__":
 
     print "\n### End of program"
     '''
-print '### ALFA ###'
-if not (options.annotation or options.bam or options.bedgraph):
-    print >> sys.stderr, "\nError: At least one argument among '-a/--annotation', '--bam' or '--bedgraph' is required. " \
-                         "Please refer to help (-h/--help) and usage cases for more details.\n"
-    parser.print_usage()
-    sys.exit()
+    print "### ALFA ###"
+    if not (options.annotation or options.bam or options.bedgraph or options.counts):
+        print >> sys.stderr, "\nError: At least one argument among '-a/--annotation', '--bam', '--bedgraph' or " \
+                             "'-c/--counts' is required. Please refer to help (-h/--help) and usage cases for more " \
+                             "details.\n"
+        parser.print_usage()
+        sys.exit()
 
-## Step: Index creation
-if options.annotation:
-    # Getting the genome index basename
-    if options.genome_index:
-        genome_index_basename = options.genome_index
-    else:
-        # Otherwise the GTF filename without extension will be the basename
-        genome_index_basename = options.annotation.split("/")[-1].split(".gtf")[0]
-    # Checking if the index files already exist
-    if os.path.isfile(genome_index_basename + ".stranded.index"):
-        sys.exit("\nError: index files named '" + genome_index_basename + ".stranded.index' already exists but you provided a GTF file. If you want to create a new index, please delete these files or specify an other path.\n### End of program")
-    # Checking if the step is unnecessary
+    ## Getting the steps to execute and checking parameters
+
+    # Getting the steps to execute
+    generate_indexes = False
+    generate_BedGraph = False
+    intersect_indexes_BedGraph = False
+    generate_plot = False
+
+    # Checking parameters for the step: indexes generation
+    if options.annotation:
+        generate_indexes = True
+    elif options.chr_len:
+            unnecessary_param(options.chr_len, "Warning: the parameter '--chr_len' will not be used because the indexes generation step will not be performed.")
+
+    # Checking parameters for the step: BedGraph files generation
+    if options.bam:
+        if options.bedgraph:
+            sys.exit("\nError: parameters '--bam' and '--bedgraph' provided, only one should be.\n### End of program")
+        else:
+            if not generate_indexes and not options.genome_index:
+               sys.exit("\nError: parameter '-g/--genome_index' should be provided.\n### End of program")
+            # Checking the input BAM files
+            for i in xrange(0, len(options.bam), 2):
+                # Check whether the BAM file exists
+                try:
+                    open(options.bam[i])
+                except IOError:
+                    sys.exit("\nError: the BAM file " + options.bam[i] + " was not found.\n### End of program")
+                except IndexError:
+                    sys.exit("\nError: BAM files and associated labels are not correctly provided.\n"
+                             "Make sure to follow the expected format: --bam BAM_file1 Label1 [BAM_file2 Label2 ...]."
+                             "\n### End of program ###")
+                # Check whether the BedGraph file(s) and counts file that will be generated already exists
+                if options.strandness == "unstranded":
+                    existing_file(options.bam[i].split(".bam")[0] + ".bedgraph")
+                    existing_file("_".join(re.findall(r"[\w']+", options.bam[i + 1])) + ".unstranded.feature_counts.tsv")
+                else:
+                    existing_file(options.bam[i].split(".bam")[0] + ".plus.bedgraph")
+                    existing_file(options.bam[i].split(".bam")[0] + ".minus.bedgraph")
+                    existing_file("_".join(re.findall(r"[\w']+", options.bam[i + 1])) + ".stranded.feature_counts.tsv")
+                # Check whether the BAM file extension in 'bam'
+                if not options.bam[i].endswith(".bam"):
+                    sys.exit("\nError: at least one BAM file hasn't a '.bam' extension.\n### End of program ###")
+                # Check whether the labels hasn't a 'bam' extension
+                try:
+                    if options.bam[i + 1].endswith(".bam"):
+                        sys.exit("\nError: at least one label for a BAM file has a '.bam' extension.\n"
+                                 "Make sure to follow the expected format: --bam BAM_file1 Label1 [BAM_file2 Label2 ...]."
+                                 "\n### End of program ###")
+                except IndexError:
+                    sys.exit("\nError: BAM files and associated labels are not correctly provided.\n"
+                             "Make sure to follow the expected format: --bam BAM_file1 Label1 [BAM_file2 Label2 ...]."
+                             "\n### End of program ###")
+            # Set this step + the intersection one as tasks to process
+            generate_BedGraph = True
+            intersect_indexes_BedGraph = True
+
+    # Checking parameters for the step: indexes and BedGraph files intersection
+    if options.bedgraph:
+        if not generate_indexes and not options.genome_index:
+           sys.exit("\nError: parameter '-g/--genome_index' should be provided.\n### End of program")
+        if options.strandness == "unstranded":
+            sample_file_nb = 2
+        else:
+            sample_file_nb = 3
+        # Checking the input BedGraph files
+        sample_files = []
+        sample_labels = []
+        for i in xrange(0, len(options.bedgraph), sample_file_nb):
+            # Check whether the BedGraph file(s) exists
+            for j in range(0,sample_file_nb - 1):
+                try:
+                    open(options.bedgraph[i + j])
+                except IOError:
+                    sys.exit("\nError: the BedGraph file" + options.bedgraph[i + j] + " was not found.\n### End of program")
+                except IndexError:
+                    sys.exit("\nError: it looks like BedGraph files and associated labels are not correctly provided.\n"
+                         "Make sure to follow the expected format: --bam BedGraph_file1 Label1 [BedGraph_file2 Label2 ...]."
+                         "\n### End of program ###")
+                # Check whether the BedGraph file extension is 'bedgraph' or 'bg'
+                if not (options.bedgraph[i + j].endswith(".bedgraph") or options.bedgraph[i + j].endswith(".bg")):
+                    sys.exit("\nError: the BedGrapg file" + options.bedgraph[i + j] + "  hasn't a '.bedgraph'/'.bg' extension."
+                             "\n### End of program ###")
+                # Adding the sample filename to the list
+                sample_files.append(re.sub(".bg", "", re.sub(".bedgraph$", "", options.bedgraph[i + j])))
+            # Check whether the labels hasn't a 'bedgraph'/'bg' extension
+            try:
+                if options.bedgraph[i  + sample_file_nb - 1].endswith('.bedgraph') or options.bedgraph[i  + sample_file_nb - 1].endswith('.bg'):
+                    sys.exit("\nError: the label " + options.bedgraph[i  + sample_file_nb - 1] + " has a '.bedgraph'/'.bg' extension.\n"
+                             "Make sure to follow the expected format: "
+                             "--bedgraph BedGraph_file1 Label1 [BedGraph_file2 Label2 ...]."
+                             "\n### End of program ###")
+            except IndexError:
+                sys.exit("\nError: it looks like BedGraph files and associated labels are not correctly provided.\n"
+                         "Make sure to follow the expected format: --bam BedGraph_file1 Label1 [BedGraph_file2 Label2 ...]."
+                         "\n### End of program ###")
+            # Adding the label to the list
+            sample_label = options.bedgraph[i  + sample_file_nb - 1]
+            sample_labels.append(sample_label)
+            # Check whether the count file(s) that will be created already exists
+            if options.strandness == "unstranded":
+                existing_file(sample_label + "unstranded.feature_counts.tsv")
+            else:
+                existing_file(sample_label + "stranded.feature_counts.tsv")
+        # Set this step as a task to process
+        intersect_indexes_BedGraph = True
+
+    # Checking parameters for the step: plot generation
     if options.counts:
+        # Checking unnecessary parameters
         unnecessary_param(options.annotation, "Warning: the parameter '-a/--annotation' will not be used because the counts are already provided.")
         unnecessary_param(options.genome_index, "Warning: the parameter '-g/--genome_index' will not be used because the counts are already provided.")
-        unnecessary_param(options.chr_len, "Warning: the parameter '--chr_len' will not be used because the counts are already provided.")
+        unnecessary_param(options.bam, "Warning: the parameter '--bam' will not be used because the counts are already provided.")
+        unnecessary_param(options.bedgraph, "Warning: the parameter '--bedgraph' will not be used because the counts are already provided.")
     else:
-        # Creating the index
-        #### Get the chromosome lengths
-        print '# Creating the genome index files'
+        # Generating the genome index filenames
+        index_chrom_list = [] # Not a set because we need to sort it according to the chromosome names later
+        lengths = {}
+        if options.genome_index:
+            genome_index_basename = options.genome_index
+        elif options.annotation:
+            # Otherwise the GTF filename without extension will be the basename
+            genome_index_basename = options.annotation.split("/")[-1].split(".gtf")[0]
+        stranded_genome_index = genome_index_basename + ".stranded.index"
+        unstranded_genome_index = genome_index_basename + ".unstranded.index"
+        if options.strandness == "unstranded":
+            genome_index = unstranded_genome_index
+        else:
+            genome_index = stranded_genome_index
+    # If no plot is displayed or saved, plot parameters are useless
+    if options.no_display and not (options.pdf or options.png or options.svg):
+        unnecessary_param(options.categories_depth, "Warning: the parameter '-d/--categories_depth' will not be used because no plots will be displayed or saved.")
+        unnecessary_param(options.threshold, "Warning: the parameter '-t/--threshold' will not be used because no plots will be displayed or saved.")
+        unnecessary_param(options.annotation, "Warning: the parameter '--biotype_filter' will not be used because no plots will be displayed or saved.")
+    else:
+        ## [BN] X server check
+        # if not X server:
+            #options.no_display = True
+            #Message
+        generate_plot = True
+
+
+    ## Executing the step(s)
+
+    # Indexes generation
+    if generate_indexes:
+        # Checking if the index files already exist
+        if os.path.isfile(stranded_genome_index):
+            sys.exit("\nError: index files named '" + genome_index_basename +
+                     ".stranded.index' already exists but you provided a GTF file. If you want to generate a new index, "
+                     "please delete these files or specify an other path.\n### End of program")
+        # Running the index generation commands
+        print "# Generating the genome index files"
+        # Getting chromosomes lengths
         lengths = get_chromosome_lengths()
-        # Generating the genome index files if the user didn't provide them
-        #create_genome_index(options.annotation, unstranded_genome_index, stranded_genome_index, cpt_genome, prios, biotypes, lengths)
-print '### End of program ###'
+        # Generating the index files
+        generate_genome_index(options.annotation, unstranded_genome_index, stranded_genome_index, lengths)
+        # Displaying the list of indexed chromosomes
+        index_chrom_list.sort(key=alphanum_key)
+        print "Indexed chromosomes: " + ", ".join(index_chrom_list)
+    elif not options.counts:
+        # Getting index info
+        read_index()
+    if generate_indexes or not options.counts:
+        # Computing the genome intergenic count: sum of the chr lengths minus sum of the genome annotated intervals
+        cpt_genome[("intergenic", "intergenic")] = sum(lengths.values()) - sum([v for x, v in cpt_genome.iteritems() if x != ("antisense", "antisense")])
+
+    # BedGraph files generation
+    if generate_BedGraph:
+        print "# Generating the BedGraph files"
+        sample_files, sample_labels = generate_bedgraph_files(options.bam)
+
+    # Indexes and BedGraph files intersection
+    if intersect_indexes_BedGraph:
+        print "# Intersecting index and BedGraph files"
+        cpt = intersect_bedgraphs_and_index_to_counts_categories(sample_files, sample_labels, prios, genome_index,
+                                                                 biotype_prios=None)
+        # Write the counts to an output file
+        write_counts_in_files(cpt, cpt_genome)
+
+    ## Plot generation ## MB: all the section still to review
+    if generate_plot:
+        print "# Generating plots"
+        # If input files are the categories counts, the first step is to load them
+        if options.counts:
+            cpt, cpt_genome, sample_names = read_counts(options.counts)
+        # Managing the unknown biotypes
+        for sample_label, counters in cpt.items():
+            for (cat, biot) in counters:
+                if biot not in biotypes:
+                    unknown_biot.add(biot)
+        for biot in unknown_biot:
+            biotypes.add(biot)
+            biotypes_group1["others"].append(biot)
+        biotypes = sorted(biotypes)
+        # Moving antisense cat to the end of the list
+        biotypes.remove("antisense")
+        biotypes.append("antisense")
+        biotypes_group1 = sorted(biotypes_group1)
+        # Filtering biotypes if necessary
+        filtered_biotype = None
+        if options.biotype_filter:
+            for sample in cpt:
+                for feature in cpt[sample]:
+                    biotype = feature[1]
+                    if options.biotype_filter.lower() == biotype.lower():
+                        selected_biotype = biotype
+                        break
+            if filtered_biotype:
+                print "\nWarning: biotype '" + options.biotype_filter + "' not found. Please check the biotype name and that this biotype exists in your sample(s)."
+        # Setting the plots filenames
+        if options.pdf: ## MB: Do the same for svg and png??
+            pdf = PdfPages(options.pdf)
+        else:
+            pdf = False
+        ## Generate the categories plot
+        # Recategorizing within the final categories and plot generation
+        final_cats = categs_groups[options.categories_depth - 1]
+        final_cat_cpt, final_genome_cpt, filtered_cat_cpt = group_counts_by_categ(cpt, cpt_genome, final_cats, filtered_biotype)
+        # Remove the "antisense" category if the library type is "unstranded" ## MB: if options.strandness == "unstranded": cat_list.remove("antisense")??
+        for dic in cpt.values():
+            if ("antisense", "antisense") in dic.keys(): break
+        else:
+            cat_list.remove("antisense")
+        make_plot(cat_list, sample_labels, final_cat_cpt, final_genome_cpt, pdf, "categories", options.threshold,
+                  svg=options.svg, png=options.png)
+        if filtered_biotype:
+            make_plot(cat_list, sample_labels, filtered_cat_cpt, final_genome_cpt, pdf, "categories", options.threshold,
+                      title="Categories distribution for '" + filtered_biotype + "' biotype", svg=options.svg, png=options.png)
+        ## Generate the biotypes plot
+        # Recategorization within the final biotypes and plot generation
+        final_cat_cpt, final_genome_cpt = group_counts_by_biotype(cpt, cpt_genome, biotypes)
+        make_plot(biotypes, sample_labels, final_cat_cpt, final_genome_cpt, pdf, "biotypes", options.threshold, svg=options.svg,
+              png=options.png)
+
+
+    print "### End of program ###"
