@@ -1,8 +1,8 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 
-__author__ = 'noel & bahin'
-''' <decription> '''
+__author__ = "noel & bahin"
+""" ALFA provides a global overview of features distribution composing NGS dataset(s). """
 
 import argparse
 import os
@@ -20,7 +20,7 @@ from matplotlib.backends.backend_pdf import PdfPages
 import matplotlib
 import progressbar
 
-matplotlib.rcParams['svg.fonttype'] = 'none'
+matplotlib.rcParams["svg.fonttype"] = "none"
 
 
 ##########################################################################
@@ -33,7 +33,7 @@ def init_dict(d, key, init):
 
 
 def tryint(s):
-    """ Function called by 'alphanum_key' function to sort the chromosome names. """
+    """ Function called by "alphanum_key" function to sort the chromosome names. """
     try:
         return int(s)
     except ValueError:
@@ -44,7 +44,7 @@ def alphanum_key(s):
     """ Turn a string into a list of string and number chunks.
         "z23a" -> ["z", 23, "a"]
     """
-    return [ tryint(c) for c in re.split('([0-9]+)', s) ]
+    return [ tryint(c) for c in re.split("([0-9]+)", s) ]
 
 
 def required_arg(arg, aliases):
@@ -132,25 +132,25 @@ def write_index_line(feat, chrom, start, stop, sign, fh):
         #feat_by_biotype.append(":".join((str(biot), ",".join(set(cat)))))
         feat_by_biotype.append(":".join((str(biot), ",".join(set(cat)))))
     # Writing the features info in the index file
-    fh.write('\t'.join((chrom, start, stop, sign)) + '\t' + '\t'.join(feat_by_biotype) + '\n')
+    fh.write("\t".join((chrom, start, stop, sign)) + "\t" + "\t".join(feat_by_biotype) + "\n")
 
 
 def write_index(feat_values, chrom, start, stop, stranded_genome_index, unstranded_genome_index):
     """ Writing the features info in the proper index files. """
     # Writing info to the stranded indexes
     if feat_values[0] != {}:
-        write_index_line(feat_values[0], chrom, start, stop, '+', stranded_genome_index)
+        write_index_line(feat_values[0], chrom, start, stop, "+", stranded_genome_index)
     else:
-        stranded_genome_index.write('\t'.join((chrom, start, stop, '+', 'antisense\n')))
+        stranded_genome_index.write("\t".join((chrom, start, stop, "+", "antisense\n")))
     if feat_values[1] != {}:
-        write_index_line(feat_values[1], chrom, start, stop, '-', stranded_genome_index)
+        write_index_line(feat_values[1], chrom, start, stop, "-", stranded_genome_index)
     else:
-        stranded_genome_index.write('\t'.join((chrom, start, stop, '-', 'antisense\n')))
+        stranded_genome_index.write("\t".join((chrom, start, stop, "-", "antisense\n")))
     # Writing info to the unstranded index
     unstranded_feat = dict(feat_values[0], **feat_values[1])
     for name in set(feat_values[0]) & set(feat_values[1]):
         unstranded_feat[name] += feat_values[0][name]
-    write_index_line(unstranded_feat, chrom, start, stop, '.', unstranded_genome_index)
+    write_index_line(unstranded_feat, chrom, start, stop, ".", unstranded_genome_index)
 
 
 def count_genome_features(cpt, features, start, stop, coverage=1):
@@ -300,20 +300,20 @@ def register_interval(features_dict, chrom, stranded_index_fh, unstranded_index_
     # Adding the chromosome to the list if not present
     index_chrom_list.append(chrom)
     # Writing the chromosome in the index file
-    with open(unstranded_index_fh, 'a') as findex, open(stranded_index_fh, 'a') as fstrandedindex:
+    with open(unstranded_index_fh, "a") as findex, open(stranded_index_fh, "a") as fstrandedindex:
         # Initializing the first interval start and features
-        sorted_pos = sorted(features_dict['+'].keys())
+        sorted_pos = sorted(features_dict["+"].keys())
         interval_start = sorted_pos[0]
-        features_plus = features_dict['+'][interval_start]
-        features_minus = features_dict['-'][interval_start]
+        features_plus = features_dict["+"][interval_start]
+        features_minus = features_dict["-"][interval_start]
         # Browsing the interval boundaries
         for interval_stop in sorted_pos[1:]:
             # Writing the current interval features to the indexes
             write_index([features_plus, features_minus], chrom, str(interval_start), str(interval_stop), fstrandedindex, findex)
             # Initializing the new interval start and features
             interval_start = interval_stop
-            features_plus = features_dict['+'][interval_start]
-            features_minus = features_dict['-'][interval_start]
+            features_plus = features_dict["+"][interval_start]
+            features_minus = features_dict["-"][interval_start]
 
 
 def generate_genome_index(annotation, unstranded_genome_index, stranded_genome_index, chrom_sizes):
@@ -321,34 +321,34 @@ def generate_genome_index(annotation, unstranded_genome_index, stranded_genome_i
     # Initializations
     intervals_dict = {}
     max_value = -1
-    prev_chrom = ''
+    prev_chrom = ""
     i = 0  # Line counter
     # Write the chromosome lengths as comment lines before the genome index
-    with open(unstranded_genome_index, 'w') as findex, open(stranded_genome_index, 'w') as fstrandedindex:
+    with open(unstranded_genome_index, "w") as findex, open(stranded_genome_index, "w") as fstrandedindex:
         for key, value in chrom_sizes.items():
             findex.write("#%s\t%s\n" % (key, value))
             fstrandedindex.write("#%s\t%s\n" % (key, value))
     # Progress bar to track the genome indexes creation
     nb_lines = sum(1 for _ in open(annotation))
-    pbar = progressbar.ProgressBar(widgets=['Indexing the genome ', progressbar.Percentage(), ' ', progressbar.Bar(), progressbar.ETA()], max_value=nb_lines).start()
+    pbar = progressbar.ProgressBar(widgets=["Indexing the genome ", progressbar.Percentage(), " ", progressbar.Bar(), progressbar.ETA()], max_value=nb_lines).start()
     # Browsing the GTF file and writing into genome index files
-    with open(annotation, 'r') as gtf_file:
+    with open(annotation, "r") as gtf_file:
         for line in gtf_file:
             i += 1
             # Update the progressbar every 1k lines
             if i % 1000 == 1:
                 pbar.update(i)
             # Processing lines except comment ones
-            if not line.startswith('#'):
+            if not line.startswith("#"):
                 # Getting the line info
-                line_split = line.rstrip().split('\t')
+                line_split = line.rstrip().split("\t")
                 chrom = line_split[0]
                 cat = line_split[2]
                 start = int(line_split[3]) - 1
                 stop = int(line_split[4])
                 strand = line_split[6]
                 antisense = reverse_strand[strand]
-                biotype = line_split[8].split('biotype')[1].split(';')[0].strip('" ')
+                biotype = line_split[8].split("biotype")[1].split("";"")[0].strip('" ')
                 # Registering stored features info in the genome index file(s) if the new line concerns a new chromosome or the new line concerns an annotation not overlapping previously recorded ones
                 if start > max_value or chrom != prev_chrom:
                     # Write the previous features
@@ -419,7 +419,7 @@ def generate_bedgraph_files(bam_files):
     sample_files = []
     sample_labels = []
     # Progress bar to track the BedGraph file creation
-    pbar = progressbar.ProgressBar(widgets=['Generating the BedGraph files ', progressbar.Percentage(),
+    pbar = progressbar.ProgressBar(widgets=["Generating the BedGraph files ", progressbar.Percentage(),
                                             progressbar.Bar(), progressbar.Timer()], max_value=len(bam_files)+1).start()
     pbar.update(1)
     for n in range(0, len(bam_files), 2):
@@ -428,22 +428,22 @@ def generate_bedgraph_files(bam_files):
         # Modify it to contain only alphanumeric characters (avoid files generation with dangerous names)
         modified_label = "_".join(re.findall(r"[\w']+", bam_files[n + 1]))
         if options.strandness in ["reverse", "fr-secondstrand"]:
-            subprocess.call('bedtools genomecov -bg -split -strand - -ibam ' + bam_files[n] + ' > ' + modified_label
-                            + '.plus.bedgraph', shell=True)
+            subprocess.call("bedtools genomecov -bg -split -strand - -ibam " + bam_files[n] + " > " + modified_label
+                            + ".plus.bedgraph", shell=True)
             pbar.update(n + 1)
-            subprocess.call('bedtools genomecov -bg -split -strand + -ibam ' + bam_files[n] + ' > ' + modified_label
-                            + '.minus.bedgraph', shell=True)
+            subprocess.call("bedtools genomecov -bg -split -strand + -ibam " + bam_files[n] + " > " + modified_label
+                            + ".minus.bedgraph", shell=True)
             pbar.update(n + 1)
         elif options.strandness in ["forward", "fr-firststrand"]:
-            subprocess.call('bedtools genomecov -bg -split -strand + -ibam ' + bam_files[n] + ' > ' + modified_label
-                            + '.plus.bedgraph', shell=True)
+            subprocess.call("bedtools genomecov -bg -split -strand + -ibam " + bam_files[n] + " > " + modified_label
+                            + ".plus.bedgraph", shell=True)
             pbar.update(n + 1)
-            subprocess.call('bedtools genomecov -bg -split -strand - -ibam ' + bam_files[n] + ' > ' + modified_label
-                            + '.minus.bedgraph', shell=True)
+            subprocess.call("bedtools genomecov -bg -split -strand - -ibam " + bam_files[n] + " > " + modified_label
+                            + ".minus.bedgraph", shell=True)
             pbar.update(n + 1)
         else:
-            subprocess.call('bedtools genomecov -bg -split -ibam ' + bam_files[n] + ' > ' + modified_label
-                            + '.bedgraph', shell=True)
+            subprocess.call("bedtools genomecov -bg -split -ibam " + bam_files[n] + " > " + modified_label
+                            + ".bedgraph", shell=True)
             pbar.update(n + 2)
         sample_files.append(modified_label)
     pbar.finish()
@@ -459,7 +459,7 @@ def read_gtf(gtf_index_file, sign):
         if not gtf_line:
             endGTF = True
             return endGTF
-        splitline = gtf_line.rstrip().split('\t')
+        splitline = gtf_line.rstrip().split("\t")
         try:
             strand = splitline[3]
         # strand information can not be found in the file file header
@@ -483,7 +483,7 @@ def read_counts(counts_files):
         with open(fcounts, "r") as counts_fh:
             for line in counts_fh:
                 if not line.startswith("#"):
-                    feature = tuple(line.split("\t")[0].split(','))
+                    feature = tuple(line.split("\t")[0].split(","))
                     cpt[label][feature] = float(line.split("\t")[1])
                     cpt_genome[feature] = float(line.rstrip().split("\t")[2])
     return cpt, cpt_genome, labels
@@ -491,10 +491,10 @@ def read_counts(counts_files):
 
 def get_chromosome_names_in_index(genome_index):
     """ Returns the chromosome names in a genome index file. """
-    with open(genome_index, 'r') as findex:
+    with open(genome_index, "r") as findex:
         for line in findex:
-            if not line.startswith('#') and (line.split('\t')[0] not in index_chrom_list):
-                index_chrom_list.append(line.split('\t')[0])
+            if not line.startswith("#") and (line.split("\t")[0] not in index_chrom_list):
+                index_chrom_list.append(line.split("\t")[0])
     return index_chrom_list
 
 
@@ -505,10 +505,10 @@ def read_index():
             if line.startswith("#"):
                 lengths[line.split("\t")[0][1:]] = int(line.split("\t")[1])
             else:
-                chrom = line.split('\t')[0]
+                chrom = line.split("\t")[0]
                 if chrom not in index_chrom_list:
                     index_chrom_list.append(chrom)
-                count_genome_features(cpt_genome, line.rstrip().split('\t')[4:], line.split('\t')[1], line.split('\t')[2])
+                count_genome_features(cpt_genome, line.rstrip().split("\t")[4:], line.split("\t")[1], line.split("\t")[2])
 
 
 def intersect_bedgraphs_and_index_to_counts_categories(sample_files, sample_labels, prios, genome_index,
@@ -521,33 +521,33 @@ def intersect_bedgraphs_and_index_to_counts_categories(sample_files, sample_labe
         sample_name = sample_labels[n]
         # Initializing the category counter dict for this sample and the number of lines to process for the progress bar
         init_dict(cpt, sample_name, {})
-        if options.strandness == 'unstranded':
-            strands = [('', '.')]
-            nb_lines = sum(1 for _ in open(sample_file + '.bedgraph'))
+        if options.strandness == "unstranded":
+            strands = [("", ".")]
+            nb_lines = sum(1 for _ in open(sample_file + ".bedgraph"))
         else:
-            strands = [('.plus', '+'), ('.minus', '-')]
-            nb_lines = sum(1 for _ in open(sample_file + '.plus.bedgraph')) + sum(1 for _ in open(sample_file + '.minus.bedgraph'))
+            strands = [(".plus", "+"), (".minus", "-")]
+            nb_lines = sum(1 for _ in open(sample_file + ".plus.bedgraph")) + sum(1 for _ in open(sample_file + ".minus.bedgraph"))
 
         # Progress bar to track the BedGraph and index intersection
-        pbar = progressbar.ProgressBar(widgets=['Processing ' + sample_file + ' ', progressbar.Percentage(),
+        pbar = progressbar.ProgressBar(widgets=["Processing " + sample_file + " ", progressbar.Percentage(),
                                                 progressbar.Bar(), progressbar.Timer()],
                                            max_value=nb_lines).start()
         i = 0
 
         # Intersecting the BedGraph and index files
         for strand, sign in strands:
-            prev_chrom = ''
+            prev_chrom = ""
             endGTF = False  # Reaching the next chr or the end of the GTF index
             intergenic_adds = 0.0
-            with open(sample_file + strand + '.bedgraph', 'r') as bam_count_file:
+            with open(sample_file + strand + ".bedgraph", "r") as bam_count_file:
                 # Running through the BedGraph file
                 for bam_line in bam_count_file:
                     i += 1
                     if i % 10000 == 0:
                         pbar.update(i)
                     # Getting the BAM line info
-                    bam_chrom = bam_line.split('\t')[0]
-                    bam_start, bam_stop, bam_cpt = map(float, bam_line.split('\t')[1:4])
+                    bam_chrom = bam_line.split("\t")[0]
+                    bam_start, bam_stop, bam_cpt = map(float, bam_line.split("\t")[1:4])
                     # Skip the line if the chromosome is not in the index
                     if bam_chrom not in index_chrom_list:
                         if bam_chrom not in unknown_chrom:
@@ -562,7 +562,7 @@ def intersect_bedgraphs_and_index_to_counts_categories(sample_files, sample_labe
                             gtf_index_file.close()
                         except UnboundLocalError:
                             pass
-                        gtf_index_file = open(genome_index, 'r')
+                        gtf_index_file = open(genome_index, "r")
                         endGTF = False
                         read_gtf(gtf_index_file, sign)
                         while bam_chrom != gtf_chrom:
@@ -578,13 +578,13 @@ def intersect_bedgraphs_and_index_to_counts_categories(sample_files, sample_labe
                             endGTF = True
                     # Processing BAM lines before the first GTF annotation if there are
                     if bam_start < gtf_start:
-                        # Increase the 'intergenic' category counter with all or part of the BAM interval
+                        # Increase the "intergenic" category counter with all or part of the BAM interval
                         try:
                             intergenic_adds += min(bam_stop, gtf_start) - bam_start
-                            cpt[sample_name][('intergenic', 'intergenic')] += (min(bam_stop,
+                            cpt[sample_name][("intergenic", "intergenic")] += (min(bam_stop,
                                                                                    gtf_start) - bam_start) * bam_cpt
                         except KeyError:
-                            cpt[sample_name][('intergenic', 'intergenic')] = (min(bam_stop,
+                            cpt[sample_name][("intergenic", "intergenic")] = (min(bam_stop,
                                                                                   gtf_start) - bam_start) * bam_cpt
                         # Go to next line if the BAM interval was totally upstream the first GTF annotation, carry on with the remaining part otherwise
                         if endGTF or (bam_stop <= gtf_start):
@@ -615,9 +615,9 @@ def intersect_bedgraphs_and_index_to_counts_categories(sample_files, sample_labe
                     # Processing the end of the BAM line if necessary
                     if endGTF and (bam_stop > bam_start):
                         try:
-                            cpt[sample_name][('intergenic', 'intergenic')] += (bam_stop - bam_start) * bam_cpt
+                            cpt[sample_name][("intergenic", "intergenic")] += (bam_stop - bam_start) * bam_cpt
                         except KeyError:
-                            cpt[sample_name][('intergenic', 'intergenic')] = (bam_stop - bam_start) * bam_cpt
+                            cpt[sample_name][("intergenic", "intergenic")] = (bam_stop - bam_start) * bam_cpt
                 gtf_index_file.close()
         pbar.finish()
     return cpt
@@ -630,7 +630,7 @@ def write_counts_in_files(cpt, genome_counts):
         with open(sample_label + ".feature_counts.tsv", "w") as fout:
             fout.write("#Category,biotype\tCounts_in_bam\tSize_in_genome\n")
             for features_pair, counts in counters.items():
-                fout.write("%s\t%s\t%s\n" % (','.join(features_pair), counts, genome_counts[features_pair]))
+                fout.write("%s\t%s\t%s\n" % (",".join(features_pair), counts, genome_counts[features_pair]))
 
 
 def recategorize_the_counts(cpt, cpt_genome, final):
@@ -678,7 +678,7 @@ def group_counts_by_categ(cpt, cpt_genome, final, selected_biotype):
             else:
                 final_genome_cpt[final_cat] = tot_genome
             filtered_cat_cpt[f][final_cat] = tot_filter
-    # if 'antisense' in final_genome_cpt: final_genome_cpt['antisense'] = 0
+    # if "antisense" in final_genome_cpt: final_genome_cpt["antisense"] = 0
     return final_cat_cpt, final_genome_cpt, filtered_cat_cpt
 
 
@@ -723,13 +723,13 @@ def one_sample_plot(ordered_categs, percentages, enrichment, n_cat, index, index
     fig = plt.figure(figsize=(13, 9))
     ax1 = plt.subplot2grid((2, 4), (0, 0), colspan=2)
     ax2 = plt.subplot2grid((2, 4), (1, 0), colspan=2)
-    cmap = plt.get_cmap('Spectral')
+    cmap = plt.get_cmap("Spectral")
     cols = [cmap(x) for x in xrange(0, 256, 256 / n_cat)]
     if title:
         ax1.set_title(title + "in: %s" % sample_labels[0])
     else:
         ax1.set_title(counts_type + " distribution in mapped reads in: %s" % sample_labels[0])
-    ax2.set_title('Normalized counts of ' + counts_type)
+    ax2.set_title("Normalized counts of " + counts_type)
 
     ### Barplots
     # First barplot: percentage of reads in each categorie
@@ -740,9 +740,9 @@ def one_sample_plot(ordered_categs, percentages, enrichment, n_cat, index, index
     ax2.bar(index_enrichment, enrichment, bar_width,
             color=cols, )
     ### Piecharts
-    pielabels = [ordered_categs[i] if percentages[i] > 0.025 else '' for i in xrange(n_cat)]
+    pielabels = [ordered_categs[i] if percentages[i] > 0.025 else "" for i in xrange(n_cat)]
     sum_enrichment = numpy.sum(enrichment)
-    pielabels_enrichment = [ordered_categs[i] if enrichment[i] / sum_enrichment > 0.025 else '' for i in xrange(n_cat)]
+    pielabels_enrichment = [ordered_categs[i] if enrichment[i] / sum_enrichment > 0.025 else "" for i in xrange(n_cat)]
     # Categories piechart
     ax3 = plt.subplot2grid((2, 4), (0, 2))
     pie_wedge_collection, texts = ax3.pie(percentages, labels=pielabels, shadow=True, colors=cols)
@@ -751,15 +751,15 @@ def one_sample_plot(ordered_categs, percentages, enrichment, n_cat, index, index
     pie_wedge_collection, texts = ax4.pie(enrichment, labels=pielabels_enrichment, shadow=True, colors=cols)
     # Add legends (append percentages to labels)
     labels = [" ".join((ordered_categs[i], "({:.1%})".format(percentages[i]))) for i in range(len(ordered_categs))]
-    ax3.legend(pie_wedge_collection, labels, loc='center', fancybox=True, shadow=True, prop={'size': 'medium'},
+    ax3.legend(pie_wedge_collection, labels, loc="center", fancybox=True, shadow=True, prop={"size": "medium"},
                bbox_to_anchor=(1.7, 0.5))
     labels = [" ".join((ordered_categs[i], "({:.1%})".format(enrichment[i] / sum_enrichment))) for i in
-              range(len(ordered_categs))]  # if ordered_categs[i] != 'antisense']
-    ax4.legend(pie_wedge_collection, labels, loc='center', fancybox=True, shadow=True, prop={'size': 'medium'},
+              range(len(ordered_categs))]  # if ordered_categs[i] != "antisense"]
+    ax4.legend(pie_wedge_collection, labels, loc="center", fancybox=True, shadow=True, prop={"size": "medium"},
                bbox_to_anchor=(1.7, 0.5))
     # Set aspect ratio to be equal so that pie is drawn as a circle
-    ax3.set_aspect('equal')
-    ax4.set_aspect('equal')
+    ax3.set_aspect("equal")
+    ax4.set_aspect("equal")
     return fig, ax1, ax2
 
 
@@ -787,8 +787,8 @@ def make_plot(ordered_categs, sample_names, categ_counts, genome_counts, pdf, co
     for cat in ordered_categs:
         sizes.append(genome_counts[cat])
         sizes_sum += genome_counts[cat]
-    if 'antisense' in ordered_categs:
-        antisense_pos = ordered_categs.index('antisense')
+    if "antisense" in ordered_categs:
+        antisense_pos = ordered_categs.index("antisense")
         sizes[antisense_pos] = 1e-100
     for cpt in xrange(len(sizes)):
         sizes[cpt] /= float(sizes_sum)
@@ -797,7 +797,7 @@ def make_plot(ordered_categs, sample_names, categ_counts, genome_counts, pdf, co
     percentages = numpy.array(counts / numpy.sum(counts, axis=1))
     ## Create the enrichment array (counts divided by the categorie sizes in the genome)
     enrichment = numpy.array(percentages / sizes)
-    if 'antisense_pos' in locals():
+    if "antisense_pos" in locals():
         for i in xrange(len(sample_names)):
             enrichment[i][antisense_pos] = 0
     # enrichment=numpy.log(numpy.array(percentages/sizes))
@@ -818,7 +818,7 @@ def make_plot(ordered_categs, sample_names, categ_counts, genome_counts, pdf, co
     cmap = ["#e47878", "#68b4e5", "#a3ea9b", "#ea9cf3", "#e5c957", "#a3ecd1", "#e97ca0", "#66d985", "#8e7ae5",
             "#b3e04b", "#b884e4", "#e4e758", "#738ee3", "#e76688", "#70dddd", "#e49261"]
     if n_exp > ncolor:
-        cmap = plt.get_cmap('Set3', n_exp)
+        cmap = plt.get_cmap("Set3", n_exp)
         cmap = [cmap(i) for i in xrange(n_exp)]
 
     ## Parameters for the plot
@@ -834,7 +834,7 @@ def make_plot(ordered_categs, sample_names, categ_counts, genome_counts, pdf, co
     # fig, ax1, ax2 = one_sample_plot(ordered_categs, percentages[0], enrichment[0], n_cat, index, bar_width, counts_type, title)
     ## If more than one sample
     # else:
-    if counts_type.lower() != 'categories':
+    if counts_type.lower() != "categories":
         fig, (ax1, ax2) = plt.subplots(2, figsize=(5 + (n_cat + 2 * n_exp) / 3, 10))
     else:
         fig, (ax1, ax2) = plt.subplots(2, figsize=(5 + (n_cat + 2 * n_exp) / 3, 10))
@@ -846,7 +846,7 @@ def make_plot(ordered_categs, sample_names, categ_counts, genome_counts, pdf, co
         ax1.bar(index + i * bar_width, percentages[i], bar_width,
                 alpha=opacity,
                 color=cmap[i],
-                label=sample_names[i], edgecolor='#FFFFFF', lw=0)
+                label=sample_names[i], edgecolor="#FFFFFF", lw=0)
         # Second barplot: enrichment relative to the genome for each categ
         # (the reads count in a categ is divided by the categ size in the genome)
         rects.append(ax2.bar(index + i * bar_width, enrichment[i], bar_width,
@@ -857,20 +857,20 @@ def make_plot(ordered_categs, sample_names, categ_counts, genome_counts, pdf, co
     ## Graphical options for the plot
     # Adding of the legend
     if n_exp < 10:
-        ax1.legend(loc='best', frameon=False)
+        ax1.legend(loc="best", frameon=False)
         legend_ncol = 1
     elif n_exp < 19:
         legend_ncol = 2
     else:
         legend_ncol = 3
-    ax1.legend(loc='best', frameon=False, ncol=legend_ncol)
+    ax1.legend(loc="best", frameon=False, ncol=legend_ncol)
     # ax2.legend(loc='upper center',bbox_to_anchor=(0.5,-0.1), fancybox=True, shadow=True)
     # Main titles
     if title:
         ax1.set_title(title)
     else:
         ax1.set_title(counts_type + " distribution in mapped reads")
-    ax2.set_title('Normalized counts of ' + counts_type)
+    ax2.set_title("Normalized counts of " + counts_type)
 
     # Adding enrichment baseline
     # ax2.axhline(y=0,color='black',linestyle='dashed',linewidth='1.5')
@@ -912,17 +912,17 @@ def make_plot(ordered_categs, sample_names, categ_counts, genome_counts, pdf, co
         margin_top, margin_bottom = [max(margin_top, margin_bottom) for i in xrange(2)]
     ax2.set_ylim(ax2_ymin - margin_bottom, ax2_ymax + margin_top)
     # Y axis title
-    ax1.set_ylabel('Proportion of reads (%)')
-    ax2.set_ylabel('Enrichment relative to genome')
+    ax1.set_ylabel("Proportion of reads (%)")
+    ax2.set_ylabel("Enrichment relative to genome")
     # X axis title
     ax1.set_xlabel(counts_type)
     ax2.set_xlabel(counts_type)
     # Add the categories on the x-axis
     ax1.set_xticks(index + bar_width * n_exp / 2)
     ax2.set_xticks(index + bar_width * n_exp / 2)
-    if counts_type.lower() != 'categories':
-        ax1.set_xticklabels(ordered_categs, rotation='30', ha='right')
-        ax2.set_xticklabels(ordered_categs, rotation='30', ha='right')
+    if counts_type.lower() != "categories":
+        ax1.set_xticklabels(ordered_categs, rotation="30", ha="right")
+        ax2.set_xticklabels(ordered_categs, rotation="30", ha="right")
     else:
         ax1.set_xticklabels(ordered_categs)
         ax2.set_xticklabels(ordered_categs)
@@ -939,59 +939,59 @@ def make_plot(ordered_categs, sample_names, categ_counts, genome_counts, pdf, co
         int(-(i - 1))) + "$^{-1}$" if i < 0 and i % 1 == 0 else str(-(i - 1)) + "$^{-1}$" for i in ax2.get_yticks()])
     # ax2.set_yticklabels([i+1 if i>0 else 1 if i==0 else "$\\frac{1}{%s}$" %-(i-1) for i in ax2.get_yticks()])
     # Change appearance of 'antisense' bars on enrichment plot since we cannot calculate an enrichment for this artificial category
-    if 'antisense_pos' in locals():  # ax2.text(antisense_pos+bar_width/2,ax2.get_ylim()[1]/10,'NA')
+    if "antisense_pos" in locals():  # ax2.text(antisense_pos+bar_width/2,ax2.get_ylim()[1]/10,'NA')
         for i in xrange(n_exp):
             rect = rects[i][antisense_pos]
             rect.set_y(ax2.get_ylim()[0])
             rect.set_height(ax2.get_ylim()[1] - ax2.get_ylim()[0])
-            rect.set_hatch('/')
+            rect.set_hatch("/")
             rect.set_fill(False)
             rect.set_linewidth(0)
             # rect.set_color('lightgrey')
             # rect.set_edgecolor('#EDEDED')
-            rect.set_color('#EDEDED')
-        ax2.text(index[antisense_pos] + bar_width * n_exp / 2 - 0.1, (ax2_ymax + ax2_ymin) / 2, 'NA')
+            rect.set_color("#EDEDED")
+        ax2.text(index[antisense_pos] + bar_width * n_exp / 2 - 0.1, (ax2_ymax + ax2_ymin) / 2, "NA")
     # Add text for features absent in sample
     for i in xrange(n_exp):
         for y in xrange(n_cat):
             if percentages[i][y] == 0:
-                txt = ax1.text(y + bar_width * (i + 0.5), 0.02, 'Absent in sample', rotation='vertical', color=cmap[i],
-                               horizontalalignment='center', verticalalignment='bottom')
+                txt = ax1.text(y + bar_width * (i + 0.5), 0.02, "Absent in sample", rotation="vertical", color=cmap[i],
+                               horizontalalignment="center", verticalalignment="bottom")
                 txt.set_path_effects([PathEffects.Stroke(linewidth=0.5), PathEffects.Normal()])
             elif enrichment[i][y] == 0:
                 rects[i][y].set_linewidth(1)
 
     # Remove top/right/bottom axes
     for ax in [ax1, ax2]:
-        ax.spines['top'].set_visible(False)
-        ax.spines['right'].set_visible(False)
-        ax.spines['bottom'].set_visible(False)
-        ax.tick_params(axis='x', which='both', bottom='on', top='off', labelbottom='on')
-        ax.tick_params(axis='y', which='both', left='on', right='off', labelleft='on')
+        ax.spines["top"].set_visible(False)
+        ax.spines["right"].set_visible(False)
+        ax.spines["bottom"].set_visible(False)
+        ax.tick_params(axis="x", which="both", bottom="on", top="off", labelbottom="on")
+        ax.tick_params(axis="y", which="both", left="on", right="off", labelleft="on")
 
     # ax1.legend(loc='center right', bbox_to_anchor=(1.2, 0),fancybox=True, shadow=True)
     ## Showing the plot
     plt.tight_layout()
     fig.subplots_adjust(wspace=0.2)
     if pdf: ## TODO: allow several output formats
-        pdf.savefig(format='pdf')
+        pdf.savefig(format="pdf")
         plt.close()
     elif svg:
         if svg == True:
-            plt.savefig(counts_type + '.svg')
+            plt.savefig(counts_type + ".svg")
         else:
-            if os.path.splitext(svg)[1] == '.svg':
-                plt.savefig('.'.join((os.path.splitext(svg)[0], counts_type, 'svg')))
+            if os.path.splitext(svg)[1] == ".svg":
+                plt.savefig(".".join((os.path.splitext(svg)[0], counts_type, "svg")))
             else:
-                plt.savefig('.'.join((svg, counts_type, 'svg')))
+                plt.savefig(".".join((svg, counts_type, "svg")))
     elif png:
         if png == True:
-            plt.savefig(counts_type + '.png')
+            plt.savefig(counts_type + ".png")
         else:
-            if os.path.splitext(png)[1] == '.png':
-                plt.savefig('.'.join((os.path.splitext(png)[0], counts_type, 'png')))
+            if os.path.splitext(png)[1] == ".png":
+                plt.savefig(".".join((os.path.splitext(png)[0], counts_type, "png")))
             else:
-                plt.savefig('.'.join((png, counts_type, 'png')))
+                plt.savefig(".".join((png, counts_type, "png")))
     else:
         plt.show()
     ## Save on disk it as a png image
@@ -1015,7 +1015,7 @@ def unnecessary_param(param, message):
 
 
 def usage_message():
-    return '''
+    return """
     Generate genome indexes:
          python ALFA.py -a GTF_FILE  [-g GENOME_INDEX]
                                          [--chr_len CHR_LENGTHS_FILE]
@@ -1038,7 +1038,7 @@ def usage_message():
                             [-n] [--pdf output.pdf]
                             [-d {1,2,3,4}] [-t YMIN YMAX]
 
-        '''
+        """
 
 ##########################################################################
 #                           MAIN                                         #
@@ -1047,10 +1047,10 @@ def usage_message():
 
 if __name__ == "__main__":
 
-    #### Parse command line arguments and store them in 'options'
+    #### Parse command line arguments and store them in the variable options
     parser = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter, usage=usage_message())
     parser.add_argument("--version", action="version", version="version 1.0",
-                        help="Show program's version number and exit\n\n-----------\n\n")
+                        help="Show ALFA version number and exit\n\n-----------\n\n")
     # Options regarding the index
     parser.add_argument("-g", "--genome_index",
                         help="Genome index files path and basename for existing index, or path and basename for new index creation\n\n")
@@ -1171,33 +1171,33 @@ if __name__ == "__main__":
     #### Initialization of some variables
 
     # Miscellaneous variables
-    reverse_strand = {'+': '-', '-': '+'}
+    reverse_strand = {"+": "-", "-": "+"}
 
     # Initializing the category priority order, coding biotypes and the final list
-    prios = {'start_codon': 7, 'stop_codon': 7, 'five_prime_utr': 6, 'three_prime_utr': 6, 'UTR': 6, 'CDS': 5, 'exon': 4,
-             'transcript': 3, 'gene': 2, 'antisense': 1, 'intergenic': 0}
+    prios = {"start_codon": 7, "stop_codon": 7, "five_prime_utr": 6, "three_prime_utr": 6, "UTR": 6, "CDS": 5, "exon": 4,
+             "transcript": 3, "gene": 2, "antisense": 1, "intergenic": 0}
 
     biotype_prios = None
     # biotype_prios = {"protein_coding":1, "miRNA":2}
 
     # Possibles groups of categories to plot
-    categs_group1 = {'start': ['start_codon'], '5UTR': ['five_prime_utr', 'UTR'], 'CDS': ['CDS', 'exon'],
-                     '3UTR': ['three_prime_utr'], 'stop': ['stop_codon'], 'introns': ['transcript', 'gene'],
-                     'intergenic': ['intergenic'], 'antisense': ['antisense']}
-    categs_group2 = {'5UTR': ['five_prime_utr', 'UTR'], 'CDS': ['CDS', 'exon', 'start_codon', 'stop_codon'],
-                     '3UTR': ['three_prime_utr'], 'introns': ['transcript', 'gene'], 'intergenic': ['intergenic'],
-                     'antisense': ['antisense']}
-    categs_group3 = {'exons': ['five_prime_utr', 'three_prime_utr', 'UTR', 'CDS', 'exon', 'start_codon', 'stop_codon'],
-                     'introns': ['transcript', 'gene'], 'intergenic': ['intergenic'], 'antisense': ['antisense']}
+    categs_group1 = {"start": ["start_codon"], "5UTR": ["five_prime_utr", "UTR"], "CDS": ["CDS", "exon"],
+                     "3UTR": ["three_prime_utr"], "stop": ["stop_codon"], "introns": ["transcript", "gene"],
+                     "intergenic": ["intergenic"], "antisense": ["antisense"]}
+    categs_group2 = {"5UTR": ["five_prime_utr", "UTR"], "CDS": ["CDS", "exon", "start_codon", "stop_codon"],
+                     "3UTR": ["three_prime_utr"], "introns": ["transcript", "gene"], "intergenic": ["intergenic"],
+                     "antisense": ["antisense"]}
+    categs_group3 = {"exons": ["five_prime_utr", "three_prime_utr", "UTR", "CDS", "exon", "start_codon", "stop_codon"],
+                     "introns": ["transcript", "gene"], "intergenic": ["intergenic"], "antisense": ["antisense"]}
     categs_group4 = {
-        'gene': ['five_prime_utr', 'three_prime_utr', 'UTR', 'CDS', 'exon', 'start_codon', 'stop_codon', 'transcript',
-                 'gene'], 'intergenic': ['intergenic'], 'antisense': ['antisense']}
+        "gene": ["five_prime_utr", "three_prime_utr", "UTR", "CDS", "exon", "start_codon", "stop_codon", "transcript",
+                 "gene"], "intergenic": ["intergenic"], "antisense": ["antisense"]}
     categs_groups = [categs_group4, categs_group3, categs_group2, categs_group1]  # Order and merging for the final plot
-    cat_list = ['5UTR', 'start', 'CDS', 'stop', '3UTR', 'exons', 'introns', 'gene', 'intergenic', 'antisense']
+    cat_list = ["5UTR", "start", "CDS", "stop", "3UTR", "exons", "introns", "gene", "intergenic", "antisense"]
 
     # biotypes list
-    biotypes = {'protein_coding', 'polymorphic_pseudogene', 'TR_C_gene', 'TR_D_gene', 'TR_J_gene', 'TR_V_gene', 'IG_C_gene',
-                'IG_D_gene', 'IG_J_gene', 'IG_V_gene', "3prime_overlapping_ncrna", "lincRNA", "macro_lncRNA", "miRNA",
+    biotypes = {"protein_coding", "polymorphic_pseudogene", "TR_C_gene", "TR_D_gene", "TR_J_gene", "TR_V_gene", "IG_C_gene",
+                "IG_D_gene", "IG_J_gene", "IG_V_gene", "3prime_overlapping_ncrna", "lincRNA", "macro_lncRNA", "miRNA",
                 "misc_RNA", "Mt_rRNA", "Mt_tRNA", "processed_transcript", "ribozyme", "rRNA", "scaRNA", "sense_intronic",
                 "sense_overlapping", "snoRNA", "snRNA", "sRNA", "TEC", "vaultRNA", "antisense",
                 "transcribed_processed_pseudogene", "transcribed_unitary_pseudogene", "transcribed_unprocessed_pseudogene",
@@ -1206,16 +1206,16 @@ if __name__ == "__main__":
                 "pseudogene", "ncRNA", "tRNA"}  # Type: set (to access quickly)
 
     # Grouping of biotypes:
-    biotypes_group1 = {'protein_coding': ['protein_coding'],
-                       'pseudogenes': ['polymorphic_pseudogene', "transcribed_processed_pseudogene",
+    biotypes_group1 = {"protein_coding": ["protein_coding"],
+                       "pseudogenes": ["polymorphic_pseudogene", "transcribed_processed_pseudogene",
                                        "transcribed_unitary_pseudogene", "transcribed_unprocessed_pseudogene",
                                        "translated_unprocessed_pseudogene", "TR_J_pseudogene", "TR_V_pseudogene",
                                        "unitary_pseudogene", "unprocessed_pseudogene", "processed_pseudogene",
                                        "IG_C_pseudogene", "IG_J_pseudogene", "IG_V_pseudogene", "pseudogene"],
-                       'TR': ['TR_C_gene', 'TR_D_gene', 'TR_J_gene', 'TR_V_gene'],
-                       'IG': ['IG_C_gene', 'IG_D_gene', 'IG_J_gene', 'IG_V_gene'], \
-                       'MT_RNA': ["Mt_rRNA", "Mt_tRNA"], \
-                       'ncRNA': ["lincRNA", "macro_lncRNA", "3prime_overlapping_ncrna", "ncRNA"], \
+                       "TR": ["TR_C_gene", "TR_D_gene", "TR_J_gene", "TR_V_gene"],
+                       "IG": ["IG_C_gene", "IG_D_gene", "IG_J_gene", "IG_V_gene"], \
+                       "MT_RNA": ["Mt_rRNA", "Mt_tRNA"], \
+                       "ncRNA": ["lincRNA", "macro_lncRNA", "3prime_overlapping_ncrna", "ncRNA"], \
                        "others": ["misc_RNA", "processed_transcript", "ribozyme", "scaRNA", "sense_intronic",
                                   "sense_overlapping", "TEC", "vaultRNA"],
                        "antisense": ["antisense"]}
@@ -1428,7 +1428,7 @@ if __name__ == "__main__":
                 # Check whether the BAM file extension in 'bam'
                 if not options.bam[i].endswith(".bam"):
                     sys.exit("\nError: at least one BAM file hasn't a '.bam' extension.\n### End of program ###")
-                # Check whether the labels hasn't a 'bam' extension
+                # Check whether the labels hasn't a "bam" extension
                 try:
                     if options.bam[i + 1].endswith(".bam"):
                         sys.exit("\nError: at least one label for a BAM file has a '.bam' extension.\n"
@@ -1464,13 +1464,13 @@ if __name__ == "__main__":
                     sys.exit("\nError: it looks like BedGraph files and associated labels are not correctly provided.\n"
                          "Make sure to follow the expected format: --bam BedGraph_file1 Label1 [BedGraph_file2 Label2 ...]."
                          "\n### End of program ###")
-                # Check whether the BedGraph file extension is 'bedgraph' or 'bg'
+                # Check whether the BedGraph file extension is "bedgraph"/"bg"
                 if not (options.bedgraph[i + j].endswith(".bedgraph") or options.bedgraph[i + j].endswith(".bg")):
                     sys.exit("\nError: the BedGrapg file" + options.bedgraph[i + j] + "  hasn't a '.bedgraph'/'.bg' extension."
                              "\n### End of program ###")
                 # Adding the sample filename to the list
                 sample_files.append(re.sub(".bg", "", re.sub(".bedgraph$", "", options.bedgraph[i + j])))
-            # Check whether the labels hasn't a 'bedgraph'/'bg' extension
+            # Check whether the labels hasn't a "bedgraph"/"bg" extension
             try:
                 if options.bedgraph[i  + sample_file_nb - 1].endswith('.bedgraph') or options.bedgraph[i  + sample_file_nb - 1].endswith('.bg'):
                     sys.exit("\nError: the label " + options.bedgraph[i  + sample_file_nb - 1] + " has a '.bedgraph'/'.bg' extension.\n"
