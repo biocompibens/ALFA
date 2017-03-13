@@ -71,15 +71,15 @@ def get_chromosome_lengths():
     # If the user provided a chromosome length file
     if options.chr_len:
         # Getting the chromosome lengths from the chromosome lengths file
-        with open(options.chr_len, "r") as chr_len_file:
-            for line in chr_len_file:
+        with open(options.chr_len, "r") as chr_len_fh:
+            for line in chr_len_fh:
                 try:
                     lengths[line.split("\t")[0]] = int(line.rstrip().split("\t")[1])
                 except IndexError:
                     sys.exit("Error: The chromosome lengths file is not correctly formed. It is supposed to be tabulated file with two fields per line.")
         # Getting the chromosome lengths from the GTF file
-        with open(options.annotation, "r") as gtf_file:
-            for line in gtf_file:
+        with open(options.annotation, "r") as gtf_fh:
+            for line in gtf_fh:
                 if not line.startswith("#"):
                     gtf_chrom_names.add(line.split("\t")[0])
         # Checking if the chromosomes from the chromosome lengths file are present in the GTF file
@@ -95,8 +95,8 @@ def get_chromosome_lengths():
         else:
             return lengths
     # If no chromosome lengths file was provided or if at least one chromosome was missing in the file, the end of the last annotation of the chromosome in the GTF file is considered as the chromosome length
-    with open(options.annotation, "r") as gtf_file:
-        for line in gtf_file:
+    with open(options.annotation, "r") as gtf_fh:
+        for line in gtf_fh:
             if not line.startswith("#"):
                 chrom = line.split("\t")[0]
                 end = int(line.split("\t")[4])
@@ -300,7 +300,7 @@ def register_interval(features_dict, chrom, stranded_index_fh, unstranded_index_
     # Adding the chromosome to the list if not present
     index_chrom_list.append(chrom)
     # Writing the chromosome in the index file
-    with open(unstranded_index_fh, "a") as findex, open(stranded_index_fh, "a") as fstrandedindex:
+    with open(unstranded_index_fh, "a") as unstranded_index_fh, open(stranded_index_fh, "a") as stranded_index_fh:
         # Initializing the first interval start and features
         sorted_pos = sorted(features_dict["+"].keys())
         interval_start = sorted_pos[0]
@@ -309,7 +309,7 @@ def register_interval(features_dict, chrom, stranded_index_fh, unstranded_index_
         # Browsing the interval boundaries
         for interval_stop in sorted_pos[1:]:
             # Writing the current interval features to the indexes
-            write_index([features_plus, features_minus], chrom, str(interval_start), str(interval_stop), fstrandedindex, findex)
+            write_index([features_plus, features_minus], chrom, str(interval_start), str(interval_stop), stranded_index_fh, unstranded_index_fh)
             # Initializing the new interval start and features
             interval_start = interval_stop
             features_plus = features_dict["+"][interval_start]
@@ -324,16 +324,16 @@ def generate_genome_index(annotation, unstranded_genome_index, stranded_genome_i
     prev_chrom = ""
     i = 0  # Line counter
     # Write the chromosome lengths as comment lines before the genome index
-    with open(unstranded_genome_index, "w") as findex, open(stranded_genome_index, "w") as fstrandedindex:
+    with open(unstranded_genome_index, "w") as unstranded_index_fh, open(stranded_genome_index, "w") as stranded_index_fh:
         for key, value in chrom_sizes.items():
-            findex.write("#%s\t%s\n" % (key, value))
-            fstrandedindex.write("#%s\t%s\n" % (key, value))
+            unstranded_index_fh.write("#%s\t%s\n" % (key, value))
+            stranded_index_fh.write("#%s\t%s\n" % (key, value))
     # Progress bar to track the genome indexes creation
     nb_lines = sum(1 for _ in open(annotation))
     pbar = progressbar.ProgressBar(widgets=["Indexing the genome ", progressbar.Percentage(), " ", progressbar.Bar(), progressbar.ETA()], max_value=nb_lines).start()
     # Browsing the GTF file and writing into genome index files
-    with open(annotation, "r") as gtf_file:
-        for line in gtf_file:
+    with open(annotation, "r") as gtf_fh:
+        for line in gtf_fh:
             i += 1
             # Update the progressbar every 1k lines
             if i % 1000 == 1:
@@ -348,7 +348,7 @@ def generate_genome_index(annotation, unstranded_genome_index, stranded_genome_i
                 stop = int(line_split[4])
                 strand = line_split[6]
                 antisense = reverse_strand[strand]
-                biotype = line_split[8].split("biotype")[1].split("";"")[0].strip('" ')
+                biotype = line_split[8].split("biotype")[1].split(";")[0].strip('" ')
                 # Registering stored features info in the genome index file(s) if the new line concerns a new chromosome or the new line concerns an annotation not overlapping previously recorded ones
                 if start > max_value or chrom != prev_chrom:
                     # Write the previous features
@@ -491,8 +491,8 @@ def read_counts(counts_files):
 
 def get_chromosome_names_in_index(genome_index):
     """ Returns the chromosome names in a genome index file. """
-    with open(genome_index, "r") as findex:
-        for line in findex:
+    with open(genome_index, "r") as index_fh:
+        for line in index_fh:
             if not line.startswith("#") and (line.split("\t")[0] not in index_chrom_list):
                 index_chrom_list.append(line.split("\t")[0])
     return index_chrom_list
@@ -500,8 +500,8 @@ def get_chromosome_names_in_index(genome_index):
 
 def read_index():
     """ Parse index files info (chromosomes list, lengths and genome features). """
-    with open(genome_index, "r") as genome_index_fh:
-        for line in genome_index_fh:
+    with open(genome_index, "r") as index_fh:
+        for line in index_fh:
             if line.startswith("#"):
                 lengths[line.split("\t")[0][1:]] = int(line.split("\t")[1])
             else:
@@ -539,9 +539,9 @@ def intersect_bedgraphs_and_index_to_counts_categories(sample_files, sample_labe
             prev_chrom = ""
             endGTF = False  # Reaching the next chr or the end of the GTF index
             intergenic_adds = 0.0
-            with open(sample_file + strand + ".bedgraph", "r") as bam_count_file:
+            with open(sample_file + strand + ".bedgraph", "r") as bedgraph_fh:
                 # Running through the BedGraph file
-                for bam_line in bam_count_file:
+                for bam_line in bedgraph_fh:
                     i += 1
                     if i % 10000 == 0:
                         pbar.update(i)
@@ -627,10 +627,10 @@ def write_counts_in_files(cpt, genome_counts):
     """ Writes the biotype/category counts in an output file. """
     for sample_label, counters in cpt.items():
         sample_label = "_".join(re.findall(r"[\w']+", sample_label))
-        with open(sample_label + ".feature_counts.tsv", "w") as fout:
-            fout.write("#Category,biotype\tCounts_in_bam\tSize_in_genome\n")
+        with open(sample_label + ".feature_counts.tsv", "w") as output_fh:
+            output_fh.write("#Category,biotype\tCounts_in_bam\tSize_in_genome\n")
             for features_pair, counts in counters.items():
-                fout.write("%s\t%s\t%s\n" % (",".join(features_pair), counts, genome_counts[features_pair]))
+                output_fh.write("%s\t%s\t%s\n" % (",".join(features_pair), counts, genome_counts[features_pair]))
 
 
 def recategorize_the_counts(cpt, cpt_genome, final):
