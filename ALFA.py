@@ -19,6 +19,7 @@ from matplotlib.backends.backend_pdf import PdfPages
 # To correctly embed the texts when saving plots in svg format
 import matplotlib
 import progressbar
+import collections
 
 matplotlib.rcParams["svg.fonttype"] = "none"
 
@@ -414,40 +415,43 @@ def generate_genome_index(annotation, unstranded_genome_index, stranded_genome_i
     pbar.finish()
 
 
-def generate_bedgraph_files(bam_files):
+def generate_bedgraph_files():
     """ Creates BedGraph files from BAM ones and return filenames and labels. """
-    sample_files = []
-    sample_labels = []
+    #sample_files = []
+    #sample_labels = []
     # Progress bar to track the BedGraph file creation
-    pbar = progressbar.ProgressBar(widgets=["Generating the BedGraph files ", progressbar.Percentage(),
-                                            progressbar.Bar(), progressbar.Timer()], max_value=len(bam_files)+1).start()
-    pbar.update(1)
-    for n in range(0, len(bam_files), 2):
+    #pbar = progressbar.ProgressBar(widgets=["Generating the BedGraph files ", progressbar.Percentage(), progressbar.Bar(), progressbar.Timer()], max_value=len(bam_files)+1).start()
+    pbar = progressbar.ProgressBar(widgets=["Generating the BedGraph files ", progressbar.Percentage(), progressbar.Bar(), progressbar.Timer()], max_value=len(samples)+1).start()
+    n = 1
+    pbar.update(n)
+    #for n in range(0, len(bam_files), 2):
+    for sample_label in samples:
         # Get the label for this sample
-        sample_labels.append(bam_files[n + 1])
+        #sample_labels.append(bam_files[n + 1])
         # Modify it to contain only alphanumeric characters (avoid files generation with dangerous names)
-        modified_label = "_".join(re.findall(r"[\w']+", bam_files[n + 1]))
-        if options.strandness in ["reverse", "fr-secondstrand"]:
-            subprocess.call("bedtools genomecov -bg -split -strand - -ibam " + bam_files[n] + " > " + modified_label
-                            + ".plus.bedgraph", shell=True)
-            pbar.update(n + 1)
-            subprocess.call("bedtools genomecov -bg -split -strand + -ibam " + bam_files[n] + " > " + modified_label
-                            + ".minus.bedgraph", shell=True)
-            pbar.update(n + 1)
-        elif options.strandness in ["forward", "fr-firststrand"]:
-            subprocess.call("bedtools genomecov -bg -split -strand + -ibam " + bam_files[n] + " > " + modified_label
-                            + ".plus.bedgraph", shell=True)
-            pbar.update(n + 1)
-            subprocess.call("bedtools genomecov -bg -split -strand - -ibam " + bam_files[n] + " > " + modified_label
-                            + ".minus.bedgraph", shell=True)
-            pbar.update(n + 1)
+        #modified_label = "_".join(re.findall(r"[\w']+", bam_files[n + 1]))
+        if options.strandness in ["forward", "fr-firststrand"]:
+            #subprocess.call("bedtools genomecov -bg -split -strand + -ibam " + bam_files[n] + " > " + modified_label + ".plus.bedgraph", shell=True)
+            subprocess.call("bedtools genomecov -bg -split -strand + -ibam " + samples[sample_label][0] + " > " + sample_label + ".plus.bedgraph", shell=True)
+            pbar.update(n + 0.5)
+            #subprocess.call("bedtools genomecov -bg -split -strand - -ibam " + bam_files[n] + " > " + modified_label + ".minus.bedgraph", shell=True)
+            subprocess.call("bedtools genomecov -bg -split -strand - -ibam " + samples[sample_label][0] + " > " + sample_label + ".minus.bedgraph", shell=True)
+            pbar.update(n + 0.5)
+        elif options.strandness in ["reverse", "fr-secondstrand"]:
+            #subprocess.call("bedtools genomecov -bg -split -strand - -ibam " + bam_files[n] + " > " + modified_label + ".plus.bedgraph", shell=True)
+            subprocess.call("bedtools genomecov -bg -split -strand - -ibam " + samples[sample_label][0] + " > " + sample_label + ".plus.bedgraph", shell=True)
+            pbar.update(n + 0.5)
+            #subprocess.call("bedtools genomecov -bg -split -strand + -ibam " + bam_files[n] + " > " + modified_label + ".minus.bedgraph", shell=True)
+            subprocess.call("bedtools genomecov -bg -split -strand + -ibam " + samples[sample_label][0] + " > " + sample_label + ".minus.bedgraph", shell=True)
+            pbar.update(n + 0.5)
         else:
-            subprocess.call("bedtools genomecov -bg -split -ibam " + bam_files[n] + " > " + modified_label
-                            + ".bedgraph", shell=True)
-            pbar.update(n + 2)
-        sample_files.append(modified_label)
+            #subprocess.call("bedtools genomecov -bg -split -ibam " + bam_files[n] + " > " + modified_label + ".bedgraph", shell=True)
+            subprocess.call("bedtools genomecov -bg -split -ibam " + samples[sample_label][0] + " > " + sample_label + ".bedgraph", shell=True)
+            pbar.update(n + 1)
+        #sample_files.append(modified_label)
     pbar.finish()
-    return sample_files, sample_labels
+    #return sample_files, sample_labels
+    return None
 
 
 def read_gtf(gtf_index_file, sign):
@@ -471,22 +475,28 @@ def read_gtf(gtf_index_file, sign):
     return endGTF
 
 
-def read_counts(counts_files):
+#def read_counts(counts_files):
+def read_counts():
     """ Reads the counts from an input file. """
     cpt = {}
     cpt_genome = {}
-    labels = []
-    for fcounts in counts_files:
-        label = os.path.splitext(os.path.basename(fcounts))[0]
-        labels.append(label)
-        cpt[label] = {}
-        with open(fcounts, "r") as counts_fh:
+    #labels = []
+    #for fcounts in counts_files:
+    for sample_label in samples:
+        #label = os.path.splitext(os.path.basename(fcounts))[0]
+        #labels.append(label)
+        #cpt[label] = {}
+        cpt[sample_label] = {}
+        #with open(fcounts, "r") as counts_fh:
+        with open(samples[sample_label], "r") as counts_fh:
             for line in counts_fh:
                 if not line.startswith("#"):
                     feature = tuple(line.split("\t")[0].split(","))
-                    cpt[label][feature] = float(line.split("\t")[1])
+                    #cpt[label][feature] = float(line.split("\t")[1])
+                    cpt[sample_label][feature] = float(line.split("\t")[1])
                     cpt_genome[feature] = float(line.rstrip().split("\t")[2])
-    return cpt, cpt_genome, labels
+    #return cpt, cpt_genome, labels
+    return cpt, cpt_genome
 
 
 def get_chromosome_names_in_index(genome_index):
@@ -511,27 +521,30 @@ def read_index():
                 count_genome_features(cpt_genome, line.rstrip().split("\t")[4:], line.split("\t")[1], line.split("\t")[2])
 
 
-def intersect_bedgraphs_and_index_to_counts_categories(sample_files, sample_labels, prios, genome_index,
-                                                       biotype_prios=None): ## MB: To review
+#def intersect_bedgraphs_and_index_to_counts_categories(sample_files, sample_labels, prios, genome_index, biotype_prios=None): ## MB: To review
+def intersect_bedgraphs_and_index_to_counts_categories(biotype_prios=None): ## MB: To review
     global gtf_line, gtf_chrom, gtf_start, gtf_stop, gtf_cat, endGTF
     unknown_chrom = []
     cpt = {}  # Counter for the nucleotides in the BAM input file(s)
-    for n in range(len(sample_files)):
-        sample_file = sample_files[n]
-        sample_name = sample_labels[n]
+    #for n in range(len(sample_files)):
+    for sample_label in samples:
+        #sample_file = sample_files[n]
+        #sample_name = sample_labels[n]
         # Initializing the category counter dict for this sample and the number of lines to process for the progress bar
-        init_dict(cpt, sample_name, {})
+        #init_dict(cpt, sample_name, {})
+        init_dict(cpt, sample_label, {})
         if options.strandness == "unstranded":
             strands = [("", ".")]
-            nb_lines = sum(1 for _ in open(sample_file + ".bedgraph"))
+            #nb_lines = sum(1 for _ in open(sample_file + ".bedgraph"))
+            nb_lines = sum(1 for _ in open(sample_label + ".bedgraph"))
         else:
             strands = [(".plus", "+"), (".minus", "-")]
-            nb_lines = sum(1 for _ in open(sample_file + ".plus.bedgraph")) + sum(1 for _ in open(sample_file + ".minus.bedgraph"))
+            #nb_lines = sum(1 for _ in open(sample_file + ".plus.bedgraph")) + sum(1 for _ in open(sample_file + ".minus.bedgraph"))
+            nb_lines = sum(1 for _ in open(sample_label + ".plus.bedgraph")) + sum(1 for _ in open(sample_label + ".minus.bedgraph"))
 
         # Progress bar to track the BedGraph and index intersection
-        pbar = progressbar.ProgressBar(widgets=["Processing " + sample_file + " ", progressbar.Percentage(),
-                                                progressbar.Bar(), progressbar.Timer()],
-                                           max_value=nb_lines).start()
+        #pbar = progressbar.ProgressBar(widgets=["Processing " + sample_file + " ", progressbar.Percentage(), progressbar.Bar(), progressbar.Timer()], max_value=nb_lines).start()
+        pbar = progressbar.ProgressBar(widgets=["Processing " + sample_label + " ", progressbar.Percentage(), progressbar.Bar(), progressbar.Timer()], max_value=nb_lines).start()
         i = 0
 
         # Intersecting the BedGraph and index files
@@ -539,7 +552,8 @@ def intersect_bedgraphs_and_index_to_counts_categories(sample_files, sample_labe
             prev_chrom = ""
             endGTF = False  # Reaching the next chr or the end of the GTF index
             intergenic_adds = 0.0
-            with open(sample_file + strand + ".bedgraph", "r") as bedgraph_fh:
+                #with open(sample_file + strand + ".bedgraph", "r") as bedgraph_fh:
+            with open(sample_label + strand + ".bedgraph", "r") as bedgraph_fh:
                 # Running through the BedGraph file
                 for bam_line in bedgraph_fh:
                     i += 1
@@ -581,10 +595,12 @@ def intersect_bedgraphs_and_index_to_counts_categories(sample_files, sample_labe
                         # Increase the "intergenic" category counter with all or part of the BAM interval
                         try:
                             intergenic_adds += min(bam_stop, gtf_start) - bam_start
-                            cpt[sample_name][("intergenic", "intergenic")] += (min(bam_stop,
+                            #cpt[sample_name][("intergenic", "intergenic")] += (min(bam_stop,
+                            cpt[sample_label][("intergenic", "intergenic")] += (min(bam_stop,
                                                                                    gtf_start) - bam_start) * bam_cpt
                         except KeyError:
-                            cpt[sample_name][("intergenic", "intergenic")] = (min(bam_stop,
+                            #cpt[sample_name][("intergenic", "intergenic")] = (min(bam_stop,
+                            cpt[sample_label][("intergenic", "intergenic")] = (min(bam_stop,
                                                                                   gtf_start) - bam_start) * bam_cpt
                         # Go to next line if the BAM interval was totally upstream the first GTF annotation, carry on with the remaining part otherwise
                         if endGTF or (bam_stop <= gtf_start):
@@ -596,7 +612,8 @@ def intersect_bedgraphs_and_index_to_counts_categories(sample_files, sample_labe
                     while not endGTF:
                         # Update category counter
                         #add_info(cpt[sample_name], gtf_features, bam_start, min(bam_stop, gtf_stop), coverage=bam_cpt)
-                        count_genome_features(cpt[sample_name], gtf_features, bam_start, min(bam_stop, gtf_stop), coverage=bam_cpt)
+                        #count_genome_features(cpt[sample_name], gtf_features, bam_start, min(bam_stop, gtf_stop), coverage=bam_cpt)
+                        count_genome_features(cpt[sample_label], gtf_features, bam_start, min(bam_stop, gtf_stop), coverage=bam_cpt)
                         # Read the next GTF file line if the BAM line is not entirely covered
                         if bam_stop > gtf_stop:
                             # Update the BAM start pointer
@@ -615,9 +632,11 @@ def intersect_bedgraphs_and_index_to_counts_categories(sample_files, sample_labe
                     # Processing the end of the BAM line if necessary
                     if endGTF and (bam_stop > bam_start):
                         try:
-                            cpt[sample_name][("intergenic", "intergenic")] += (bam_stop - bam_start) * bam_cpt
+                            #cpt[sample_name][("intergenic", "intergenic")] += (bam_stop - bam_start) * bam_cpt
+                            cpt[sample_label][("intergenic", "intergenic")] += (bam_stop - bam_start) * bam_cpt
                         except KeyError:
-                            cpt[sample_name][("intergenic", "intergenic")] = (bam_stop - bam_start) * bam_cpt
+                            #cpt[sample_name][("intergenic", "intergenic")] = (bam_stop - bam_start) * bam_cpt
+                            cpt[sample_label][("intergenic", "intergenic")] = (bam_stop - bam_start) * bam_cpt
                 gtf_index_file.close()
         pbar.finish()
     return cpt
@@ -763,21 +782,31 @@ def one_sample_plot(ordered_categs, percentages, enrichment, n_cat, index, index
     return fig, ax1, ax2
 
 
-def make_plot(ordered_categs, sample_names, categ_counts, genome_counts, pdf, counts_type, threshold, title=None,
-              svg=None, png=None):
+#def make_plot(ordered_categs, sample_names, categ_counts, genome_counts, pdf, counts_type, threshold, title=None,
+def make_plot(ordered_categs, categ_counts, genome_counts, pdf, counts_type, threshold, title=None, svg=None, png=None): # MB: to review
     # From ordered_categs, keep only the features (categs or biotypes) that we can find in at least one sample.
     existing_categs = set()
     for sample in categ_counts.values():
         existing_categs |= set(sample.keys())
     ordered_categs = filter(existing_categs.__contains__, ordered_categs)
     n_cat = len(ordered_categs)
-    n_exp = len(sample_names)
+    #n_exp = len(sample_names)
+    nb_samples = len(samples)
     ##Initialization of the matrix of counts (nrow=nb_experiements, ncol=nb_categorie)
-    counts = numpy.matrix(numpy.zeros(shape=(n_exp, n_cat)))
+    #counts = numpy.matrix(numpy.zeros(shape=(n_exp, n_cat)))
+    counts = numpy.matrix(numpy.zeros(shape=(nb_samples, n_cat)))
+    '''
     for exp in xrange(len(sample_names)):
         for cat in xrange(len(ordered_categs)):
             try:
                 counts[exp, cat] = categ_counts[sample_names[exp]][ordered_categs[cat]]
+            except:
+                pass
+    '''
+    for sample_label in samples:
+        for cat in xrange(len(ordered_categs)):
+            try:
+                counts[samples.keys().index(sample_label), cat] = categ_counts[sample_label][ordered_categs[cat]]
             except:
                 pass
 
@@ -798,18 +827,24 @@ def make_plot(ordered_categs, sample_names, categ_counts, genome_counts, pdf, co
     ## Create the enrichment array (counts divided by the categorie sizes in the genome)
     enrichment = numpy.array(percentages / sizes)
     if "antisense_pos" in locals():
+        '''
         for i in xrange(len(sample_names)):
             enrichment[i][antisense_pos] = 0
+        '''
+        for n in xrange(nb_samples):
+            enrichment[n][antisense_pos] = 0
+
     # enrichment=numpy.log(numpy.array(percentages/sizes))
-    for exp in xrange(n_exp):
+    #for exp in xrange(n_exp):
+    for n in xrange(nb_samples):
         for i in xrange(n_cat):
-            val = enrichment[exp][i]
+            val = enrichment[n][i]
             if val > 1:
-                enrichment[exp][i] = val - 1
+                enrichment[n][i] = val - 1
             elif val == 1 or val == 0:
-                enrichment[exp][i] = 0
+                enrichment[n][i] = 0
             else:
-                enrichment[exp][i] = -1 / val + 1
+                enrichment[n][i] = -1 / val + 1
 
     #### Finally, produce the plot
 
@@ -817,16 +852,22 @@ def make_plot(ordered_categs, sample_names, categ_counts, genome_counts, pdf, co
     ncolor = 16
     cmap = ["#e47878", "#68b4e5", "#a3ea9b", "#ea9cf3", "#e5c957", "#a3ecd1", "#e97ca0", "#66d985", "#8e7ae5",
             "#b3e04b", "#b884e4", "#e4e758", "#738ee3", "#e76688", "#70dddd", "#e49261"]
+    '''
     if n_exp > ncolor:
         cmap = plt.get_cmap("Set3", n_exp)
         cmap = [cmap(i) for i in xrange(n_exp)]
+    '''
+    if nb_samples > ncolor:
+        cmap = plt.get_cmap("Set3", nb_samples)
+        cmap = [cmap(i) for i in xrange(nb_samples)]
 
     ## Parameters for the plot
     opacity = 1
     # Create a vector which contains the position of each bar
     index = numpy.arange(n_cat)
     # Size of the bars (depends on the categs number)
-    bar_width = 0.9 / n_exp
+    #bar_width = 0.9 / n_exp
+    bar_width = 0.9 / nb_samples
 
     ##Initialise the subplot
     # if there is only one sample, also plot piecharts
@@ -835,31 +876,42 @@ def make_plot(ordered_categs, sample_names, categ_counts, genome_counts, pdf, co
     ## If more than one sample
     # else:
     if counts_type.lower() != "categories":
-        fig, (ax1, ax2) = plt.subplots(2, figsize=(5 + (n_cat + 2 * n_exp) / 3, 10))
+        #fig, (ax1, ax2) = plt.subplots(2, figsize=(5 + (n_cat + 2 * n_exp) / 3, 10))
+        fig, (ax1, ax2) = plt.subplots(2, figsize=(5 + (n_cat + 2 * nb_samples) / 3, 10))
     else:
-        fig, (ax1, ax2) = plt.subplots(2, figsize=(5 + (n_cat + 2 * n_exp) / 3, 10))
+        #fig, (ax1, ax2) = plt.subplots(2, figsize=(5 + (n_cat + 2 * n_exp) / 3, 10))
+        fig, (ax1, ax2) = plt.subplots(2, figsize=(5 + (n_cat + 2 * nb_samples) / 3, 10))
     # Store the bars objects for enrichment plot
     rects = []
     # For each sample/experiment
-    for i in range(n_exp):
+    #for i in range(n_exp):
+    for sample_label in samples:
         # First barplot: percentage of reads in each categorie
-        ax1.bar(index + i * bar_width, percentages[i], bar_width,
+        n = samples.keys().index(sample_label)
+        #ax1.bar(index + i * bar_width, percentages[i], bar_width,
+        ax1.bar(index + n * bar_width, percentages[n], bar_width,
                 alpha=opacity,
-                color=cmap[i],
-                label=sample_names[i], edgecolor="#FFFFFF", lw=0)
+                #color=cmap[i],
+                color=cmap[n],
+                #label=sample_names[i], edgecolor="#FFFFFF", lw=0)
+                label=sample_label, edgecolor="#FFFFFF", lw=0)
         # Second barplot: enrichment relative to the genome for each categ
         # (the reads count in a categ is divided by the categ size in the genome)
-        rects.append(ax2.bar(index + i * bar_width, enrichment[i], bar_width,
+        rects.append(ax2.bar(index + n * bar_width, enrichment[n], bar_width,
                              alpha=opacity,
-                             color=cmap[i],
-                             label=sample_names[i], edgecolor=cmap[i], lw=0))
+                             #color=cmap[i],
+                             color=cmap[n],
+                             #label=sample_names[i], edgecolor=cmap[i], lw=0))
+                             label=sample_label, edgecolor=cmap[n], lw=0))
 
     ## Graphical options for the plot
     # Adding of the legend
-    if n_exp < 10:
+    #if n_exp < 10:
+    if nb_samples < 10:
         ax1.legend(loc="best", frameon=False)
         legend_ncol = 1
-    elif n_exp < 19:
+    #elif n_exp < 19:
+    elif nb_samples < 19:
         legend_ncol = 2
     else:
         legend_ncol = 3
@@ -892,11 +944,14 @@ def make_plot(ordered_categs, sample_names, categ_counts, genome_counts, pdf, co
         threshold_bottom = -abs(float(threshold[0])) + 1
         threshold_top = float(threshold[1]) - 1
 
-        for i in xrange(n_exp):
+        #for i in xrange(n_exp):
+        for n in xrange(nb_samples):
             for y in xrange(n_cat):
-                val = enrichment[i][y]
+                #val = enrichment[i][y]
+                val = enrichment[n][y]
                 if not numpy.isnan(val) and not (threshold_bottom < val < threshold_top):
-                    rect = rects[i][y]
+                    #rect = rects[i][y]
+                    rect = rects[n][y]
                     rect_height = rect.get_height()
                     if rect.get_y() < 0:
                         diff = rect_height + threshold_bottom
@@ -918,8 +973,10 @@ def make_plot(ordered_categs, sample_names, categ_counts, genome_counts, pdf, co
     ax1.set_xlabel(counts_type)
     ax2.set_xlabel(counts_type)
     # Add the categories on the x-axis
-    ax1.set_xticks(index + bar_width * n_exp / 2)
-    ax2.set_xticks(index + bar_width * n_exp / 2)
+    #ax1.set_xticks(index + bar_width * n_exp / 2)
+    ax1.set_xticks(index + bar_width * nb_samples / 2)
+    #ax2.set_xticks(index + bar_width * n_exp / 2)
+    ax2.set_xticks(index + bar_width * nb_samples / 2)
     if counts_type.lower() != "categories":
         ax1.set_xticklabels(ordered_categs, rotation="30", ha="right")
         ax2.set_xticklabels(ordered_categs, rotation="30", ha="right")
@@ -940,8 +997,10 @@ def make_plot(ordered_categs, sample_names, categ_counts, genome_counts, pdf, co
     # ax2.set_yticklabels([i+1 if i>0 else 1 if i==0 else "$\\frac{1}{%s}$" %-(i-1) for i in ax2.get_yticks()])
     # Change appearance of 'antisense' bars on enrichment plot since we cannot calculate an enrichment for this artificial category
     if "antisense_pos" in locals():  # ax2.text(antisense_pos+bar_width/2,ax2.get_ylim()[1]/10,'NA')
-        for i in xrange(n_exp):
-            rect = rects[i][antisense_pos]
+        #for i in xrange(n_exp):
+        for n in xrange(nb_samples):
+            #rect = rects[i][antisense_pos]
+            rect = rects[n][antisense_pos]
             rect.set_y(ax2.get_ylim()[0])
             rect.set_height(ax2.get_ylim()[1] - ax2.get_ylim()[0])
             rect.set_hatch("/")
@@ -950,16 +1009,22 @@ def make_plot(ordered_categs, sample_names, categ_counts, genome_counts, pdf, co
             # rect.set_color('lightgrey')
             # rect.set_edgecolor('#EDEDED')
             rect.set_color("#EDEDED")
-        ax2.text(index[antisense_pos] + bar_width * n_exp / 2 - 0.1, (ax2_ymax + ax2_ymin) / 2, "NA")
+        #ax2.text(index[antisense_pos] + bar_width * n_exp / 2 - 0.1, (ax2_ymax + ax2_ymin) / 2, "NA")
+        ax2.text(index[antisense_pos] + bar_width * nb_samples / 2 - 0.1, (ax2_ymax + ax2_ymin) / 2, "NA")
     # Add text for features absent in sample
-    for i in xrange(n_exp):
+    #for i in xrange(n_exp):
+    for n in xrange(nb_samples):
         for y in xrange(n_cat):
-            if percentages[i][y] == 0:
-                txt = ax1.text(y + bar_width * (i + 0.5), 0.02, "Absent in sample", rotation="vertical", color=cmap[i],
+            #if percentages[i][y] == 0:
+            if percentages[n][y] == 0:
+                #txt = ax1.text(y + bar_width * (i + 0.5), 0.02, "Absent in sample", rotation="vertical", color=cmap[i],
+                txt = ax1.text(y + bar_width * (n + 0.5), 0.02, "Absent in sample", rotation="vertical", color=cmap[n],
                                horizontalalignment="center", verticalalignment="bottom")
                 txt.set_path_effects([PathEffects.Stroke(linewidth=0.5), PathEffects.Normal()])
-            elif enrichment[i][y] == 0:
-                rects[i][y].set_linewidth(1)
+            #elif enrichment[i][y] == 0:
+            elif enrichment[n][y] == 0:
+                #rects[i][y].set_linewidth(1)
+                rects[n][y].set_linewidth(1)
 
     # Remove top/right/bottom axes
     for ax in [ax1, ax2]:
@@ -1172,6 +1237,7 @@ if __name__ == "__main__":
 
     # Miscellaneous variables
     reverse_strand = {"+": "-", "-": "+"}
+    samples = collections.OrderedDict() # Structure: {<label>: [<filename1>(, <filename2>)]} # Example: {'Toy': ['toy.bam']}
 
     # Initializing the category priority order, coding biotypes and the final list
     prios = {"start_codon": 7, "stop_codon": 7, "five_prime_utr": 6, "three_prime_utr": 6, "UTR": 6, "CDS": 5, "exon": 4,
@@ -1438,6 +1504,9 @@ if __name__ == "__main__":
                     sys.exit("\nError: BAM files and associated labels are not correctly provided.\n"
                              "Make sure to follow the expected format: --bam BAM_file1 Label1 [BAM_file2 Label2 ...]."
                              "\n### End of program ###")
+                # Register the sample label and filename
+                label = "_".join(re.findall(r"[\w']+", options.bam[i + 1]))
+                samples[label] = [options.bam[i]]
             # Set this step + the intersection one as tasks to process
             generate_BedGraph = True
             intersect_indexes_BedGraph = True
@@ -1455,7 +1524,7 @@ if __name__ == "__main__":
         sample_labels = []
         for i in xrange(0, len(options.bedgraph), sample_file_nb):
             # Check whether the BedGraph file(s) exists
-            for j in range(0,sample_file_nb - 1):
+            for j in xrange(0,sample_file_nb - 1):
                 try:
                     open(options.bedgraph[i + j])
                 except IOError:
@@ -1481,14 +1550,20 @@ if __name__ == "__main__":
                 sys.exit("\nError: it looks like BedGraph files and associated labels are not correctly provided.\n"
                          "Make sure to follow the expected format: --bam BedGraph_file1 Label1 [BedGraph_file2 Label2 ...]."
                          "\n### End of program ###")
+            # Register the sample label and filename(s)
+            label = "_".join(re.findall(r"[\w']+", options.bedgraph[i  + sample_file_nb - 1]))
+            try:
+                samples[label].append(options.bedgraph[i + j])
+            except KeyError:
+                samples[label] = [options.bedgraph[i + j]]
             # Adding the label to the list
             sample_label = options.bedgraph[i  + sample_file_nb - 1]
             sample_labels.append(sample_label)
             # Check whether the count file(s) that will be created already exists
             if options.strandness == "unstranded":
-                existing_file(sample_label + "unstranded.feature_counts.tsv")
+                existing_file(sample_label + ".unstranded.feature_counts.tsv")
             else:
-                existing_file(sample_label + "stranded.feature_counts.tsv")
+                existing_file(sample_label + ".stranded.feature_counts.tsv")
         # Set this step as a task to process
         intersect_indexes_BedGraph = True
 
@@ -1499,6 +1574,13 @@ if __name__ == "__main__":
         unnecessary_param(options.genome_index, "Warning: the parameter '-g/--genome_index' will not be used because the counts are already provided.")
         unnecessary_param(options.bam, "Warning: the parameter '--bam' will not be used because the counts are already provided.")
         unnecessary_param(options.bedgraph, "Warning: the parameter '--bedgraph' will not be used because the counts are already provided.")
+        # Registering the sample labels and filenames
+        for sample in options.counts:
+            label = re.sub('.(un)?stranded.feature_counts.tsv', '', sample)
+            try:
+                samples[label].append(sample)
+            except KeyError:
+               samples[label] = [sample]
     else:
         # Generating the genome index filenames
         index_chrom_list = [] # Not a set because we need to sort it according to the chromosome names later
@@ -1555,13 +1637,13 @@ if __name__ == "__main__":
     # BedGraph files generation
     if generate_BedGraph:
         print "# Generating the BedGraph files"
-        sample_files, sample_labels = generate_bedgraph_files(options.bam)
+        #sample_files, sample_labels = generate_bedgraph_files()
+        generate_bedgraph_files()
 
     # Indexes and BedGraph files intersection
     if intersect_indexes_BedGraph:
         print "# Intersecting index and BedGraph files"
-        cpt = intersect_bedgraphs_and_index_to_counts_categories(sample_files, sample_labels, prios, genome_index,
-                                                                 biotype_prios=None)
+        cpt = intersect_bedgraphs_and_index_to_counts_categories()
         # Write the counts to an output file
         write_counts_in_files(cpt, cpt_genome)
 
@@ -1570,7 +1652,8 @@ if __name__ == "__main__":
         print "# Generating plots"
         # If input files are the categories counts, the first step is to load them
         if options.counts:
-            cpt, cpt_genome, sample_names = read_counts(options.counts)
+            #cpt, cpt_genome, sample_names = read_counts(options.counts)
+            cpt, cpt_genome = read_counts()
         # Managing the unknown biotypes
         for sample_label, counters in cpt.items():
             for (cat, biot) in counters:
@@ -1587,8 +1670,8 @@ if __name__ == "__main__":
         # Filtering biotypes if necessary
         filtered_biotype = None
         if options.biotype_filter:
-            for sample in cpt:
-                for feature in cpt[sample]:
+            for sample_label in cpt:
+                for feature in cpt[sample_label]:
                     biotype = feature[1]
                     if options.biotype_filter.lower() == biotype.lower():
                         selected_biotype = biotype
@@ -1609,16 +1692,16 @@ if __name__ == "__main__":
             if ("antisense", "antisense") in dic.keys(): break
         else:
             cat_list.remove("antisense")
-        make_plot(cat_list, sample_labels, final_cat_cpt, final_genome_cpt, pdf, "categories", options.threshold,
-                  svg=options.svg, png=options.png)
+        #make_plot(cat_list, sample_labels, final_cat_cpt, final_genome_cpt, pdf, "categories", options.threshold, svg=options.svg, png=options.png)
+        make_plot(cat_list, final_cat_cpt, final_genome_cpt, pdf, "categories", options.threshold, svg=options.svg, png=options.png)
         if filtered_biotype:
-            make_plot(cat_list, sample_labels, filtered_cat_cpt, final_genome_cpt, pdf, "categories", options.threshold,
-                      title="Categories distribution for '" + filtered_biotype + "' biotype", svg=options.svg, png=options.png)
+            #make_plot(cat_list, sample_labels, filtered_cat_cpt, final_genome_cpt, pdf, "categories", options.threshold, title="Categories distribution for '" + filtered_biotype + "' biotype", svg=options.svg, png=options.png)
+            make_plot(cat_list, filtered_cat_cpt, final_genome_cpt, pdf, "categories", options.threshold, title="Categories distribution for '" + filtered_biotype + "' biotype", svg=options.svg, png=options.png)
         ## Generate the biotypes plot
         # Recategorization within the final biotypes and plot generation
         final_cat_cpt, final_genome_cpt = group_counts_by_biotype(cpt, cpt_genome, biotypes)
-        make_plot(biotypes, sample_labels, final_cat_cpt, final_genome_cpt, pdf, "biotypes", options.threshold, svg=options.svg,
-              png=options.png)
+        #make_plot(biotypes, sample_labels, final_cat_cpt, final_genome_cpt, pdf, "biotypes", options.threshold, svg=options.svg, png=options.png)
+        make_plot(biotypes, final_cat_cpt, final_genome_cpt, pdf, "biotypes", options.threshold, svg=options.svg, png=options.png)
 
 
     print "### End of program ###"
