@@ -369,11 +369,11 @@ def generate_genome_index(annotation, unstranded_genome_index, stranded_genome_i
                     for boundary in sorted(stranded_intervals):
                         # While the GTF line start is after the browsed boundary: keep the browsed boundary features info in case the GTF line start is before the next boundary
                         if boundary < start:
-                            stored_feat = {strand: dict(stranded_intervals[boundary]), antisense: dict(intervals_dict[antisense][boundary])}
+                            stored_feat_strand, stored_feat_antisense = [dict(stranded_intervals[boundary]), dict(intervals_dict[antisense][boundary])]
 
                         # The GTF line start is already an existing boundary: store the existing features info (to manage after the GTF line stop) and update it with the GTF line features info
                         elif boundary == start:
-                            stored_feat = {strand: dict(stranded_intervals[boundary]), antisense: dict(intervals_dict[antisense][boundary])}
+                            stored_feat_strand, stored_feat_antisense = [dict(stranded_intervals[boundary]), dict(intervals_dict[antisense][boundary])]
                             # Adding the GTF line features info to the interval
                             try:
                                 stranded_intervals[boundary][biotype] = stranded_intervals[boundary][biotype] + [cat]
@@ -385,13 +385,17 @@ def generate_genome_index(annotation, unstranded_genome_index, stranded_genome_i
                         elif boundary > start:
                             # Create a new boundary for the GTF line start if necessary (if it is between 2 existing boundaries, it was not created before)
                             if not added_info:
-                                stranded_intervals[start] = dict(stored_feat[strand])
-                                stranded_intervals[start][biotype] = [cat]
-                                intervals_dict[antisense][start] = stored_feat[antisense]
+                                stranded_intervals[start] = copy.deepcopy(stored_feat_strand)
+                                #stranded_intervals[start][biotype] = [cat]
+                                try:
+                                    stranded_intervals[start][biotype].append(cat)
+                                except KeyError:
+                                    stranded_intervals[start][biotype] = [cat]
+                                intervals_dict[antisense][start] = copy.deepcopy(stored_feat_antisense)
                                 added_info = True # The features info were added
                             # While the browsed boundary is before the GTF line stop: store the existing features info (to manage after the GTF line stop) and update it with the GTF line features info
                             if boundary < stop:
-                                stored_feat = {strand: dict(stranded_intervals[boundary]), antisense: dict(intervals_dict[antisense][boundary])}
+                                stored_feat_strand, stored_feat_antisense = [dict(stranded_intervals[boundary]), dict(intervals_dict[antisense][boundary])]
                                 try:
                                     stranded_intervals[boundary][biotype] = stranded_intervals[boundary][biotype] + [cat]
                                 except KeyError:
@@ -401,8 +405,8 @@ def generate_genome_index(annotation, unstranded_genome_index, stranded_genome_i
                                 break
                             # The browsed boundary is after the GTF line stop: create a new boundary for the GTF line stop (with the stored features info)
                             else: # boundary > stop
-                                stranded_intervals[stop] = dict(stored_feat[strand])
-                                intervals_dict[antisense][stop] = stored_feat[antisense]
+                                stranded_intervals[stop] = copy.deepcopy(stored_feat_strand)
+                                intervals_dict[antisense][stop] = copy.deepcopy(stored_feat_antisense)
                                 break # The GTF line features info are integrated
                     # If the GTF line stop is after the last boundary, extend the dictionary
                     if stop > max_value:
