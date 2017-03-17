@@ -53,7 +53,7 @@ def required_arg(arg, aliases):
     if not arg:
         print >> sys.stderr, "\nError: %s argument is missing.\n" % aliases
         parser.print_usage()
-        sys.exit()
+        sys.exit(1)
 
 
 def existing_file(filename):
@@ -1155,11 +1155,11 @@ if __name__ == "__main__":
                         help="Save produced plots in PNG format with provided argument as basename \nor 'categories.png' and 'biotypes.png' if no argument provided.\n\n")
     parser.add_argument("--svg", nargs="?", const="ALFA_plots.svg",
                         help="Save produced plots in SVG format with provided argument as basename \nor 'categories.svg' and 'biotypes.svg' if no argument provided.\n\n")
-    parser.add_argument("-n", "--no_display", action="store_const", const=None, help="Do not display plots.\n\n") # We have to add "const=None" to avoid a bug in argparse
+    parser.add_argument("-n", "--no_display", action="store_const", const=True, default=False, help="Do not display plots.\n\n") # We have to add "const=None" to avoid a bug in argparse
     parser.add_argument("-t", "--threshold", dest="threshold", nargs=2, metavar=("ymin", "ymax"), type=float,
                         help="Set axis limits for enrichment plots.\n\n")
 
-    if len(sys.argv) == 1: ## MB: Why??? If only counts for example it works no?
+    if len(sys.argv) == 1:
         parser.print_usage()
         sys.exit(1)
 
@@ -1535,7 +1535,7 @@ if __name__ == "__main__":
                     sys.exit("\nError: the BedGraph file" + options.bedgraph[i + j] + " was not found.\n### End of program")
                 except IndexError:
                     sys.exit("\nError: it looks like BedGraph files and associated labels are not correctly provided.\n"
-                         "Make sure to follow the expected format: --bam BedGraph_file1 Label1 [BedGraph_file2 Label2 ...]."
+                         "Make sure to follow the expected format: --bedgraph BedGraph_file1 Label1 [BedGraph_file2 Label2 ...]."
                          "\n### End of program ###")
                 # Check whether the BedGraph file extension is "bedgraph"/"bg"
                 if not (options.bedgraph[i + j].endswith(".bedgraph") or options.bedgraph[i + j].endswith(".bg")):
@@ -1552,7 +1552,7 @@ if __name__ == "__main__":
                              "\n### End of program ###")
             except IndexError:
                 sys.exit("\nError: it looks like BedGraph files and associated labels are not correctly provided.\n"
-                         "Make sure to follow the expected format: --bam BedGraph_file1 Label1 [BedGraph_file2 Label2 ...]."
+                         "Make sure to follow the expected format: --bedgraph BedGraph_file1 Label1 [BedGraph_file2 Label2 ...]."
                          "\n### End of program ###")
             # Register the sample label and filename(s)
             label = "_".join(re.findall(r"[\w']+", options.bedgraph[i  + sample_file_nb - 1]))
@@ -1605,13 +1605,23 @@ if __name__ == "__main__":
         unnecessary_param(options.categories_depth, "Warning: the parameter '-d/--categories_depth' will not be used because no plots will be displayed or saved.")
         unnecessary_param(options.threshold, "Warning: the parameter '-t/--threshold' will not be used because no plots will be displayed or saved.")
         unnecessary_param(options.annotation, "Warning: the parameter '--biotype_filter' will not be used because no plots will be displayed or saved.")
+        if options.counts:
+            sys.exit("Error: there is nothing to do (counts are provided and no display or plot saving is required")
     else:
         ## [BN] X server check
         # if not X server:
             #options.no_display = True
             #Message
-        generate_plot = True
-
+        try:
+            x_server = os.environ['DISPLAY']
+            generate_plot = True
+        except:
+            x_server = False
+            if options.counts:
+                sys.exit("Error: your current configuration does not allow graphical interface ('DISPLAY' variable is not set on your system).\nExiting")
+            else:
+                print >> sys.stderr, "WARNING: your current configuration does not allow graphical interface ('DISPLAY' variable is not set on your system).\nPlotting step will not be performed."
+    print options.no_display
 
     ## Executing the step(s)
 
