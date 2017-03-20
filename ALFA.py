@@ -299,7 +299,8 @@ def add_info(cpt, feat_values, start, stop, chrom=None, unstranded_genome_index=
 def register_interval(features_dict, chrom, stranded_index_fh, unstranded_index_fh):
     """ Write the interval features info into the genome index files. """
     # Adding the chromosome to the list if not present
-    index_chrom_list.append(chrom)
+    if chrom not in index_chrom_list:
+        index_chrom_list.append(chrom)
     # Writing the chromosome in the index file
     with open(unstranded_index_fh, "a") as unstranded_index_fh, open(stranded_index_fh, "a") as stranded_index_fh:
         # Initializing the first interval start and features
@@ -1601,10 +1602,11 @@ if __name__ == "__main__":
         else:
             genome_index = stranded_genome_index
     # If no plot is displayed or saved, plot parameters are useless
-    if options.no_display and not (options.pdf or options.png or options.svg):
-        unnecessary_param(options.categories_depth, "Warning: the parameter '-d/--categories_depth' will not be used because no plots will be displayed or saved.")
+    if (options.no_display and not (options.pdf or options.png or options.svg)) or not(intersect_indexes_BedGraph or options.counts):
+        # unnecessary_param(options.categories_depth, "Warning: the parameter '-d/--categories_depth' will not be used because no plots will be displayed or saved.")
+        # # Cannot be tested because options.categories_depth has always a value (default value if option not specified by user)
         unnecessary_param(options.threshold, "Warning: the parameter '-t/--threshold' will not be used because no plots will be displayed or saved.")
-        unnecessary_param(options.annotation, "Warning: the parameter '--biotype_filter' will not be used because no plots will be displayed or saved.")
+        unnecessary_param(options.biotype_filter, "Warning: the parameter '--biotype_filter' will not be used because no plots will be displayed or saved.")
         if options.counts:
             sys.exit("Error: there is nothing to do (counts are provided and no display or plot saving is required")
     else:
@@ -1621,7 +1623,6 @@ if __name__ == "__main__":
                 sys.exit("Error: your current configuration does not allow graphical interface ('DISPLAY' variable is not set on your system).\nExiting")
             else:
                 print >> sys.stderr, "WARNING: your current configuration does not allow graphical interface ('DISPLAY' variable is not set on your system).\nPlotting step will not be performed."
-    print options.no_display
 
     ## Executing the step(s)
 
