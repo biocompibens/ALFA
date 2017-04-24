@@ -4,17 +4,17 @@ ALFA provides a global overview of features distribution composing NGS dataset(s
 
 ## Table of contents
 - [**Outputs**](#outputs)
- - [Plots](#plots)
- - [Count files](#count-files)
+  - [Plots](#plots)
+  - [Count files](#count-files)
 - [**Installation**](#installation)
- - [Requirements](#requirements)
+  - [Requirements](#requirements)
 - [**Quick start**](#quick-start)
 - [**Detailed example**](#detailed-example)
 - [**Manual**](#manual)
- - [ALFA usages](#alfa-usages)
- - [Categories depth](#categories-depth)
- - [Priorities](#priorities)
- - [Unknown feature](#unknown-feature)
+  - [ALFA usages](#alfa-usages)
+  - [Categories depth](#categories-depth)
+  - [Priorities](#priorities)
+  - [Unknown feature](#unknown-feature)
 
 ## Outputs
 ALFA produces two outputs: plots and count files.
@@ -130,7 +130,7 @@ Here are the features considered in the 4 different levels:
 
 *Warning: using a non-homogeneous GTF file in term of deep level annotations may lead to inconsistent results due to the fact that, for instance, reads mapping to genes without UTR annotation will increase the CDS category count whereas on the other genes, the UTR categories may be increased.*
 
-###Priorities
+### Priorities
 By default, as GTF files are built on a hierarchical way, some assumptions are made on categories priorities.
 > start_codon/stop_codon > five_prime_utr/three_prime_utr/CDS > exon > transcript > gene
 
