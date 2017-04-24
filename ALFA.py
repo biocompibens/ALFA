@@ -332,7 +332,7 @@ def generate_genome_index(annotation, unstranded_genome_index, stranded_genome_i
             stranded_index_fh.write("#%s\t%s\n" % (key, value))
     # Progress bar to track the genome indexes creation
     nb_lines = sum(1 for _ in open(annotation))
-    pbar = progressbar.ProgressBar(widgets=["Indexing the genome ", progressbar.Percentage(), " ", progressbar.Bar(), progressbar.ETA()], max_value=nb_lines).start()
+    pbar = progressbar.ProgressBar(widgets=["Indexing the genome ", progressbar.Percentage(), " ", progressbar.Bar(), progressbar.Timer()], max_value=nb_lines).start()
     # Browsing the GTF file and writing into genome index files
     with open(annotation, "r") as gtf_fh:
         for line in gtf_fh:
@@ -1576,9 +1576,12 @@ if __name__ == "__main__":
     if options.counts:
         # Checking unnecessary parameters
         unnecessary_param(options.annotation, "Warning: the parameter '-a/--annotation' will not be used because the counts are already provided.")
+        generate_indexes = False
         unnecessary_param(options.genome_index, "Warning: the parameter '-g/--genome_index' will not be used because the counts are already provided.")
         unnecessary_param(options.bam, "Warning: the parameter '--bam' will not be used because the counts are already provided.")
+        generate_BedGraph = False
         unnecessary_param(options.bedgraph, "Warning: the parameter '--bedgraph' will not be used because the counts are already provided.")
+        intersect_indexes_BedGraph = False
         # Registering the sample labels and filenames
         for sample in options.counts:
             label = re.sub('.(un)?stranded.feature_counts.tsv', '', sample)
@@ -1642,10 +1645,9 @@ if __name__ == "__main__":
         # Displaying the list of indexed chromosomes
         index_chrom_list.sort(key=alphanum_key)
         print "Indexed chromosomes: " + ", ".join(index_chrom_list)
-    elif not options.counts:
+    if generate_indexes or not options.counts:
         # Getting index info
         read_index()
-    if generate_indexes or not options.counts:
         # Computing the genome intergenic count: sum of the chr lengths minus sum of the genome annotated intervals
         cpt_genome[("intergenic", "intergenic")] = sum(lengths.values()) - sum([v for x, v in cpt_genome.iteritems() if x != ("antisense", "antisense")])
 
