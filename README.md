@@ -1,8 +1,8 @@
-#ALFA: Annotation Landscape For Aligned reads
+# ALFA: Annotation Landscape For Aligned reads
 
 ALFA provides a global overview of features distribution composing NGS dataset(s). Given a set of aligned reads (BAM files) and an annotation file (GTF format), the tool produces plots of the raw and normalized distributions of those reads among genomic categories (stop codon, 5'-UTR, CDS, intergenic, etc.) and biotypes (protein coding genes, miRNA, tRNA, etc.). Whatever the sequencing technique, whatever the organism.
 
-##Table of contents
+## Table of contents
 - [**Outputs**](#outputs)
  - [Plots](#plots)
  - [Count files](#count-files)
@@ -16,15 +16,15 @@ ALFA provides a global overview of features distribution composing NGS dataset(s
  - [Priorities](#priorities)
  - [Unknown feature](#unknown-feature)
 
-##Outputs
+## Outputs
 ALFA produces two outputs: plots and count files.
 
-###Plots
+### Plots
 ![Output example](https://github.com/biocompibens/ALFA/blob/master/Images/image_readme2.png)
 
 **Legend**: Two images display the nucleotides distributions among the different features, one for the categories (A) and another one for the biotypes (B). Each image is composed of two plots: the top one (A1/B1) represents the raw nucleotides fraction of the reads that mapped to each feature in the samples whereas the bottom one (A2/B2) represents the feature enrichment/depletion relative to the genome ”surface” occupied by this feature.
 
-###Count files
+### Count files
 For each input sample, a count table with the following information is produced:
  - category/biotype pair
  - count of nucleotides mapping to this feature pair in the sample
@@ -34,32 +34,32 @@ For each input sample, a count table with the following information is produced:
 
 ![Count file example](https://github.com/biocompibens/ALFA/blob/master/Images/counts_table.head.png)
 
-##Installation
+## Installation
 You can either download the code by clicking the ZIP link on this webpage or clone the project using:
 
     git clone https://github.com/biocompibens/ALFA
 
-###Requirements
+### Requirements
 RAM: 1 GB should be sufficient for a set aligned on the human genome
 
 Dependencies: Bedtools suite (v2.20.0 and above)
 
-##Quick start
+## Quick start
 There is a [toy dataset](https://github.com/biocompibens/ALFA/tree/master/Toy_dataset) in the respository in order to test the tool installation. To do so, one can go in the directory and run the following command:
 
     python ../ALFA.py -a toy.gtf -g toy_reference -i toy.bam toy --chr_len chr_len.txt
 ![Quick start terminal](https://github.com/biocompibens/ALFA/blob/master/Images/quick_start_terminal.png)
 ![Quick start plots](https://github.com/biocompibens/ALFA/blob/master/Images/quick_start_plots.png)
 
-##Detailed example
+## Detailed example
 Here is an illustrated detailed example produced by ALFA from fake input files.
 
 The BAM file contains 10 reads fully mapped to unique genomic categories referring to a GTF file describing a genome made of only of one gene (without introns).
 The figure shows an illustration of the input BAM file reads distribution on the genome. These reads are converted to proportions on the top plot produced by ALFA. As an example, 60% of the reads (n=6) are mapped to a CDS region. This plot is then normalized according to the "surface" that each category occupies within a given genome described in the input GTF file. Finally, the bottom plot produced by ALFA shows the enrichment/depletion of the different categories. For instance, the CDS regions are enriched by a factor of 1.2 since 60% of the nucleotides from the reads map to this feature although the genome is only composed of 50% of CDS regions.
 ![Detailed example](https://github.com/biocompibens/ALFA/blob/master/Images/detailed.png)
 
-##Manual
-###ALFA usages
+## Manual
+### ALFA usages
 The basic ALFA workflow consists in 2 steps performed at once or separately:
 
 * Generating genome index files (stranded and unstranded)
@@ -70,7 +70,7 @@ The basic ALFA workflow consists in 2 steps performed at once or separately:
 
 > The user provides the previously generated genome indexes as well as mapped reads file(s) (BAM format) that are intersected to determine the proportion of reads (at nucleotide resolution) within each of the genomic features. As an output, ALFA produces a count file for each input as well as plots based on these files.
 
-####Generating index files
+#### Generating index files
 Usage:
 
     ALFA.py -a GTF_FILE [-g GENOME_INDEX] [--chr_len CHR_LENGTHS_FILE]
@@ -86,7 +86,7 @@ Important: the GTF file has to be sorted by position. Otherwise, you can use the
 
     sort -k1,1 -k4,4n -k5,5nr file.gtf > file.sorted.gtf
 
-####Processing reads files
+#### Processing reads files
 Usage:
 
     ALFA.py -g GENOME_INDEX -i BAM1 LABEL1 [BAM2 LABEL2 …]
@@ -106,7 +106,7 @@ Important: BAM files have to be sorted by position. Otherwise, you can use the '
 
     samtools sort file.bam -T aln.sorted -O bam -o file.sorted.bam
 
-####Advanced possibilities
+#### Advanced possibilities
 * *Indexing + processing*
 
 > create the genome indexes and process your BAM files at once using both _**-a/--annotation**_ and _**-i/--input**_ options.
@@ -119,7 +119,7 @@ Important: BAM files have to be sorted by position. Otherwise, you can use the '
 
 > specify the count files previously generated to avoid running the script again on already processed datasets using the _**-c/--counts**_ option (instead of _**-i/--input**_).
 
-###Categories depth
+### Categories depth
 ALFA can assign categories to nucleotides according to different hierarchical levels considered in the GTF file using the _**-d/--categories_depth**_ option.
 Here are the features considered in the 4 different levels:
 
@@ -138,5 +138,5 @@ This means, for example, that a nucleotide found in a *gene* as well as in a *tr
 In case of a nucleotide found in two categories of equal priority, the count is split between them.
 Overlapping biotype priorities are first solved with the associated category, in case of an equality, the previous principle is applied.
 
-###Unknown feature
+### Unknown feature
 If ALFA meets a category that is not reference in its code, it won’t take it into account as its priority is tricky to assess. However, an unknown biotype is added on the fly and will be processed.
