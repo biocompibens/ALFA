@@ -1245,8 +1245,10 @@ if __name__ == "__main__":
     samples = collections.OrderedDict() # Structure: {<label>: [<filename1>(, <filename2>)]} # Example: {'Toy': ['toy.bam']}
 
     # Initializing the category priority order, coding biotypes and the final list
-    prios = {"start_codon": 7, "stop_codon": 7, "five_prime_utr": 6, "three_prime_utr": 6, "UTR": 6, "CDS": 5, "exon": 4,
-             "transcript": 3, "gene": 2, "antisense": 1, "intergenic": 0}
+    # prios = {"start_codon": 7, "stop_codon": 7, "five_prime_utr": 6, "three_prime_utr": 6, "UTR": 6, "CDS": 5, "exon": 4,
+    #          "transcript": 3, "gene": 2, "antisense": 1, "intergenic": 0}
+    prios = {"start_codon": 4, "stop_codon": 4, "five_prime_utr": 3, "three_prime_utr": 3, "UTR": 3, "CDS": 3,
+             "exon": 2, "intron": 2, "transcript": 1, "gene": 1, "antisense": 0, "intergenic": -1}
 
     biotype_prios = None
     # biotype_prios = {"protein_coding":1, "miRNA":2}
