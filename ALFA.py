@@ -312,6 +312,10 @@ def register_interval(features_dict, chrom, stranded_index_fh, unstranded_index_
         for interval_stop in sorted_pos[1:]:
             # Writing the current interval features to the indexes
             write_index([features_plus, features_minus], chrom, str(interval_start), str(interval_stop), stranded_index_fh, unstranded_index_fh)
+            # # If feature == transcript and prev interval's feature is exon => add intron feature in addition
+            # if "transcript" in [features_plus, features_minus]:
+            #     if features_plus == "transcript" && features_dict['+'][]
+            #         if feat=
             # Initializing the new interval start and features
             interval_start = interval_stop
             features_plus = features_dict["+"][interval_start]
@@ -1254,19 +1258,55 @@ if __name__ == "__main__":
     # biotype_prios = {"protein_coding":1, "miRNA":2}
 
     # Possibles groups of categories to plot
-    categs_group1 = {"start": ["start_codon"], "5UTR": ["five_prime_utr", "UTR"], "CDS": ["CDS", "exon"],
-                     "3UTR": ["three_prime_utr"], "stop": ["stop_codon"], "introns": ["transcript", "gene"],
-                     "intergenic": ["intergenic"], "antisense": ["antisense"]}
-    categs_group2 = {"5UTR": ["five_prime_utr", "UTR"], "CDS": ["CDS", "exon", "start_codon", "stop_codon"],
-                     "3UTR": ["three_prime_utr"], "introns": ["transcript", "gene"], "intergenic": ["intergenic"],
+    # categs_group1 = {"start": ["start_codon"], "5UTR": ["five_prime_utr", "UTR"], "CDS": ["CDS", "exon"],
+    #                  "3UTR": ["three_prime_utr"], "stop": ["stop_codon"], "introns": ["transcript", "gene"],
+    #                  "intergenic": ["intergenic"], "antisense": ["antisense"]}
+    # categs_group2 = {"5UTR": ["five_prime_utr", "UTR"], "CDS": ["CDS", "exon", "start_codon", "stop_codon"],
+    #                  "3UTR": ["three_prime_utr"], "introns": ["transcript", "gene"], "intergenic": ["intergenic"],
+    #                  "antisense": ["antisense"]}
+    # categs_group3 = {"exons": ["five_prime_utr", "three_prime_utr", "UTR", "CDS", "exon", "start_codon", "stop_codon"],
+    #                  "introns": ["transcript", "gene"], "intergenic": ["intergenic"], "antisense": ["antisense"]}
+    # categs_group4 = {
+    #     "gene": ["five_prime_utr", "three_prime_utr", "UTR", "CDS", "exon", "start_codon", "stop_codon", "transcript",
+    #              "gene"], "intergenic": ["intergenic"], "antisense": ["antisense"]}
+
+
+    categs_level1 = {"gene": ["five_prime_utr", "three_prime_utr", "UTR", "CDS", "exon", "intron", "start_codon",
+                             "stop_codon", "transcript", "gene"],
+                    "intergenic": ["intergenic"],
+                    "antisense": ["antisense"]}
+
+    categs_level2 = {"exons": ["five_prime_utr", "three_prime_utr", "UTR", "CDS", "exon", "start_codon", "stop_codon"],
+                    "introns": ["intron"],
+                    "undescribed_genes": ["transcript", "gene"],
+                    "intergenic": ["intergenic"],
+                    "antisense": ["antisense"]}
+
+    categs_level3 = {"5UTR": ["five_prime_utr", "UTR"],
+                    "CDS": ["CDS", "start_codon", "stop_codon"],
+                    "3UTR": ["three_prime_utr"],
+                    "undescribed_exons": ["exon"],
+                    "introns": ["intron"],
+                    "undescribed_genes": ["transcript", "gene"],
+                    "intergenic": ["intergenic"],
+                    "antisense": ["antisense"]}
+
+    categs_level4 = {"5UTR": ["five_prime_utr", "UTR"],
+                     "start": ["start_codon"],
+                     "stop": ["stop_codon"],
+                     "CDS": ["CDS"],
+                     "undescribed_CDS": [], #TODO: implement CDS/undescribed_CDS distinction
+                     "3UTR": ["three_prime_utr"],
+                     "undescribed_exons": ["exon"],
+                     "introns": ["intron"],
+                     "undescribed_genes": ["transcript", "gene"],
+                     "intergenic": ["intergenic"],
                      "antisense": ["antisense"]}
-    categs_group3 = {"exons": ["five_prime_utr", "three_prime_utr", "UTR", "CDS", "exon", "start_codon", "stop_codon"],
-                     "introns": ["transcript", "gene"], "intergenic": ["intergenic"], "antisense": ["antisense"]}
-    categs_group4 = {
-        "gene": ["five_prime_utr", "three_prime_utr", "UTR", "CDS", "exon", "start_codon", "stop_codon", "transcript",
-                 "gene"], "intergenic": ["intergenic"], "antisense": ["antisense"]}
-    categs_groups = [categs_group4, categs_group3, categs_group2, categs_group1]  # Order and merging for the final plot
-    cat_list = ["5UTR", "start", "CDS", "stop", "3UTR", "exons", "introns", "gene", "intergenic", "antisense"]
+
+    # categs_groups = [categs_group4, categs_group3, categs_group2, categs_group1]  # Order and merging for the final plot
+    categs_groups = [categs_level1, categs_level2, categs_level3, categs_level4]
+
+    cat_list = ["5UTR", "start", "CDS", "stop", "3UTR", "exons", "undescribed_exons", "introns", "gene", "undescribed_genes", "intergenic", "antisense"]
 
     # biotypes list
     biotypes = {"protein_coding", "polymorphic_pseudogene", "TR_C_gene", "TR_D_gene", "TR_J_gene", "TR_V_gene", "IG_C_gene",
