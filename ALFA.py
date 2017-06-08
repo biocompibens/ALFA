@@ -493,7 +493,7 @@ def read_counts():
         #cpt[label] = {}
         cpt[sample_label] = {}
         #with open(fcounts, "r") as counts_fh:
-        with open(samples[sample_label], "r") as counts_fh:
+        with open(sample_label, "r") as counts_fh:
             for line in counts_fh:
                 if not line.startswith("#"):
                     feature = tuple(line.split("\t")[0].split(","))
