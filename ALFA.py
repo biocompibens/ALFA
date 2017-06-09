@@ -794,13 +794,13 @@ def one_sample_plot(ordered_categs, percentages, enrichment, n_cat, index, index
 
 
 #def make_plot(ordered_categs, sample_names, categ_counts, genome_counts, pdf, counts_type, threshold, title=None,
-def make_plot(ordered_categs, categ_counts, genome_counts, pdf, counts_type, threshold, title=None, svg=None, png=None, categ_groups=[]): # MB: to review
+def make_plot(ordered_categs, categ_counts, genome_counts, pdf, counts_type, threshold, title=None, svg=None, png=None,
+              categ_groups=[]):  # MB: to review
     # From ordered_categs, keep only the features (categs or biotypes) that we can find in at least one sample.
     existing_categs = set()
     for sample in categ_counts.values():
         existing_categs |= set(sample.keys())
     ordered_categs = filter(existing_categs.__contains__, ordered_categs)
-    # xlabels = [cat if len(cat.split("_")) == 1 else "\n".join(cat.split("_")) for cat in ordered_categs]
     xlabels = [cat if len(cat.split("_")) == 1 else "\n".join(cat.split("_")) if cat.split("_")[0] != 'undescribed' else "\n".join(["und.",cat.split("_")[1]]) for cat in ordered_categs]
     n_cat = len(ordered_categs)
     #n_exp = len(sample_names)
@@ -929,13 +929,14 @@ def make_plot(ordered_categs, categ_counts, genome_counts, pdf, counts_type, thr
     else:
         legend_ncol = 3
     ax1.legend(loc="best", frameon=False, ncol=legend_ncol)
+    ax2.legend(loc="best", frameon=False, ncol=legend_ncol)
     # ax2.legend(loc='upper center',bbox_to_anchor=(0.5,-0.1), fancybox=True, shadow=True)
     # Main titles
     if title:
         ax1.set_title(title)
     else:
-        ax1.set_title(counts_type + " distribution in mapped reads")
-    ax2.set_title("Normalized counts of " + counts_type)
+        ax1.set_title(counts_type + " counts")
+    ax2.set_title(counts_type + " normalized counts")
 
     # Adding enrichment baseline
     # ax2.axhline(y=0,color='black',linestyle='dashed',linewidth='1.5')
@@ -995,6 +996,7 @@ def make_plot(ordered_categs, categ_counts, genome_counts, pdf, counts_type, thr
     else:
         ax1.set_xticklabels(xlabels)
         ax2.set_xticklabels(xlabels)
+
     # Display fractions values in percentages
     ax1.set_yticklabels([str(int(i * 100)) for i in ax1.get_yticks()])
     # Correct y-axis ticks labels for enrichment subplot
@@ -1029,8 +1031,7 @@ def make_plot(ordered_categs, categ_counts, genome_counts, pdf, counts_type, thr
         for y in xrange(n_cat):
             #if percentages[i][y] == 0:
             if percentages[n][y] == 0:
-                #txt = ax1.text(y + bar_width * (i + 0.5), 0.02, "Absent in sample", rotation="vertical", color=cmap[i],
-                txt = ax1.text(y + bar_width * (n + 0.5), 0.02, "Absent in sample", rotation="vertical", color=cmap[n],
+                txt = ax1.text(y + bar_width * (n + 0.5), 0.02, "Abs.", rotation="vertical", color=cmap[n],
                                horizontalalignment="center", verticalalignment="bottom")
                 txt.set_path_effects([PathEffects.Stroke(linewidth=0.5), PathEffects.Normal()])
             #elif enrichment[i][y] == 0:
@@ -1046,21 +1047,20 @@ def make_plot(ordered_categs, categ_counts, genome_counts, pdf, counts_type, thr
         ax.tick_params(axis="x", which="both", bottom="on", top="off", labelbottom="on")
         ax.tick_params(axis="y", which="both", left="on", right="off", labelleft="on")
 
-    # ax1.legend(loc='center right', bbox_to_anchor=(1.2, 0),fancybox=True, shadow=True)
 
-    # Showing the plot
-    plt.tight_layout()
-    fig.subplots_adjust(wspace=0.2, bottom=0.15)
+    ### Add second axis with categ groups
+    annotate_group(categ_groups, label=None, ax=ax1)
+    annotate_group(categ_groups, label=None, ax=ax2)
 
-    # X axis title
-    ax1.set_xlabel(counts_type)
+    ### Adjust figure margins to
     if counts_type.lower() == "categories":
-        # Replace x-axis label by a second axis with categ groups
-        annotate_group(categ_groups, label=counts_type, ax=ax2)
-    else :
-        ax2.set_xlabel(counts_type)
+        plt.tight_layout(h_pad=5.0)
+        fig.subplots_adjust(bottom=0.1)
+    else:
+        plt.tight_layout()
 
-    if pdf: ## TODO: allow several output formats
+    ## Showing the plot
+    if pdf:  ## TODO: allow several output formats
         pdf.savefig(format="pdf")
         plt.close()
     elif svg:
@@ -1083,7 +1083,6 @@ def make_plot(ordered_categs, categ_counts, genome_counts, pdf, counts_type, thr
         plt.show()
     ## Save on disk it as a png image
     # fig.savefig('image_output.png', dpi=300, format='png', bbox_extra_artists=(lgd,), bbox_inches='tight')
-
 
 def annotate_group(groups, ax=None, label=None, labeloffset=30):
     """Annotates the categories with their parent group and add x-axis label"""
@@ -1807,15 +1806,15 @@ if __name__ == "__main__":
         else:
             cat_list.remove("antisense")
         #make_plot(cat_list, sample_labels, final_cat_cpt, final_genome_cpt, pdf, "categories", options.threshold, svg=options.svg, png=options.png)
-        make_plot(cat_list, final_cat_cpt, final_genome_cpt, pdf, "categories", options.threshold, svg=options.svg, png=options.png, categ_groups= parent_categs)
+        make_plot(cat_list, final_cat_cpt, final_genome_cpt, pdf, "Categories", options.threshold, svg=options.svg, png=options.png, categ_groups= parent_categs)
         if filtered_biotype:
             #make_plot(cat_list, sample_labels, filtered_cat_cpt, final_genome_cpt, pdf, "categories", options.threshold, title="Categories distribution for '" + filtered_biotype + "' biotype", svg=options.svg, png=options.png)
-            make_plot(cat_list, filtered_cat_cpt, final_genome_cpt, pdf, "categories", options.threshold, title="Categories distribution for '" + filtered_biotype + "' biotype", svg=options.svg, png=options.png, categ_groups= parent_categs)
+            make_plot(cat_list, filtered_cat_cpt, final_genome_cpt, pdf, "Categories", options.threshold, title="Categories distribution for '" + filtered_biotype + "' biotype", svg=options.svg, png=options.png, categ_groups= parent_categs)
         ## Generate the biotypes plot
         # Recategorization within the final biotypes and plot generation
         final_cat_cpt, final_genome_cpt = group_counts_by_biotype(cpt, cpt_genome, biotypes)
         #make_plot(biotypes, sample_labels, final_cat_cpt, final_genome_cpt, pdf, "biotypes", options.threshold, svg=options.svg, png=options.png)
-        make_plot(biotypes, final_cat_cpt, final_genome_cpt, pdf, "biotypes", options.threshold, svg=options.svg, png=options.png)
+        make_plot(biotypes, final_cat_cpt, final_genome_cpt, pdf, "Biotypes", options.threshold, svg=options.svg, png=options.png)
 
 
     print "### End of program ###"
