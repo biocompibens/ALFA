@@ -332,7 +332,7 @@ def generate_genome_index(annotation, unstranded_genome_index, stranded_genome_i
             stranded_index_fh.write("#%s\t%s\n" % (key, value))
     # Progress bar to track the genome indexes creation
     nb_lines = sum(1 for _ in open(annotation))
-    pbar = progressbar.ProgressBar(widgets=["Indexing the genome ", progressbar.Percentage(), " ", progressbar.Bar(), progressbar.Timer()], max_value=nb_lines).start()
+    pbar = progressbar.ProgressBar(widgets=["Indexing the genome ", progressbar.Percentage(), " ", progressbar.Bar(), progressbar.Timer()], maxval=nb_lines).start()
     # Browsing the GTF file and writing into genome index files
     with open(annotation, "r") as gtf_fh:
         for line in gtf_fh:
@@ -426,7 +426,7 @@ def generate_bedgraph_files():
     #sample_labels = []
     # Progress bar to track the BedGraph file creation
     #pbar = progressbar.ProgressBar(widgets=["Generating the BedGraph files ", progressbar.Percentage(), progressbar.Bar(), progressbar.Timer()], max_value=len(bam_files)+1).start()
-    pbar = progressbar.ProgressBar(widgets=["Generating the BedGraph files ", progressbar.Percentage(), progressbar.Bar(), progressbar.Timer()], max_value=len(samples)+1).start()
+    pbar = progressbar.ProgressBar(widgets=["Generating the BedGraph files ", progressbar.Percentage(), progressbar.Bar(), progressbar.Timer()], maxval=len(samples)+1).start()
     n = 1
     pbar.update(n)
     #for n in range(0, len(bam_files), 2):
@@ -549,7 +549,7 @@ def intersect_bedgraphs_and_index_to_counts_categories(biotype_prios=None): ## M
 
         # Progress bar to track the BedGraph and index intersection
         #pbar = progressbar.ProgressBar(widgets=["Processing " + sample_file + " ", progressbar.Percentage(), progressbar.Bar(), progressbar.Timer()], max_value=nb_lines).start()
-        pbar = progressbar.ProgressBar(widgets=["Processing " + sample_label + " ", progressbar.Percentage(), progressbar.Bar(), progressbar.Timer()], max_value=nb_lines).start()
+        pbar = progressbar.ProgressBar(widgets=["Processing " + sample_label + " ", progressbar.Percentage(), progressbar.Bar(), progressbar.Timer()], maxval=nb_lines).start()
         i = 0
 
         # Intersecting the BedGraph and index files
