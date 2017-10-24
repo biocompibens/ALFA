@@ -316,12 +316,26 @@ def register_interval(features_dict, chrom, stranded_index_fh, unstranded_index_
             write_index([features_plus, features_minus], chrom, str(interval_start), str(interval_stop), stranded_index_fh, unstranded_index_fh)
             # Initializing the new interval start and features
             interval_start = interval_stop
+            # Store current features
+            prev_features_plus = features_plus
+            prev_features_minus = features_minus
+            # Update features
             features_plus = features_dict["+"][interval_start]
             features_minus = features_dict["-"][interval_start]
-            # # If feature == transcript and prev interval's feature is exon => add intron feature in addition
-            # if "transcript" in [features_plus, features_minus]:
-            #     if features_plus == "transcript" && features_dict['+'][]
-            #         if feat=
+            # If feature == transcript and prev interval's feature is exon => add intron feature
+            for biotype, categ in features_plus.iteritems():
+                if set(categ) == {"gene", "transcript"}:
+                    if "exon" in prev_features_plus[biotype]:
+                        categ.append("intron")
+                else:
+                    continue
+            for biotype, categ in features_minus.iteritems():
+                if set(categ) == {"gene", "transcript"}:
+                    if "exon" in prev_features_minus[biotype]:
+                        categ.append("intron")
+                else:
+                    continue
+
 
 
 def generate_genome_index(annotation, unstranded_genome_index, stranded_genome_index, chrom_sizes):
