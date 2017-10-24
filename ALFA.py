@@ -314,14 +314,14 @@ def register_interval(features_dict, chrom, stranded_index_fh, unstranded_index_
         for interval_stop in sorted_pos[1:]:
             # Writing the current interval features to the indexes
             write_index([features_plus, features_minus], chrom, str(interval_start), str(interval_stop), stranded_index_fh, unstranded_index_fh)
-            # # If feature == transcript and prev interval's feature is exon => add intron feature in addition
-            # if "transcript" in [features_plus, features_minus]:
-            #     if features_plus == "transcript" && features_dict['+'][]
-            #         if feat=
             # Initializing the new interval start and features
             interval_start = interval_stop
             features_plus = features_dict["+"][interval_start]
             features_minus = features_dict["-"][interval_start]
+            # # If feature == transcript and prev interval's feature is exon => add intron feature in addition
+            # if "transcript" in [features_plus, features_minus]:
+            #     if features_plus == "transcript" && features_dict['+'][]
+            #         if feat=
 
 
 def generate_genome_index(annotation, unstranded_genome_index, stranded_genome_index, chrom_sizes):
@@ -487,19 +487,18 @@ def read_gtf(gtf_index_file, sign):
 
 
 #def read_counts(counts_files):
-def read_counts():
+def read_counts(samples):
     """ Reads the counts from an input file. """
     cpt = {}
     cpt_genome = {}
-    #labels = []
     #for fcounts in counts_files:
-    for sample_label in samples:
+    for sample_label, filename in samples.iteritems():
         #label = os.path.splitext(os.path.basename(fcounts))[0]
         #labels.append(label)
         #cpt[label] = {}
         cpt[sample_label] = {}
         #with open(fcounts, "r") as counts_fh:
-        with open(sample_label, "r") as counts_fh:
+        with open(filename, "r") as counts_fh:
             for line in counts_fh:
                 if not line.startswith("#"):
                     feature = tuple(line.split("\t")[0].split(","))
@@ -1680,10 +1679,8 @@ if __name__ == "__main__":
         # Registering the sample labels and filenames
         for sample in options.counts:
             label = re.sub('.(un)?stranded.feature_counts.tsv', '', sample)
-            try:
-                samples[label].append(sample)
-            except KeyError:
-               samples[label] = [sample]
+            label = re.sub('.feature_counts.tsv', '', sample)
+            samples[label] = sample
     else:
         # Generating the genome index filenames
         index_chrom_list = [] # Not a set because we need to sort it according to the chromosome names later
@@ -1765,7 +1762,7 @@ if __name__ == "__main__":
         # If input files are the categories counts, the first step is to load them
         if options.counts:
             #cpt, cpt_genome, sample_names = read_counts(options.counts)
-            cpt, cpt_genome = read_counts()
+            cpt, cpt_genome = read_counts(samples)
         # Managing the unknown biotypes
         for sample_label, counters in cpt.items():
             for (cat, biot) in counters:
