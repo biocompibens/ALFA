@@ -440,38 +440,38 @@ def generate_genome_index(annotation, unstranded_genome_index, stranded_genome_i
     pbar.finish()
 
 
-def generate_bedgraph_files():
+def generate_bedgraph_files(sample_labels, bam_files):
     """ Creates BedGraph files from BAM ones and return filenames and labels. """
     #sample_files = []
     #sample_labels = []
     # Progress bar to track the BedGraph file creation
     #pbar = progressbar.ProgressBar(widgets=["Generating the BedGraph files ", progressbar.Percentage(), progressbar.Bar(), progressbar.Timer()], max_value=len(bam_files)+1).start()
-    pbar = progressbar.ProgressBar(widgets=["Generating the BedGraph files ", progressbar.Percentage(), progressbar.Bar(), progressbar.Timer()], max_value=len(samples)+1).start()
+    pbar = progressbar.ProgressBar(widgets=["Generating the BedGraph files ", progressbar.Percentage(), progressbar.Bar(), progressbar.Timer()], max_value=len(sample_labels)+1).start()
     n = 1
     pbar.update(n)
     #for n in range(0, len(bam_files), 2):
-    for sample_label in samples:
+    for sample_label, bam_file in zip(sample_labels, bam_files):
         # Get the label for this sample
         #sample_labels.append(bam_files[n + 1])
         # Modify it to contain only alphanumeric characters (avoid files generation with dangerous names)
         #modified_label = "_".join(re.findall(r"[\w']+", bam_files[n + 1]))
         if options.strandness in ["forward", "fr-firststrand"]:
             #subprocess.call("bedtools genomecov -bg -split -strand + -ibam " + bam_files[n] + " > " + modified_label + ".plus.bedgraph", shell=True)
-            subprocess.call("bedtools genomecov -bg -split -strand + -ibam " + samples[sample_label][0] + " > " + sample_label + ".plus.bedgraph", shell=True)
+            subprocess.call("bedtools genomecov -bg -split -strand + -ibam " + bam_file + " > " + sample_label + ".plus.bedgraph", shell=True)
             pbar.update(n + 0.5)
             #subprocess.call("bedtools genomecov -bg -split -strand - -ibam " + bam_files[n] + " > " + modified_label + ".minus.bedgraph", shell=True)
-            subprocess.call("bedtools genomecov -bg -split -strand - -ibam " + samples[sample_label][0] + " > " + sample_label + ".minus.bedgraph", shell=True)
+            subprocess.call("bedtools genomecov -bg -split -strand - -ibam " + bam_file + " > " + sample_label + ".minus.bedgraph", shell=True)
             pbar.update(n + 0.5)
         elif options.strandness in ["reverse", "fr-secondstrand"]:
             #subprocess.call("bedtools genomecov -bg -split -strand - -ibam " + bam_files[n] + " > " + modified_label + ".plus.bedgraph", shell=True)
-            subprocess.call("bedtools genomecov -bg -split -strand - -ibam " + samples[sample_label][0] + " > " + sample_label + ".plus.bedgraph", shell=True)
+            subprocess.call("bedtools genomecov -bg -split -strand - -ibam " + bam_file + " > " + sample_label + ".plus.bedgraph", shell=True)
             pbar.update(n + 0.5)
             #subprocess.call("bedtools genomecov -bg -split -strand + -ibam " + bam_files[n] + " > " + modified_label + ".minus.bedgraph", shell=True)
-            subprocess.call("bedtools genomecov -bg -split -strand + -ibam " + samples[sample_label][0] + " > " + sample_label + ".minus.bedgraph", shell=True)
+            subprocess.call("bedtools genomecov -bg -split -strand + -ibam " + bam_file + " > " + sample_label + ".minus.bedgraph", shell=True)
             pbar.update(n + 0.5)
         else:
             #subprocess.call("bedtools genomecov -bg -split -ibam " + bam_files[n] + " > " + modified_label + ".bedgraph", shell=True)
-            subprocess.call("bedtools genomecov -bg -split -ibam " + samples[sample_label][0] + " > " + sample_label + ".bedgraph", shell=True)
+            subprocess.call("bedtools genomecov -bg -split -ibam " + bam_file + " > " + sample_label + ".bedgraph", shell=True)
             pbar.update(n + 1)
         #sample_files.append(modified_label)
     pbar.finish()
@@ -501,12 +501,12 @@ def read_gtf(gtf_index_file, sign):
 
 
 #def read_counts(counts_files):
-def read_counts(samples):
+def read_counts(sample_labels, counts_files):
     """ Reads the counts from an input file. """
     cpt = {}
     cpt_genome = {}
     #for fcounts in counts_files:
-    for sample_label, filename in samples.iteritems():
+    for sample_label, filename in zip(sample_labels, counts_files):
         #label = os.path.splitext(os.path.basename(fcounts))[0]
         #labels.append(label)
         #cpt[label] = {}
@@ -546,25 +546,36 @@ def read_index():
 
 
 #def intersect_bedgraphs_and_index_to_counts_categories(sample_files, sample_labels, prios, genome_index, biotype_prios=None): ## MB: To review
-def intersect_bedgraphs_and_index_to_counts_categories(biotype_prios=None): ## MB: To review
+def intersect_bedgraphs_and_index_to_counts_categories(sample_labels, bedgraph_files, biotype_prios=None): ## MB: To review
     global gtf_line, gtf_chrom, gtf_start, gtf_stop, gtf_cat, endGTF
     unknown_chrom = []
     cpt = {}  # Counter for the nucleotides in the BAM input file(s)
     #for n in range(len(sample_files)):
-    for sample_label in samples:
+    if bedgraph_files == []:
+        bedgraph_files = sample_labels
+    for sample_label, bedgraph_basename in zip(sample_labels, bedgraph_files):
         #sample_file = sample_files[n]
         #sample_name = sample_labels[n]
         # Initializing the category counter dict for this sample and the number of lines to process for the progress bar
         #init_dict(cpt, sample_name, {})
         init_dict(cpt, sample_label, {})
+        bg_extension = ".bedgraph"
         if options.strandness == "unstranded":
             strands = [("", ".")]
             #nb_lines = sum(1 for _ in open(sample_file + ".bedgraph"))
-            nb_lines = sum(1 for _ in open(sample_label + ".bedgraph"))
+            try :
+                nb_lines = sum(1 for _ in open(bedgraph_basename + bg_extension))
+            except IOError:
+                bg_extension = "bg"
+                nb_lines = sum(1 for _ in open(bedgraph_basename + bg_extension))
         else:
             strands = [(".plus", "+"), (".minus", "-")]
             #nb_lines = sum(1 for _ in open(sample_file + ".plus.bedgraph")) + sum(1 for _ in open(sample_file + ".minus.bedgraph"))
-            nb_lines = sum(1 for _ in open(sample_label + ".plus.bedgraph")) + sum(1 for _ in open(sample_label + ".minus.bedgraph"))
+            try:
+                nb_lines = sum(1 for _ in open(bedgraph_basename + ".plus" + bg_extension)) + sum(1 for _ in open(bedgraph_basename + ".minus" + bg_extension))
+            except IOError:
+                nb_lines = sum(1 for _ in open(bedgraph_basename + ".plus" + bg_extension)) + sum(
+                    1 for _ in open(bedgraph_basename + ".minus" + bg_extension))
 
         # Progress bar to track the BedGraph and index intersection
         #pbar = progressbar.ProgressBar(widgets=["Processing " + sample_file + " ", progressbar.Percentage(), progressbar.Bar(), progressbar.Timer()], max_value=nb_lines).start()
@@ -576,8 +587,8 @@ def intersect_bedgraphs_and_index_to_counts_categories(biotype_prios=None): ## M
             prev_chrom = ""
             endGTF = False  # Reaching the next chr or the end of the GTF index
             intergenic_adds = 0.0
-                #with open(sample_file + strand + ".bedgraph", "r") as bedgraph_fh:
-            with open(sample_label + strand + ".bedgraph", "r") as bedgraph_fh:
+            #with open(sample_file + strand + ".bedgraph", "r") as bedgraph_fh:
+            with open(bedgraph_basename + strand + bg_extension, "r") as bedgraph_fh:
                 # Running through the BedGraph file
                 for bam_line in bedgraph_fh:
                     i += 1
@@ -621,11 +632,11 @@ def intersect_bedgraphs_and_index_to_counts_categories(biotype_prios=None): ## M
                             intergenic_adds += min(bam_stop, gtf_start) - bam_start
                             #cpt[sample_name][("intergenic", "intergenic")] += (min(bam_stop,
                             cpt[sample_label][("intergenic", "intergenic")] += (min(bam_stop,
-                                                                                   gtf_start) - bam_start) * bam_cpt
+                                                                                    gtf_start) - bam_start) * bam_cpt
                         except KeyError:
                             #cpt[sample_name][("intergenic", "intergenic")] = (min(bam_stop,
                             cpt[sample_label][("intergenic", "intergenic")] = (min(bam_stop,
-                                                                                  gtf_start) - bam_start) * bam_cpt
+                                                                                   gtf_start) - bam_start) * bam_cpt
                         # Go to next line if the BAM interval was totally upstream the first GTF annotation, carry on with the remaining part otherwise
                         if endGTF or (bam_stop <= gtf_start):
                             continue
@@ -669,7 +680,7 @@ def intersect_bedgraphs_and_index_to_counts_categories(biotype_prios=None): ## M
 def write_counts_in_files(cpt, genome_counts):
     """ Writes the biotype/category counts in an output file. """
     for sample_label, counters in cpt.items():
-        sample_label = "_".join(re.findall(r"[\w']+", sample_label))
+        sample_label = "_".join(re.findall(r"[\w\-']+", sample_label))
         with open(sample_label + ".feature_counts.tsv", "w") as output_fh:
             output_fh.write("#Category,biotype\tCounts_in_bam\tSize_in_genome\n")
             for features_pair, counts in counters.items():
@@ -761,7 +772,7 @@ def group_counts_by_biotype(cpt, cpt_genome, biotypes):
 # return map_index_to_rgb_color
 
 def one_sample_plot(ordered_categs, percentages, enrichment, n_cat, index, index_enrichment, bar_width, counts_type,
-                    title):
+                    title, sample_labels):
     ### Initialization
     fig = plt.figure(figsize=(13, 9))
     ax1 = plt.subplot2grid((2, 4), (0, 0), colspan=2)
@@ -807,7 +818,7 @@ def one_sample_plot(ordered_categs, percentages, enrichment, n_cat, index, index
 
 
 #def make_plot(ordered_categs, sample_names, categ_counts, genome_counts, pdf, counts_type, threshold, title=None,
-def make_plot(ordered_categs, categ_counts, genome_counts, pdf, counts_type, threshold, title=None, svg=None, png=None,
+def make_plot(sample_labels, ordered_categs, categ_counts, genome_counts, pdf, counts_type, threshold, title=None, svg=None, png=None,
               categ_groups=[]):  # MB: to review
     # From ordered_categs, keep only the features (categs or biotypes) that we can find in at least one sample.
     existing_categs = set()
@@ -829,10 +840,10 @@ def make_plot(ordered_categs, categ_counts, genome_counts, pdf, counts_type, thr
             except:
                 pass
     '''
-    for sample_label in samples:
+    for sample_label in sample_labels:
         for cat in xrange(len(ordered_categs)):
             try:
-                counts[samples.keys().index(sample_label), cat] = categ_counts[sample_label][ordered_categs[cat]]
+                counts[sample_labels.index(sample_label), cat] = categ_counts[sample_label][ordered_categs[cat]]
             except:
                 pass
 
@@ -911,9 +922,9 @@ def make_plot(ordered_categs, categ_counts, genome_counts, pdf, counts_type, thr
     rects = []
     # For each sample/experiment
     #for i in range(n_exp):
-    for sample_label in samples:
+    for sample_label in sample_labels:
         # First barplot: percentage of reads in each categorie
-        n = samples.keys().index(sample_label)
+        n = sample_labels.index(sample_label)
         #ax1.bar(index + i * bar_width, percentages[i], bar_width,
         ax1.bar(index + n * bar_width, percentages[n], bar_width,
                 alpha=opacity,
@@ -1308,6 +1319,13 @@ if __name__ == "__main__":
     reverse_strand = {"+": "-", "-": "+"}
     samples = collections.OrderedDict() # Structure: {<label>: [<filename1>(, <filename2>)]} # Example: {'Toy': ['toy.bam']}
 
+    #Sample labels and file paths
+    labels = []
+    bams = []
+    bedgraphs = []
+    count_files = []
+
+
     # Initializing the category priority order, coding biotypes and the final list
     # prios = {"start_codon": 7, "stop_codon": 7, "five_prime_utr": 6, "three_prime_utr": 6, "UTR": 6, "CDS": 5, "exon": 4,
     #          "transcript": 3, "gene": 2, "antisense": 1, "intergenic": 0}
@@ -1596,14 +1614,7 @@ if __name__ == "__main__":
                     sys.exit("\nError: BAM files and associated labels are not correctly provided.\n"
                              "Make sure to follow the expected format: --bam BAM_file1 Label1 [BAM_file2 Label2 ...]."
                              "\n### End of program ###")
-                # Check whether the BedGraph file(s) and counts file that will be generated already exists
-                if options.strandness == "unstranded":
-                    existing_file(options.bam[i].split(".bam")[0] + ".bedgraph")
-                    existing_file("_".join(re.findall(r"[\w']+", options.bam[i + 1])) + ".unstranded.feature_counts.tsv")
-                else:
-                    existing_file(options.bam[i].split(".bam")[0] + ".plus.bedgraph")
-                    existing_file(options.bam[i].split(".bam")[0] + ".minus.bedgraph")
-                    existing_file("_".join(re.findall(r"[\w']+", options.bam[i + 1])) + ".stranded.feature_counts.tsv")
+
                 # Check whether the BAM file extension in 'bam'
                 if not options.bam[i].endswith(".bam"):
                     sys.exit("\nError: at least one BAM file hasn't a '.bam' extension.\n### End of program ###")
@@ -1617,9 +1628,19 @@ if __name__ == "__main__":
                     sys.exit("\nError: BAM files and associated labels are not correctly provided.\n"
                              "Make sure to follow the expected format: --bam BAM_file1 Label1 [BAM_file2 Label2 ...]."
                              "\n### End of program ###")
+                # Get label and replace invalid characters by "_"
+                label = "_".join(re.findall(r"[\w\-']+", options.bam[i + 1]))
+                # Check whether the BedGraph file(s) and counts file that will be generated already exists
+                if options.strandness == "unstranded":
+                    existing_file(label + ".bedgraph")
+                    existing_file(label + ".unstranded.feature_counts.tsv")
+                else:
+                    existing_file(label + ".plus.bedgraph")
+                    existing_file(label + ".minus.bedgraph")
+                    existing_file(label + ".stranded.feature_counts.tsv")
                 # Register the sample label and filename
-                label = "_".join(re.findall(r"[\w']+", options.bam[i + 1]))
-                samples[label] = [options.bam[i]]
+                labels.append(label)
+                bams.append(options.bam[i])
             # Set this step + the intersection one as tasks to process
             generate_BedGraph = True
             intersect_indexes_BedGraph = True
@@ -1633,15 +1654,18 @@ if __name__ == "__main__":
         else:
             sample_file_nb = 3
         # Checking the input BedGraph files
-        sample_files = []
-        sample_labels = []
         for i in xrange(0, len(options.bedgraph), sample_file_nb):
             # Check whether the BedGraph file(s) exists
             for j in xrange(0,sample_file_nb - 1):
                 try:
                     open(options.bedgraph[i + j])
                 except IOError:
-                    sys.exit("\nError: the BedGraph file" + options.bedgraph[i + j] + " was not found.\n### End of program")
+                    if not (options.bedgraph[i + j].endswith(".bedgraph") or options.bedgraph[i + j].endswith(".bg")):
+                        sys.exit("\nError: it looks like BedGraph files and associated labels are not correctly provided.\n"
+                             "Make sure to follow the expected format: --bedgraph BedGraph_file1 Label1 [BedGraph_file2 Label2 ...]."
+                             "\n### End of program ###")
+                    else:
+                        sys.exit("\nError: the BedGraph file " + options.bedgraph[i + j] + " was not found.\n### End of program")
                 except IndexError:
                     sys.exit("\nError: it looks like BedGraph files and associated labels are not correctly provided.\n"
                          "Make sure to follow the expected format: --bedgraph BedGraph_file1 Label1 [BedGraph_file2 Label2 ...]."
@@ -1650,8 +1674,6 @@ if __name__ == "__main__":
                 if not (options.bedgraph[i + j].endswith(".bedgraph") or options.bedgraph[i + j].endswith(".bg")):
                     sys.exit("\nError: the BedGrapg file" + options.bedgraph[i + j] + "  hasn't a '.bedgraph'/'.bg' extension."
                              "\n### End of program ###")
-                # Adding the sample filename to the list
-                sample_files.append(re.sub(".bg", "", re.sub(".bedgraph$", "", options.bedgraph[i + j])))
             # Check whether the labels hasn't a "bedgraph"/"bg" extension
             try:
                 if options.bedgraph[i  + sample_file_nb - 1].endswith('.bedgraph') or options.bedgraph[i  + sample_file_nb - 1].endswith('.bg'):
@@ -1664,19 +1686,14 @@ if __name__ == "__main__":
                          "Make sure to follow the expected format: --bedgraph BedGraph_file1 Label1 [BedGraph_file2 Label2 ...]."
                          "\n### End of program ###")
             # Register the sample label and filename(s)
-            label = "_".join(re.findall(r"[\w']+", options.bedgraph[i  + sample_file_nb - 1]))
-            try:
-                samples[label].append(options.bedgraph[i + j])
-            except KeyError:
-                samples[label] = [options.bedgraph[i + j]]
-            # Adding the label to the list
-            sample_label = options.bedgraph[i  + sample_file_nb - 1]
-            sample_labels.append(sample_label)
+            bedgraphs.append(re.sub("(.(plus|minus))?.((bg)|(bedgraph))", "", options.bedgraph[i]))
+            label = "_".join(re.findall(r"[\w\-']+", options.bedgraph[i  + sample_file_nb - 1]))
+            labels.append(label)
             # Check whether the count file(s) that will be created already exists
             if options.strandness == "unstranded":
-                existing_file(sample_label + ".unstranded.feature_counts.tsv")
+                existing_file(label + ".unstranded.feature_counts.tsv")
             else:
-                existing_file(sample_label + ".stranded.feature_counts.tsv")
+                existing_file(label + ".stranded.feature_counts.tsv")
         # Set this step as a task to process
         intersect_indexes_BedGraph = True
 
@@ -1692,9 +1709,11 @@ if __name__ == "__main__":
         intersect_indexes_BedGraph = False
         # Registering the sample labels and filenames
         for sample in options.counts:
-            label = re.sub('.(un)?stranded.feature_counts.tsv', '', sample)
-            label = re.sub('.feature_counts.tsv', '', sample)
-            samples[label] = sample
+            label = os.path.basename(sample)
+            label = re.sub('(.(un)?stranded)?.feature_counts.tsv', '', label)
+            label = "_".join(re.findall(r"[\w\-']+", label))
+            count_files.append(sample)
+            labels.append(label)
     else:
         # Generating the genome index filenames
         index_chrom_list = [] # Not a set because we need to sort it according to the chromosome names later
@@ -1761,12 +1780,12 @@ if __name__ == "__main__":
     if generate_BedGraph:
         print "# Generating the BedGraph files"
         #sample_files, sample_labels = generate_bedgraph_files()
-        generate_bedgraph_files()
+        generate_bedgraph_files(labels, bams)
 
     # Indexes and BedGraph files intersection
     if intersect_indexes_BedGraph:
         print "# Intersecting index and BedGraph files"
-        cpt = intersect_bedgraphs_and_index_to_counts_categories()
+        cpt = intersect_bedgraphs_and_index_to_counts_categories(labels, bedgraphs)
         # Write the counts to an output file
         write_counts_in_files(cpt, cpt_genome)
 
@@ -1776,7 +1795,7 @@ if __name__ == "__main__":
         # If input files are the categories counts, the first step is to load them
         if options.counts:
             #cpt, cpt_genome, sample_names = read_counts(options.counts)
-            cpt, cpt_genome = read_counts(samples)
+            cpt, cpt_genome = read_counts(labels, count_files)
         # Managing the unknown biotypes
         for sample_label, counters in cpt.items():
             for (cat, biot) in counters:
@@ -1816,16 +1835,16 @@ if __name__ == "__main__":
             if ("antisense", "antisense") in dic.keys(): break
         else:
             cat_list.remove("antisense")
-        #make_plot(cat_list, sample_labels, final_cat_cpt, final_genome_cpt, pdf, "categories", options.threshold, svg=options.svg, png=options.png)
-        make_plot(cat_list, final_cat_cpt, final_genome_cpt, pdf, "Categories", options.threshold, svg=options.svg, png=options.png, categ_groups= parent_categs)
+        #make_plot(labels, cat_list, sample_labels, final_cat_cpt, final_genome_cpt, pdf, "categories", options.threshold, svg=options.svg, png=options.png)
+        make_plot(labels, cat_list, final_cat_cpt, final_genome_cpt, pdf, "Categories", options.threshold, svg=options.svg, png=options.png, categ_groups= parent_categs)
         if filtered_biotype:
-            #make_plot(cat_list, sample_labels, filtered_cat_cpt, final_genome_cpt, pdf, "categories", options.threshold, title="Categories distribution for '" + filtered_biotype + "' biotype", svg=options.svg, png=options.png)
-            make_plot(cat_list, filtered_cat_cpt, final_genome_cpt, pdf, "Categories", options.threshold, title="Categories distribution for '" + filtered_biotype + "' biotype", svg=options.svg, png=options.png, categ_groups= parent_categs)
+            #make_plot(labels, cat_list, sample_labels, filtered_cat_cpt, final_genome_cpt, pdf, "categories", options.threshold, title="Categories distribution for '" + filtered_biotype + "' biotype", svg=options.svg, png=options.png)
+            make_plot(labels, cat_list, filtered_cat_cpt, final_genome_cpt, pdf, "Categories", options.threshold, title="Categories distribution for '" + filtered_biotype + "' biotype", svg=options.svg, png=options.png, categ_groups= parent_categs)
         ## Generate the biotypes plot
         # Recategorization within the final biotypes and plot generation
         final_cat_cpt, final_genome_cpt = group_counts_by_biotype(cpt, cpt_genome, biotypes)
         #make_plot(biotypes, sample_labels, final_cat_cpt, final_genome_cpt, pdf, "biotypes", options.threshold, svg=options.svg, png=options.png)
-        make_plot(biotypes, final_cat_cpt, final_genome_cpt, pdf, "Biotypes", options.threshold, svg=options.svg, png=options.png)
+        make_plot(labels, biotypes, final_cat_cpt, final_genome_cpt, pdf, "Biotypes", options.threshold, svg=options.svg, png=options.png)
 
 
     print "### End of program ###"
