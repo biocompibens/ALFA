@@ -1387,7 +1387,7 @@ if __name__ == "__main__":
     parent_categ_level1 = []
     parent_categ_level2 = [{"gene":[0.5,2.5]}]
     parent_categ_level3 = [{"exon":[0.5,3.5]}, {"gene":[0.5,5.5]}]
-    parent_categ_level4 = [{"CDS":[1.5,4.5]}, {"exon":[0.5,5.5]},{"gene":[0.5,7.5]}]
+    parent_categ_level4 = [{"CDS":[1.5,4.5]}, {"exon":[0.5,6.5]},{"gene":[0.5,8.5]}]
     parent_categ_groups = [parent_categ_level1, parent_categ_level2, parent_categ_level3, parent_categ_level4]
 
     cat_list = ["5UTR", "start", "CDS", "CDS_body", "stop", "undescribed_CDS", "3UTR", "exons", "undescribed_exons", "introns", "gene", "undescribed_genes", "intergenic", "antisense"]
