@@ -144,7 +144,7 @@ def main():
 
     ##Run alfa
     cmd = 'python %s %s %s %s %s %s' % (alfa_path, input1_args, input2_args, strandness, categories_depth, output_args)
-    # Change into the tmp dir because ALFA produces files in the current dir
+    # Change into the tmp dir because by default, ALFA produces files in the current dir
     curr_dir = os.getcwd()
     os.chdir(tmp_dir)
     print(cmd)
