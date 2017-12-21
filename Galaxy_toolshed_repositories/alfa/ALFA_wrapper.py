@@ -147,6 +147,7 @@ def main():
     # Change into the tmp dir because ALFA produces files in the current dir
     curr_dir = os.getcwd()
     os.chdir(tmp_dir)
+    print(cmd)
     logging.info("__________________________________________________________________\n")
     logging.info("Alfa execution")
     logging.info("__________________________________________________________________\n")
@@ -164,11 +165,11 @@ def main():
     if args.output_pdf:
         shutil.move(plot_suffix + '.pdf', args.output_pdf[0])
     if args.output_png:
-        shutil.move(plot_suffix + '.categories.png', args.output_png[0])
-        shutil.move(plot_suffix + '.biotypes.png', args.output_png[1])
+        shutil.move(plot_suffix + '.Categories.png', args.output_png[0])
+        shutil.move(plot_suffix + '.Biotypes.png', args.output_png[1])
     if args.output_svg:
-        shutil.move(plot_suffix + '.categories.svg', args.output_svg[0])
-        shutil.move(plot_suffix + '.biotypes.svg', args.output_svg[1])
+        shutil.move(plot_suffix + '.Categories.svg', args.output_svg[0])
+        shutil.move(plot_suffix + '.Biotypes.svg', args.output_svg[1])
     if args.output_count:
         count_filename = merge_count_files(reads_labels)
         shutil.move(count_filename, args.output_count[0])
