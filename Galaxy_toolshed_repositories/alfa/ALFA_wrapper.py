@@ -44,30 +44,35 @@ def get_arg():
     args = parser.parse_args()
     return args
 
-def symlink_user_indexes(stranded_index, unstranded_index):
+def symlink_user_indexes(stranded_index, unstranded_index, tmp_dir):
     index='index'
-    os.symlink(stranded_index, index + '.stranded.index')
-    os.symlink(unstranded_index, index + '.unstranded.index')
+    os.symlink(stranded_index, os.path.join(tmp_dir, index + '.stranded.index'))
+    os.symlink(unstranded_index, os.path.join(tmp_dir, index + '.unstranded.index'))
     return index
 
-def get_input2_args(reads_list, format):
+def get_input2_args(reads_list, format, tmp_dir):
     n = len(reads_list)
     if n%2 != 0:
         exit_and_explain('Problem with pairing reads filename and reads label')
-    input2_args='-i'
+    if format == 'bam':
+        input2_args = '--bam'
+    elif format == 'bedgraph':
+        input2_args = '--bedgraph'
     k = 0
     reads_filenames = [''] * (n/2)
     reads_labels = [''] * (n/2)
     for i in range(0, n, 2):
-        reads_filenames[k] = reads_list[i].split('__fname__')[1]
+        curr_filename = reads_list[i].split('__fname__')[1]
+        # Alfa checks extension so the filename must end either by .bedgraph or by .bam
+        # We then create a symlink from file.dat to tmp_dir/annotation_n.<format> to avoid the error message
+        reads_filenames[k] = os.path.join(tmp_dir, 'annotation_' + str(k) + '.' + format)
+        os.symlink(curr_filename, reads_filenames[k])
         cur_label = reads_list[i+1].split('__label__')[1]
         reads_labels[k] = re.sub(r' ', '_', cur_label)
         if not reads_labels[k]:
             reads_labels[k] = 'sample_%s' % str(k)
         input2_args='%s "%s" "%s"' % (input2_args, reads_filenames[k], reads_labels[k])
         k += 1
-    if format == 'bedgraph':
-        input2_args = input2_args + ' --bedgraph'
     return input2_args, reads_filenames, reads_labels
 
 def redirect_errors(alfa_out, alfa_err):
@@ -86,7 +91,7 @@ def redirect_errors(alfa_out, alfa_err):
 def merge_count_files(reads_labels):
     merged_count_file = open('count_file.txt', 'wb')
     for i in range(0, len(reads_labels)):
-        current_count_file = open('%s.categories_counts' % reads_labels[i], 'r')
+        current_count_file = open('%s.feature_counts.tsv' % reads_labels[i], 'r')
         merged_count_file.write('##LABEL: %s\n\n' % reads_labels[i])
         merged_count_file.write(current_count_file.read())
         merged_count_file.write('__________________________________________________________________\n')
@@ -106,7 +111,7 @@ def main():
     #INPUT1: Annotation File
     if args.indexes:
         # The indexes submitted by the user must exhibit the suffix '.(un)stranded.index' and will be called by alfa by their prefix
-        index = symlink_user_indexes(args.indexes[0], args.indexes[1])
+        index = symlink_user_indexes(args.indexes[0], args.indexes[1], tmp_dir)
         input1_args = '-g "%s"' % index
     elif args.bi_indexes:
         input1_args = '-g "%s"' % args.bi_indexes[0]
@@ -117,7 +122,7 @@ def main():
 
     #INPUT 2: Mapped Reads
     if args.reads:
-        input2_args, reads_filenames, reads_labels = get_input2_args(args.reads, args.reads_format[0])
+        input2_args, reads_filenames, reads_labels = get_input2_args(args.reads, args.reads_format[0], tmp_dir)
         strandness = '-s %s' % args.strandness[0]
     else:
         exit_and_explain('No reads submitted !')
@@ -127,17 +132,21 @@ def main():
     if not (args.output_pdf or args.output_png or args.output_svg):
         output_args = '--n'
     else:
+        plot_suffix = os.path.join(tmp_dir, "ALFA_plot");
         if args.output_pdf:
-            output_args = '--pdf plot.pdf'
+            output_args = '--pdf ' + plot_suffix + '.pdf'
         if args.output_png:
-            output_args = '--png plot'
+            output_args = '--png ' + plot_suffix
         if args.output_svg:
-            output_args = '--svg plot'
+            output_args = '--svg ' + plot_suffix
         if args.threshold:
             output_args = '%s -t %.3f %.3f' % (output_args, args.threshold[0], args.threshold[1])
 
     ##Run alfa
     cmd = 'python %s %s %s %s %s %s' % (alfa_path, input1_args, input2_args, strandness, categories_depth, output_args)
+    # Change into the tmp dir because ALFA produces files in the current dir
+    curr_dir = os.getcwd()
+    os.chdir(tmp_dir)
     logging.info("__________________________________________________________________\n")
     logging.info("Alfa execution")
     logging.info("__________________________________________________________________\n")
@@ -153,13 +162,13 @@ def main():
 
     ##Redirect outputs
     if args.output_pdf:
-        shutil.move('plot.pdf', args.output_pdf[0])
+        shutil.move(plot_suffix + '.pdf', args.output_pdf[0])
     if args.output_png:
-        shutil.move('plot' + '.categories.png', args.output_png[0])
-        shutil.move('plot' + '.biotypes.png', args.output_png[1])
+        shutil.move(plot_suffix + '.categories.png', args.output_png[0])
+        shutil.move(plot_suffix + '.biotypes.png', args.output_png[1])
     if args.output_svg:
-        shutil.move('plot' + '.categories.svg', args.output_svg[0])
-        shutil.move('plot' + '.biotypes.svg', args.output_svg[1])
+        shutil.move(plot_suffix + '.categories.svg', args.output_svg[0])
+        shutil.move(plot_suffix + '.biotypes.svg', args.output_svg[1])
     if args.output_count:
         count_filename = merge_count_files(reads_labels)
         shutil.move(count_filename, args.output_count[0])
@@ -177,5 +186,7 @@ def main():
             shutil.move(args.bi_indexes[0] + '.stranded.index', args.output_index[0])
             shutil.move(args.bi_indexes[1] + '.unstranded.index', args.output_index[1])
 
+    # Get back to the original dir and cleanup the tmp dir
+    os.chdir(curr_dir)
     cleanup_before_exit(tmp_dir)
 main()

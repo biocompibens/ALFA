@@ -1,0 +1,12 @@
+<?xml version="1.0"?>
+<tool_dependency>
+	<package name="bedtools" version="2.24">
+		<repository name="package_bedtools_2_24" owner="iuc" />
+	</package>
+    	<package name="samtools" version="1.2">
+    		<repository name="package_samtools_1_2" owner="iuc" />
+	</package>
+    	<package name="matplotlib" version="1.4">
+    		<repository name="package_python_2_7_matplotlib_1_4" owner="iuc" />
+    	</package>
+</tool_dependency>
