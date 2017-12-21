@@ -79,8 +79,8 @@
 					</param>
 				</when>
 				<when value="index">
-					<param name="strandedIndex" type="data" format="index" label="Select your ALFA Stranded index file (index format)"/>
-					<param name="unstrandedIndex" type="data" format="index" label="Select your ALFA Unstranded index file (index format)"/>
+					<param name="strandedIndex" type="data" label="Select your ALFA Stranded index file (index format)"/>
+					<param name="unstrandedIndex" type="data" label="Select your ALFA Unstranded index file (index format)"/>
 				</when>
 				<when value="built_in_index">
 					<param name="built_in_index_prefix" type="select" label="Select Genome">
@@ -132,9 +132,9 @@
 				<option value="4">5’-UTR | start_codon | CDS | undescribed CDS | stop_codon | 3’-UTR | undescribed exons | intron | undescribed genes | intergenic | antisense</option>
 			</param>
 			<param name="plotFormat" type="select" label="Plot Options: Select graph format" help="Ignore if you did not choose the histograms output file">
-				<option value="pdf" selected="true">pdf</option>
+				<option value="png"  selected="true">png</option>
+				<!--<option value="pdf" selected="true">pdf</option>-->
 				<option value="svg">svg</option>
-				<option value="png">png</option>
 			</param>
 			<conditional name="plotThreshold">
 				<param name="plotThresholdChoice" type="boolean" truevalue="True" falsevalue="False" checked="false" label="Plot Options: Modify y axis range of the normalized counts of bio-features" help="Ignore if you did not choose the histograms output file"/>
@@ -149,9 +149,11 @@
 	
 	<outputs>
 		<data name="logReport" format="txt" label="${projectName}-Log Report"/>
+		<!--
 		<data name="outputPdf" format="pdf" label="${projectName}-BioFeatures Distribution">
 			<filter>outputFiles['plot'] is True and outputOptions['plotFormat'] == 'pdf'</filter>
 		</data>
+		-->
 		<data name="outputCategoriesPng" format="png" label="${projectName}-Categories Distribution">
 			<filter>outputFiles['plot'] is True and outputOptions['plotFormat'] == 'png'</filter>
 		</data>
