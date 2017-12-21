@@ -22,6 +22,7 @@ import progressbar
 import collections
 import matplotlib as mpl
 import numpy as np
+from multiprocessing import Pool
 
 matplotlib.rcParams["svg.fonttype"] = "none"
 
@@ -440,42 +441,38 @@ def generate_genome_index(annotation, unstranded_genome_index, stranded_genome_i
     pbar.finish()
 
 
-def generate_bedgraph_files(sample_labels, bam_files):
-    """ Creates BedGraph files from BAM ones and return filenames and labels. """
-    #sample_files = []
-    #sample_labels = []
-    # Progress bar to track the BedGraph file creation
-    #pbar = progressbar.ProgressBar(widgets=["Generating the BedGraph files ", progressbar.Percentage(), progressbar.Bar(), progressbar.Timer()], max_value=len(bam_files)+1).start()
-    pbar = progressbar.ProgressBar(widgets=["Generating the BedGraph files ", progressbar.Percentage(), progressbar.Bar(), progressbar.Timer()], maxval=len(sample_labels)+1).start()
-    n = 1
-    pbar.update(n)
-    #for n in range(0, len(bam_files), 2):
-    for sample_label, bam_file in zip(sample_labels, bam_files):
-        # Get the label for this sample
-        #sample_labels.append(bam_files[n + 1])
-        # Modify it to contain only alphanumeric characters (avoid files generation with dangerous names)
-        #modified_label = "_".join(re.findall(r"[\w']+", bam_files[n + 1]))
+def run_genomecov((strand, bam_file, sample_label, name)):
+    """ Calls genomecov (from Bedtools) for a set of parameters to produce a BedGraph file. """
+    # Building the command
+    cmd = "bedtools genomecov -bg -split "
+    if strand != "":
+        cmd += "-strand " + strand
+    cmd += " -ibam " + bam_file + " > " + sample_label + name + ".bedgraph"
+    # Running the command
+    subprocess.call(cmd, shell=True)
+    return None
+
+
+def generate_bedgraph_files_parallel(sample_labels, bam_files):
+    """ Creates, through multi-processors, BedGraph files from BAM ones. """
+    # Defining parameters sets to give to the genomecov instances to run
+    parameter_sets = []
+    for s, b in zip(sample_labels, bam_files):
+        # If the dataset is stranded, one BedGraph file for each strand is created
         if options.strandness in ["forward", "fr-firststrand"]:
-            #subprocess.call("bedtools genomecov -bg -split -strand + -ibam " + bam_files[n] + " > " + modified_label + ".plus.bedgraph", shell=True)
-            subprocess.call("bedtools genomecov -bg -split -strand + -ibam " + bam_file + " > " + sample_label + ".plus.bedgraph", shell=True)
-            pbar.update(n + 0.5)
-            #subprocess.call("bedtools genomecov -bg -split -strand - -ibam " + bam_files[n] + " > " + modified_label + ".minus.bedgraph", shell=True)
-            subprocess.call("bedtools genomecov -bg -split -strand - -ibam " + bam_file + " > " + sample_label + ".minus.bedgraph", shell=True)
-            pbar.update(n + 0.5)
+            parameter_sets.append(["+", b, s, ".plus"])
+            parameter_sets.append(["-", b, s, ".minus"])
         elif options.strandness in ["reverse", "fr-secondstrand"]:
-            #subprocess.call("bedtools genomecov -bg -split -strand - -ibam " + bam_files[n] + " > " + modified_label + ".plus.bedgraph", shell=True)
-            subprocess.call("bedtools genomecov -bg -split -strand - -ibam " + bam_file + " > " + sample_label + ".plus.bedgraph", shell=True)
-            pbar.update(n + 0.5)
-            #subprocess.call("bedtools genomecov -bg -split -strand + -ibam " + bam_files[n] + " > " + modified_label + ".minus.bedgraph", shell=True)
-            subprocess.call("bedtools genomecov -bg -split -strand + -ibam " + bam_file + " > " + sample_label + ".minus.bedgraph", shell=True)
-            pbar.update(n + 0.5)
+            parameter_sets.append(["-", b, s, ".plus"])
+            parameter_sets.append(["+", b, s, ".minus"])
         else:
-            #subprocess.call("bedtools genomecov -bg -split -ibam " + bam_files[n] + " > " + modified_label + ".bedgraph", shell=True)
-            subprocess.call("bedtools genomecov -bg -split -ibam " + bam_file + " > " + sample_label + ".bedgraph", shell=True)
-            pbar.update(n + 1)
-        #sample_files.append(modified_label)
-    pbar.finish()
-    #return sample_files, sample_labels
+            parameter_sets.append(["", b, s, ""])
+    # Setting the progressbar
+    pbar = progressbar.ProgressBar(widgets=["Generating the BedGraph files ", progressbar.Percentage(), progressbar.Bar(), progressbar.SimpleProgress(), "|", progressbar.Timer()], maxval=len(parameter_sets)).start()
+    # Setting the processors number
+    pool = Pool(options.nb_processors)
+    # Running the instances
+    list(pbar(pool.imap(run_genomecov, parameter_sets)))
     return None
 
 
@@ -610,6 +607,7 @@ def intersect_bedgraphs_and_index_to_counts_categories(sample_labels, bedgraph_f
                         try:
                             gtf_index_file.close()
                         except UnboundLocalError:
+                            sys.exit("Coucou")
                             pass
                         gtf_index_file = open(genome_index, "r")
                         endGTF = False
@@ -1234,6 +1232,7 @@ if __name__ == "__main__":
     parser.add_argument("-n", "--no_display", action="store_const", const=True, default=False, help="Do not display plots.\n\n") # We have to add "const=None" to avoid a bug in argparse
     parser.add_argument("-t", "--threshold", dest="threshold", nargs=2, metavar=("ymin", "ymax"), type=float,
                         help="Set axis limits for enrichment plots.\n\n")
+    parser.add_argument("-p", "--processors", dest="nb_processors", type=int, default=1, help="Set the number of processors used for multi-processing operations.\n\n")
 
     if len(sys.argv) == 1:
         parser.print_usage()
@@ -1780,7 +1779,10 @@ if __name__ == "__main__":
     if generate_BedGraph:
         print "# Generating the BedGraph files"
         #sample_files, sample_labels = generate_bedgraph_files()
-        generate_bedgraph_files(labels, bams)
+        #generate_bedgraph_files(labels, bams)
+        #### Tests MB parallel
+        generate_bedgraph_files_parallel(labels, bams)
+        #### End tests
 
     # Indexes and BedGraph files intersection
     if intersect_indexes_BedGraph:
