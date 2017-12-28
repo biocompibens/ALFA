@@ -5,6 +5,7 @@ __author__ = "noel & bahin"
 """ ALFA provides a global overview of features distribution composing NGS dataset(s). """
 
 import argparse
+import pysam
 import os
 import numpy
 import copy
@@ -518,6 +519,18 @@ def read_counts(sample_labels, counts_files):
                     cpt_genome[feature] = float(line.rstrip().split("\t")[2])
     #return cpt, cpt_genome, labels
     return cpt, cpt_genome
+
+
+def get_chromosome_names_in_GTF():
+    """ Function to get the list of chromosome names present in the provided GTF file. """
+    chr_list = []
+    with open(options.annotation, "r") as GTF_file:
+        for line in GTF_file:
+            if not line.startswith("#"):
+                chr = line.split("\t")[0]
+                if chr not in chr_list:
+                    chr_list.append(chr)
+    return sorted(chr_list)
 
 
 def get_chromosome_names_in_index(genome_index):
@@ -1750,6 +1763,24 @@ if __name__ == "__main__":
                 sys.exit("Error: your current configuration does not allow graphical interface ('DISPLAY' variable is not set on your system).\nExiting")
             else:
                 print >> sys.stderr, "WARNING: your current configuration does not allow graphical interface ('DISPLAY' variable is not set on your system).\nPlotting step will not be performed."
+
+    # Checking whether there is at least one common chromosome between the GTF or genome index and each BAM file
+    if options.bam:
+        # Checking the chromosome names list from the reference genome
+        if options.annotation:
+            # Checking the chromosomes list from GTF file
+            reference_chr_list = get_chromosome_names_in_GTF()
+        else:
+            # Checking chromosome list from genome index
+            reference_chr_list = get_chromosome_names_in_index(genome_index)
+        # Checking the chromosome names list from each BAM file
+        for i in xrange(0, len(options.bam), 2):
+            BAM_chr_list = pysam.AlignmentFile(options.bam[i], "r").references
+            # Checking if there is at least one common chromosome name between the reference genome and the processed BAM file
+            if not any(i in reference_chr_list for i in BAM_chr_list):
+                print ("Reference genome chromosomes: " + str(reference_chr_list))
+                print ("BAM file chromosomes: " + str(list(BAM_chr_list)))
+                sys.exit("Error: no matching chromosome between the BAM file '" + options.bam[i] + "' and the reference genome.\n### End of program")
 
     ## Executing the step(s)
 
