@@ -456,18 +456,22 @@ def run_genomecov((strand, bam_file, sample_label, name)):
 
 def generate_bedgraph_files_parallel(sample_labels, bam_files):
     """ Creates, through multi-processors, BedGraph files from BAM ones. """
-    # Defining parameters sets to give to the genomecov instances to run
+    # Sorting the BAM file on size to process the biggest first
+    files = zip(sample_labels, bam_files, [os.stat(i).st_size for i in bam_files])
+    files.sort(key = lambda p: p[2], reverse=True)
+    # Defining parameters sets to provide to the genomecov instances to run
     parameter_sets = []
-    for s, b in zip(sample_labels, bam_files):
+    for l, b, s in files:
+    #for l, b in zip(sample_labels, bam_files):
         # If the dataset is stranded, one BedGraph file for each strand is created
         if options.strandness in ["forward", "fr-firststrand"]:
-            parameter_sets.append(["+", b, s, ".plus"])
-            parameter_sets.append(["-", b, s, ".minus"])
+            parameter_sets.append(["+", b, l, ".plus"])
+            parameter_sets.append(["-", b, l, ".minus"])
         elif options.strandness in ["reverse", "fr-secondstrand"]:
-            parameter_sets.append(["-", b, s, ".plus"])
-            parameter_sets.append(["+", b, s, ".minus"])
+            parameter_sets.append(["-", b, l, ".plus"])
+            parameter_sets.append(["+", b, l, ".minus"])
         else:
-            parameter_sets.append(["", b, s, ""])
+            parameter_sets.append(["", b, l, ""])
     # Setting the progressbar
     pbar = progressbar.ProgressBar(widgets=["Generating the BedGraph files ", progressbar.Percentage(), progressbar.Bar(), progressbar.SimpleProgress(), "|", progressbar.Timer()], maxval=len(parameter_sets)).start()
     # Setting the processors number
