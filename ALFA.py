@@ -326,7 +326,7 @@ def register_interval(features_dict, chrom, stranded_index_fh, unstranded_index_
             # If feature == transcript and prev interval's feature is exon => add intron feature
             for biotype, categ in features_plus.iteritems():
                 if set(categ) == {"gene", "transcript"}:
-                    if "exon" in prev_features_plus[biotype]:
+                    if "exon" in prev_features_plus[biotype] or "intron" in prev_features_plus[biotype]:
                         categ.append("intron")
                 else:
                     continue
@@ -607,7 +607,6 @@ def intersect_bedgraphs_and_index_to_counts_categories(sample_labels, bedgraph_f
                         try:
                             gtf_index_file.close()
                         except UnboundLocalError:
-                            sys.exit("Coucou")
                             pass
                         gtf_index_file = open(genome_index, "r")
                         endGTF = False
@@ -818,6 +817,12 @@ def one_sample_plot(ordered_categs, percentages, enrichment, n_cat, index, index
 #def make_plot(ordered_categs, sample_names, categ_counts, genome_counts, pdf, counts_type, threshold, title=None,
 def make_plot(sample_labels, ordered_categs, categ_counts, genome_counts, pdf, counts_type, threshold, title=None, svg=None, png=None,
               categ_groups=[]):  # MB: to review
+
+    #Test matplotlib version. If __version__ >= 2, use a shift value to correct the positions of bars and xticks
+    if int(matplotlib.__version__[0]) == 2:
+        shift_mpl = 0.5
+    else:
+        shift_mpl = 0
     # From ordered_categs, keep only the features (categs or biotypes) that we can find in at least one sample.
     existing_categs = set()
     for sample in categ_counts.values():
@@ -924,7 +929,7 @@ def make_plot(sample_labels, ordered_categs, categ_counts, genome_counts, pdf, c
         # First barplot: percentage of reads in each categorie
         n = sample_labels.index(sample_label)
         #ax1.bar(index + i * bar_width, percentages[i], bar_width,
-        ax1.bar(index + n * bar_width, percentages[n], bar_width,
+        ax1.bar(index + n * bar_width + shift_mpl/nb_samples, percentages[n], bar_width,
                 alpha=opacity,
                 #color=cmap[i],
                 color=cmap[n],
@@ -932,7 +937,7 @@ def make_plot(sample_labels, ordered_categs, categ_counts, genome_counts, pdf, c
                 label=sample_label, edgecolor="#FFFFFF", lw=0)
         # Second barplot: enrichment relative to the genome for each categ
         # (the reads count in a categ is divided by the categ size in the genome)
-        rects.append(ax2.bar(index + n * bar_width, enrichment[n], bar_width,
+        rects.append(ax2.bar(index + n * bar_width + shift_mpl/nb_samples, enrichment[n], bar_width,
                              alpha=opacity,
                              #color=cmap[i],
                              color=cmap[n],
@@ -1329,7 +1334,7 @@ if __name__ == "__main__":
     # prios = {"start_codon": 7, "stop_codon": 7, "five_prime_utr": 6, "three_prime_utr": 6, "UTR": 6, "CDS": 5, "exon": 4,
     #          "transcript": 3, "gene": 2, "antisense": 1, "intergenic": 0}
     prios = {"start_codon": 4, "stop_codon": 4, "five_prime_utr": 3, "three_prime_utr": 3, "UTR": 3, "CDS": 3,
-             "exon": 2, "intron": 2, "transcript": 1, "gene": 1, "antisense": 0, "intergenic": -1}
+             "exon": 2, "intron": 2, "transcript": 1.5, "gene": 1, "antisense": 0, "intergenic": -1}
 
     biotype_prios = None
     # biotype_prios = {"protein_coding":1, "miRNA":2}
