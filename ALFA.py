@@ -157,47 +157,64 @@ def write_index(feat_values, chrom, start, stop, stranded_genome_index, unstrand
     write_index_line(unstranded_feat, chrom, start, stop, ".", unstranded_genome_index)
 
 
-def count_genome_features(cpt, features, start, stop, coverage=1):
+def count_genome_features(cpt, features, start, stop, keep_ambiguous, coverage=1):
     """ Reads genome index and registers feature counts. """
     # If no biotype priority: category with the highest priority for each found biotype has the same weight (1/n_biotypes)
     if not biotype_prios:
         nb_biot = len(features)
-        # For each categ(s)/biotype pairs
-        for feat in features:
-            cur_prio = 0
-            # Separate categorie(s) and biotype
+        if keep_ambiguous == False and nb_biot != 1:
+            # Increment "ambiguous" counter if more than 1 biotype
             try:
-                biot, cats = feat.split(":")
-            # Error if the feature is "antisense": update the "antisense/antisense" counts
-            except ValueError:
+                cpt[("ambiguous", "ambiguous")] += (int(stop) - int(start)) * coverage
+            except:
+                cpt[("ambiguous", "ambiguous")] = (int(stop) - int(start)) * coverage
+        else:
+            # For each categ(s)/biotype pairs
+            for feat in features:
+                cur_prio = 0
+                # Separate categorie(s) and biotype
                 try:
-                    cpt[("antisense", "antisense")] += (int(stop) - int(start)) * coverage / float(nb_biot)
-                except KeyError:
-                    cpt[("antisense", "antisense")] = (int(stop) - int(start)) * coverage / float(nb_biot)
-                return None
-            # Browse the categories and get only the one(s) with highest priority
-            for cat in cats.split(","):
-                try:
-                    prio = prios[cat]
-                except KeyError:
-                    # TODO: Find a way to add unknown categories
-                    if cat not in unknown_cat:
-                        print >> sys.stderr, "Warning: Unknown categorie '%s' found and ignored.\n" % cat,
-                    unknown_cat.add(cat)
-                    continue
-                # Check if the category has a highest priority than the current one
-                if prio > cur_prio:
-                    cur_prio = prio
-                    cur_cat = {cat}
-                if prio == cur_prio:
-                    cur_cat.add(cat)
-            # Increase each counts by the coverage divided by the number of categories and biotypes
-            nb_cat = len(cur_cat)
-            for cat in cur_cat:
-                try:
-                    cpt[(cat, biot)] += (int(stop) - int(start)) * coverage / (float(nb_biot * nb_cat))
-                except KeyError:
-                    cpt[(cat, biot)] = (int(stop) - int(start)) * coverage / (float(nb_biot * nb_cat))
+                    biot, cats = feat.split(":")
+                # Error if the feature is "antisense": update the "antisense/antisense" counts
+                except ValueError:
+                    try:
+                        cpt[("antisense", "antisense")] += (int(stop) - int(start)) * coverage / float(nb_biot)
+                    except KeyError:
+                        cpt[("antisense", "antisense")] = (int(stop) - int(start)) * coverage / float(nb_biot)
+                    return None
+                # Browse the categories and get only the one(s) with highest priority
+                for cat in cats.split(","):
+                    try:
+                        prio = prios[cat]
+                    except KeyError:
+                        # TODO: Find a way to add unknown categories
+                        if cat not in unknown_cat:
+                            print >> sys.stderr, "Warning: Unknown categorie '%s' found and ignored.\n" % cat,
+                        unknown_cat.add(cat)
+                        continue
+                    # Check if the category has a highest priority than the current one
+                    if prio > cur_prio:
+                        cur_prio = prio
+                        cur_cat = {cat}
+                    if prio == cur_prio:
+                        cur_cat.add(cat)
+
+                nb_cat = len(cur_cat)
+                if keep_ambiguous == False and nb_cat != 1:
+                    # Increment "ambiguous" counter if more than 1 category
+                    try:
+                        cpt[("ambiguous", "ambiguous")] += (int(stop) - int(start)) * coverage / (float(nb_biot))
+                    except:
+                        cpt[("ambiguous", "ambiguous")] = (int(stop) - int(start)) * coverage / (float(nb_biot))
+                else:
+                    # Increase each counts by the coverage divided by the number of categories and biotypes
+                    for cat in cur_cat:
+                        try:
+                            cpt[(cat, biot)] += (int(stop) - int(start)) * coverage / (float(nb_biot * nb_cat))
+                        except KeyError:
+                            cpt[(cat, biot)] = (int(stop) - int(start)) * coverage / (float(nb_biot * nb_cat))
+
+
     else:
         # TODO: Add an option to provide biotype priorities and handle it
         pass
@@ -539,11 +556,11 @@ def read_index():
                 chrom = line.split("\t")[0]
                 if chrom not in index_chrom_list:
                     index_chrom_list.append(chrom)
-                count_genome_features(cpt_genome, line.rstrip().split("\t")[4:], line.split("\t")[1], line.split("\t")[2])
+                count_genome_features(cpt_genome, line.rstrip().split("\t")[4:], line.split("\t")[1], line.split("\t")[2], options.ambiguous)
 
 
 #def intersect_bedgraphs_and_index_to_counts_categories(sample_files, sample_labels, prios, genome_index, biotype_prios=None): ## MB: To review
-def intersect_bedgraphs_and_index_to_counts_categories(sample_labels, bedgraph_files, biotype_prios=None): ## MB: To review
+def intersect_bedgraphs_and_index_to_counts_categories(sample_labels, bedgraph_files, keep_ambiguous, biotype_prios=None): ## MB: To review
     global gtf_line, gtf_chrom, gtf_start, gtf_stop, gtf_cat, endGTF
     unknown_chrom = []
     cpt = {}  # Counter for the nucleotides in the BAM input file(s)
@@ -645,7 +662,7 @@ def intersect_bedgraphs_and_index_to_counts_categories(sample_labels, bedgraph_f
                         # Update category counter
                         #add_info(cpt[sample_name], gtf_features, bam_start, min(bam_stop, gtf_stop), coverage=bam_cpt)
                         #count_genome_features(cpt[sample_name], gtf_features, bam_start, min(bam_stop, gtf_stop), coverage=bam_cpt)
-                        count_genome_features(cpt[sample_label], gtf_features, bam_start, min(bam_stop, gtf_stop), coverage=bam_cpt)
+                        count_genome_features(cpt[sample_label], gtf_features, bam_start, min(bam_stop, gtf_stop), keep_ambiguous, coverage=bam_cpt)
                         # Read the next GTF file line if the BAM line is not entirely covered
                         if bam_stop > gtf_stop:
                             # Update the BAM start pointer
@@ -1238,6 +1255,7 @@ if __name__ == "__main__":
     parser.add_argument("-t", "--threshold", dest="threshold", nargs=2, metavar=("ymin", "ymax"), type=float,
                         help="Set axis limits for enrichment plots.\n\n")
     parser.add_argument("-p", "--processors", dest="nb_processors", type=int, default=1, help="Set the number of processors used for multi-processing operations.\n\n")
+    parser.add_argument("--ambiguous", action="store_const", const=True, default=False, help="Do not discard ambiguous features")
 
     if len(sys.argv) == 1:
         parser.print_usage()
@@ -1792,8 +1810,8 @@ if __name__ == "__main__":
     # Indexes and BedGraph files intersection
     if intersect_indexes_BedGraph:
         print "# Intersecting index and BedGraph files"
-        cpt = intersect_bedgraphs_and_index_to_counts_categories(labels, bedgraphs)
-        # Write the counts to an output file
+        print "keep ambiguous? : ",options.ambiguous
+        cpt = intersect_bedgraphs_and_index_to_counts_categories(labels, bedgraphs, options.ambiguous)        # Write the counts to an output file
         write_counts_in_files(cpt, cpt_genome)
 
     ## Plot generation ## MB: all the section still to review
