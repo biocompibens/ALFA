@@ -157,12 +157,12 @@ def write_index(feat_values, chrom, start, stop, stranded_genome_index, unstrand
     write_index_line(unstranded_feat, chrom, start, stop, ".", unstranded_genome_index)
 
 
-def count_genome_features(cpt, features, start, stop, keep_ambiguous, coverage=1):
+def count_genome_features(cpt, features, start, stop, discard_ambiguous, coverage=1):
     """ Reads genome index and registers feature counts. """
     # If no biotype priority: category with the highest priority for each found biotype has the same weight (1/n_biotypes)
     if not biotype_prios:
         nb_biot = len(features)
-        if keep_ambiguous == False and nb_biot != 1:
+        if discard_ambiguous == True and nb_biot != 1:
             # Increment "ambiguous" counter if more than 1 biotype
             try:
                 cpt[("ambiguous", "ambiguous")] += (int(stop) - int(start)) * coverage
@@ -200,7 +200,7 @@ def count_genome_features(cpt, features, start, stop, keep_ambiguous, coverage=1
                         cur_cat.add(cat)
 
                 nb_cat = len(cur_cat)
-                if keep_ambiguous == False and nb_cat != 1:
+                if discard_ambiguous == True and nb_cat != 1:
                     # Increment "ambiguous" counter if more than 1 category
                     try:
                         cpt[("ambiguous", "ambiguous")] += (int(stop) - int(start)) * coverage / (float(nb_biot))
@@ -560,7 +560,7 @@ def read_index():
 
 
 #def intersect_bedgraphs_and_index_to_counts_categories(sample_files, sample_labels, prios, genome_index, biotype_prios=None): ## MB: To review
-def intersect_bedgraphs_and_index_to_counts_categories(sample_labels, bedgraph_files, keep_ambiguous, biotype_prios=None): ## MB: To review
+def intersect_bedgraphs_and_index_to_counts_categories(sample_labels, bedgraph_files, discard_ambiguous, biotype_prios=None): ## MB: To review
     global gtf_line, gtf_chrom, gtf_start, gtf_stop, gtf_cat, endGTF
     unknown_chrom = []
     cpt = {}  # Counter for the nucleotides in the BAM input file(s)
@@ -662,7 +662,7 @@ def intersect_bedgraphs_and_index_to_counts_categories(sample_labels, bedgraph_f
                         # Update category counter
                         #add_info(cpt[sample_name], gtf_features, bam_start, min(bam_stop, gtf_stop), coverage=bam_cpt)
                         #count_genome_features(cpt[sample_name], gtf_features, bam_start, min(bam_stop, gtf_stop), coverage=bam_cpt)
-                        count_genome_features(cpt[sample_label], gtf_features, bam_start, min(bam_stop, gtf_stop), keep_ambiguous, coverage=bam_cpt)
+                        count_genome_features(cpt[sample_label], gtf_features, bam_start, min(bam_stop, gtf_stop), discard_ambiguous, coverage=bam_cpt)
                         # Read the next GTF file line if the BAM line is not entirely covered
                         if bam_stop > gtf_stop:
                             # Update the BAM start pointer
@@ -775,6 +775,29 @@ def group_counts_by_biotype(cpt, cpt_genome, biotypes):
                 final_genome_cpt[biot] = tot_genome
     return final_cpt, final_genome_cpt
 
+
+def display_percentage_of_ambiguous(cpt, count_files_option=False):
+    if count_files_option:
+        print "INFO: Ambiguous counts were discarded in at least one sample\n" \
+              "      (see --ambiguous option for more information)"
+    else:
+        print "INFO: Reads matching ambiguous annotation have been discarded.\n" \
+              "      To change this option, please see \"--ambiguous\" help."
+    print "INFO: Percentage of ambiguous counts:"
+
+    # Loop for each sample
+    for sample, counts in cpt.iteritems():
+        # Compute and display the percentage of ambiguous counts
+        try:
+            ambiguous = counts[('ambiguous', 'ambiguous')]
+            total = sum([count for feat, count in counts.iteritems() if 'intergenic' not in feat])
+            print "    {!s:25.25} {:5.2f}% of ambiguous".format(sample, float(ambiguous / total) * 100)
+        # If ambiguous is not in the count file
+        except KeyError:
+            if count_files_option:
+                print "    {!s:25.25} {:3.2f}% of ambiguous (this sample may have been processed with --ambiguous option)".format(sample, 0)
+            else:
+                print "    {!s:25.25} {:3.2f}% of ambiguous".format(sample, 0)
 
 # def get_cmap(N):
 # '''Returns a function that maps each index in 0, 1, ... N-1 to a distinct
@@ -1255,7 +1278,7 @@ if __name__ == "__main__":
     parser.add_argument("-t", "--threshold", dest="threshold", nargs=2, metavar=("ymin", "ymax"), type=float,
                         help="Set axis limits for enrichment plots.\n\n")
     parser.add_argument("-p", "--processors", dest="nb_processors", type=int, default=1, help="Set the number of processors used for multi-processing operations.\n\n")
-    parser.add_argument("--ambiguous", action="store_const", const=True, default=False, help="Do not discard ambiguous features")
+    parser.add_argument("--ambiguous", action="store_const", const=False, default=True, help="Do not discard ambiguous features")
 
     if len(sys.argv) == 1:
         parser.print_usage()
@@ -1412,7 +1435,7 @@ if __name__ == "__main__":
     parent_categ_level4 = [{"CDS":[1.5,4.5]}, {"exon":[0.5,6.5]},{"gene":[0.5,8.5]}]
     parent_categ_groups = [parent_categ_level1, parent_categ_level2, parent_categ_level3, parent_categ_level4]
 
-    cat_list = ["5UTR", "start", "CDS", "CDS_body", "stop", "undescribed_CDS", "3UTR", "exons", "undescribed_exons", "introns", "gene", "undescribed_genes", "intergenic", "antisense"]
+    cat_list = ["5UTR", "start", "CDS", "CDS_body", "stop", "undescribed_CDS", "3UTR", "exons", "undescribed_exons", "introns", "gene", "undescribed_genes", "intergenic", "antisense", "ambiguous"]
 
     # biotypes list
     biotypes = {"protein_coding", "polymorphic_pseudogene", "TR_C_gene", "TR_D_gene", "TR_J_gene", "TR_V_gene", "IG_C_gene",
@@ -1810,7 +1833,6 @@ if __name__ == "__main__":
     # Indexes and BedGraph files intersection
     if intersect_indexes_BedGraph:
         print "# Intersecting index and BedGraph files"
-        print "keep ambiguous? : ",options.ambiguous
         cpt = intersect_bedgraphs_and_index_to_counts_categories(labels, bedgraphs, options.ambiguous)        # Write the counts to an output file
         write_counts_in_files(cpt, cpt_genome)
 
@@ -1833,6 +1855,11 @@ if __name__ == "__main__":
         # Moving antisense cat to the end of the list
         biotypes.remove("antisense")
         biotypes.append("antisense")
+        # Do not plot ambiguous on biotypes plot
+        try:
+            biotypes.remove("ambiguous")
+        except ValueError:
+            pass
         biotypes_group1 = sorted(biotypes_group1)
         # Filtering biotypes if necessary
         filtered_biotype = None
@@ -1855,6 +1882,12 @@ if __name__ == "__main__":
         final_cats = categs_levels[options.categories_depth - 1]
         parent_categs = parent_categ_groups[options.categories_depth - 1]
         final_cat_cpt, final_genome_cpt, filtered_cat_cpt = group_counts_by_categ(cpt, cpt_genome, final_cats, filtered_biotype)
+        # If ambiguous features were discarded, print the percentage for each sample
+        if options.ambiguous == True and not options.counts:
+            display_percentage_of_ambiguous(cpt)
+        # If only counts are provided, check whether 'ambiguous' feature exists in at least one sample and then display the percentages
+        elif options.counts and any([ ('ambiguous','ambiguous') in features for features in cpt.values()]):
+            display_percentage_of_ambiguous(cpt, options.counts)
         # Remove the "antisense" category if the library type is "unstranded" ## MB: if options.strandness == "unstranded": cat_list.remove("antisense")??
         for dic in cpt.values():
             if ("antisense", "antisense") in dic.keys(): break
