@@ -178,9 +178,9 @@ def count_genome_features(cpt, features, start, stop, discard_ambiguous, coverag
                 # Error if the feature is "antisense": update the "antisense/antisense" counts
                 except ValueError:
                     try:
-                        cpt[("antisense", "antisense")] += (int(stop) - int(start)) * coverage / float(nb_biot)
+                        cpt[("opposite_strand", "opposite_strand")] += (int(stop) - int(start)) * coverage / float(nb_biot)
                     except KeyError:
-                        cpt[("antisense", "antisense")] = (int(stop) - int(start)) * coverage / float(nb_biot)
+                        cpt[("opposite_strand", "opposite_strand")] = (int(stop) - int(start)) * coverage / float(nb_biot)
                     return None
                 # Browse the categories and get only the one(s) with highest priority
                 for cat in cats.split(","):
@@ -896,8 +896,8 @@ def make_plot(sample_labels, ordered_categs, categ_counts, genome_counts, pdf, c
     for cat in ordered_categs:
         sizes.append(genome_counts[cat])
         sizes_sum += genome_counts[cat]
-    if "antisense" in ordered_categs:
-        antisense_pos = ordered_categs.index("antisense")
+    if "opposite_strand" in ordered_categs:
+        antisense_pos = ordered_categs.index("opposite_strand")
         sizes[antisense_pos] = 1e-100
     for cpt in xrange(len(sizes)):
         sizes[cpt] /= float(sizes_sum)
@@ -1375,7 +1375,7 @@ if __name__ == "__main__":
     # prios = {"start_codon": 7, "stop_codon": 7, "five_prime_utr": 6, "three_prime_utr": 6, "UTR": 6, "CDS": 5, "exon": 4,
     #          "transcript": 3, "gene": 2, "antisense": 1, "intergenic": 0}
     prios = {"start_codon": 4, "stop_codon": 4, "five_prime_utr": 3, "three_prime_utr": 3, "UTR": 3, "CDS": 3,
-             "exon": 2, "intron": 2, "transcript": 1.5, "gene": 1, "antisense": 0, "intergenic": -1}
+             "exon": 2, "intron": 2, "transcript": 1.5, "gene": 1, "opposite_strand": 0, "intergenic": -1}
 
     biotype_prios = None
     # biotype_prios = {"protein_coding":1, "miRNA":2}
@@ -1397,13 +1397,13 @@ if __name__ == "__main__":
     categs_level1 = {"gene": ["five_prime_utr", "three_prime_utr", "UTR", "CDS", "exon", "intron", "start_codon",
                              "stop_codon", "transcript", "gene"],
                     "intergenic": ["intergenic"],
-                    "antisense": ["antisense"]}
+                    "opposite_strand": ["opposite_strand"]}
 
     categs_level2 = {"exons": ["five_prime_utr", "three_prime_utr", "UTR", "CDS", "exon", "start_codon", "stop_codon"],
                     "introns": ["intron"],
                     "undescribed_genes": ["transcript", "gene"],
                     "intergenic": ["intergenic"],
-                    "antisense": ["antisense"]}
+                    "opposite_strand": ["opposite_strand"]}
 
     categs_level3 = {"5UTR": ["five_prime_utr", "UTR"],
                     "CDS": ["CDS", "start_codon", "stop_codon"],
@@ -1412,7 +1412,7 @@ if __name__ == "__main__":
                     "introns": ["intron"],
                     "undescribed_genes": ["transcript", "gene"],
                     "intergenic": ["intergenic"],
-                    "antisense": ["antisense"]}
+                    "opposite_strand": ["opposite_strand"]}
 
     categs_level4 = {"5UTR": ["five_prime_utr", "UTR"],
                      "start": ["start_codon"],
@@ -1424,7 +1424,7 @@ if __name__ == "__main__":
                      "introns": ["intron"],
                      "undescribed_genes": ["transcript", "gene"],
                      "intergenic": ["intergenic"],
-                     "antisense": ["antisense"]}
+                     "opposite_strand": ["opposite_strand"]}
 
     # categs_groups = [categs_group4, categs_group3, categs_group2, categs_group1]  # Order and merging for the final plot
     categs_levels = [categs_level1, categs_level2, categs_level3, categs_level4]
@@ -1435,13 +1435,13 @@ if __name__ == "__main__":
     parent_categ_level4 = [{"CDS":[1.5,4.5]}, {"exon":[0.5,6.5]},{"gene":[0.5,8.5]}]
     parent_categ_groups = [parent_categ_level1, parent_categ_level2, parent_categ_level3, parent_categ_level4]
 
-    cat_list = ["5UTR", "start", "CDS", "CDS_body", "stop", "undescribed_CDS", "3UTR", "exons", "undescribed_exons", "introns", "gene", "undescribed_genes", "intergenic", "antisense", "ambiguous"]
+    cat_list = ["5UTR", "start", "CDS", "CDS_body", "stop", "undescribed_CDS", "3UTR", "exons", "undescribed_exons", "introns", "gene", "undescribed_genes", "intergenic", "opposite_strand", "ambiguous"]
 
     # biotypes list
     biotypes = {"protein_coding", "polymorphic_pseudogene", "TR_C_gene", "TR_D_gene", "TR_J_gene", "TR_V_gene", "IG_C_gene",
                 "IG_D_gene", "IG_J_gene", "IG_V_gene", "3prime_overlapping_ncrna", "lincRNA", "macro_lncRNA", "miRNA",
                 "misc_RNA", "Mt_rRNA", "Mt_tRNA", "processed_transcript", "ribozyme", "rRNA", "scaRNA", "sense_intronic",
-                "sense_overlapping", "snoRNA", "snRNA", "sRNA", "TEC", "vaultRNA", "antisense",
+                "sense_overlapping", "snoRNA", "snRNA", "sRNA", "TEC", "vaultRNA", "opposite_strand",
                 "transcribed_processed_pseudogene", "transcribed_unitary_pseudogene", "transcribed_unprocessed_pseudogene",
                 "translated_unprocessed_pseudogene", "TR_J_pseudogene", "TR_V_pseudogene", "unitary_pseudogene",
                 "unprocessed_pseudogene", "processed_pseudogene", "IG_C_pseudogene", "IG_J_pseudogene", "IG_V_pseudogene",
@@ -1460,7 +1460,7 @@ if __name__ == "__main__":
                        "ncRNA": ["lincRNA", "macro_lncRNA", "3prime_overlapping_ncrna", "ncRNA"], \
                        "others": ["misc_RNA", "processed_transcript", "ribozyme", "scaRNA", "sense_intronic",
                                   "sense_overlapping", "TEC", "vaultRNA"],
-                       "antisense": ["antisense"]}
+                       "opposite_strand": ["opposite_strand"]}
     for biot in ["miRNA", "snoRNA", "snRNA", "rRNA", "sRNA", "tRNA"]:
         biotypes_group1[biot] = [biot]
 
@@ -1819,7 +1819,7 @@ if __name__ == "__main__":
         # Getting index info
         read_index()
         # Computing the genome intergenic count: sum of the chr lengths minus sum of the genome annotated intervals
-        cpt_genome[("intergenic", "intergenic")] = sum(lengths.values()) - sum([v for x, v in cpt_genome.iteritems() if x != ("antisense", "antisense")])
+        cpt_genome[("intergenic", "intergenic")] = sum(lengths.values()) - sum([v for x, v in cpt_genome.iteritems() if x != ("opposite_strand", "opposite_strand")])
 
     # BedGraph files generation
     if generate_BedGraph:
@@ -1853,8 +1853,8 @@ if __name__ == "__main__":
             biotypes_group1["others"].append(biot)
         biotypes = sorted(biotypes)
         # Moving antisense cat to the end of the list
-        biotypes.remove("antisense")
-        biotypes.append("antisense")
+        biotypes.remove("opposite_strand")
+        biotypes.append("opposite_strand")
         # Do not plot ambiguous on biotypes plot
         try:
             biotypes.remove("ambiguous")
@@ -1888,11 +1888,11 @@ if __name__ == "__main__":
         # If only counts are provided, check whether 'ambiguous' feature exists in at least one sample and then display the percentages
         elif options.counts and any([ ('ambiguous','ambiguous') in features for features in cpt.values()]):
             display_percentage_of_ambiguous(cpt, options.counts)
-        # Remove the "antisense" category if the library type is "unstranded" ## MB: if options.strandness == "unstranded": cat_list.remove("antisense")??
+        # Remove the "opposite_strand" category if the library type is "unstranded" ## MB: if options.strandness == "unstranded": cat_list.remove("opposite_strand")??
         for dic in cpt.values():
-            if ("antisense", "antisense") in dic.keys(): break
+            if ("opposite_strand", "opposite_strand") in dic.keys(): break
         else:
-            cat_list.remove("antisense")
+            cat_list.remove("opposite_strand")
         #make_plot(labels, cat_list, sample_labels, final_cat_cpt, final_genome_cpt, pdf, "categories", options.threshold, svg=options.svg, png=options.png)
         make_plot(labels, cat_list, final_cat_cpt, final_genome_cpt, pdf, "Categories", options.threshold, svg=options.svg, png=options.png, categ_groups= parent_categs)
         if filtered_biotype:
