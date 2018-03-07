@@ -601,6 +601,9 @@ def intersect_bedgraphs_and_index_to_counts_categories(sample_labels, bedgraph_f
             prev_chrom = ""
             endGTF = False  # Reaching the next chr or the end of the GTF index
             intergenic_adds = 0.0
+            # Checking if the bedgraph file is empty
+            if os.stat(bedgraph_basename + strand + bg_extension).st_size == 0:
+                continue
             #with open(sample_file + strand + ".bedgraph", "r") as bedgraph_fh:
             with open(bedgraph_basename + strand + bg_extension, "r") as bedgraph_fh:
                 # Running through the BedGraph file
@@ -620,11 +623,12 @@ def intersect_bedgraphs_and_index_to_counts_categories(sample_labels, bedgraph_f
                     # If this is a new chromosome (or the first one)
                     if bam_chrom != prev_chrom:
                         intergenic_adds = 0.0
-                        # (Re)opening the GTF index and looking for the first line of the matching chr
+                        # Closing the GTF file if it was open (exception caught only for the first chr)
                         try:
                             gtf_index_file.close()
                         except UnboundLocalError:
                             pass
+                        # (Re)opening the GTF index and looking for the first line of the matching chr
                         gtf_index_file = open(genome_index, "r")
                         endGTF = False
                         read_gtf(gtf_index_file, sign)
