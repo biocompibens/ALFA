@@ -339,6 +339,21 @@ def register_interval(features_dict, chrom, stranded_index_fh, unstranded_index_
                     continue
 
 
+def design_chunks(dict, size=10000000):
+    """ Creates a dict filled with chunks of one chr/scaffold or """
+    i = 0
+    packs = {"chunk0": []}
+    current_pack = 0
+    for scaf in sorted(dict, key=lambda x: dict[x]):
+        if (current_pack + dict[scaf]) < size:
+            current_pack += dict[scaf]
+        else:
+            i += 1
+            current_pack = 0
+            packs["chunk" + str(i)] = []
+        packs["chunk" + str(i)].append(scaf)
+    return packs
+
 
 def generate_genome_index(annotation, unstranded_genome_index, stranded_genome_index, chrom_sizes):
     """ Create an index of the genome annotations and save it in a file. """
@@ -462,7 +477,6 @@ def generate_bedgraph_files_parallel(sample_labels, bam_files):
     # Defining parameters sets to provide to the genomecov instances to run
     parameter_sets = []
     for l, b, s in files:
-    #for l, b in zip(sample_labels, bam_files):
         # If the dataset is stranded, one BedGraph file for each strand is created
         if options.strandness in ["forward", "fr-firststrand"]:
             parameter_sets.append(["+", b, l, ".plus"])
@@ -481,8 +495,10 @@ def generate_bedgraph_files_parallel(sample_labels, bam_files):
     return None
 
 
-def read_gtf(gtf_index_file, sign):
-    global gtf_line, gtf_chrom, gtf_start, gtf_stop, gtf_features, endGTF
+#def read_gtf(gtf_index_file, sign):
+def read_gtf(gtf_index_file, sign, endGTF):
+    #global gtf_line, gtf_chrom, gtf_start, gtf_stop, gtf_features, endGTF
+    global gtf_line, gtf_chrom, gtf_start, gtf_stop, gtf_features
     strand = ""
     while strand != sign:
         gtf_line = gtf_index_file.readline()
@@ -493,7 +509,7 @@ def read_gtf(gtf_index_file, sign):
         splitline = gtf_line.rstrip().split("\t")
         try:
             strand = splitline[3]
-        # strand information can not be found in the file file header
+        # strand information can not be found in the file header
         except IndexError:
             pass
     gtf_chrom = splitline[0]
@@ -559,14 +575,168 @@ def read_index():
                 count_genome_features(cpt_genome, line.rstrip().split("\t")[4:], line.split("\t")[1], line.split("\t")[2])
 
 
+def intersect_bedgraphs_and_index_to_count_categories_1bam((sample_label, bedgraph_basename)):
+    cpt = {}
+    unknown_chrom = []
+    bg_extension = ".bedgraph"
+    if options.strandness == "unstranded":
+        strands = [("", ".")]
+        """
+        # nb_lines = sum(1 for _ in open(sample_file + ".bedgraph"))
+        try:
+            nb_lines = sum(1 for _ in open(bedgraph_basename + bg_extension))
+        except IOError:
+            bg_extension = "bg"
+            nb_lines = sum(1 for _ in open(bedgraph_basename + bg_extension))
+        """
+    else:
+        strands = [(".plus", "+"), (".minus", "-")]
+        """
+        # nb_lines = sum(1 for _ in open(sample_file + ".plus.bedgraph")) + sum(1 for _ in open(sample_file + ".minus.bedgraph"))
+        try:
+            nb_lines = sum(1 for _ in open(bedgraph_basename + ".plus" + bg_extension)) + sum(1 for _ in open(bedgraph_basename + ".minus" + bg_extension))
+        except IOError:
+            nb_lines = sum(1 for _ in open(bedgraph_basename + ".plus" + bg_extension)) + sum(1 for _ in open(bedgraph_basename + ".minus" + bg_extension))
+        """
+
+    # Progress bar to track the BedGraph and index intersection
+    # pbar = progressbar.ProgressBar(widgets=["Processing " + sample_file + " ", progressbar.Percentage(), progressbar.Bar(), progressbar.Timer()], max_value=nb_lines).start()
+    #pbar = progressbar.ProgressBar(widgets=["Processing " + sample_label + " ", progressbar.Percentage(), progressbar.Bar(), progressbar.Timer()], maxval=nb_lines).start()
+    #i = 0
+
+    # Intersecting the BedGraph and index files
+    print "Strands:", strands
+    for strand, sign in strands:
+        print strand, sign
+        prev_chrom = ""
+        endGTF = False  # Reaching the next chr or the end of the GTF index
+        intergenic_adds = 0.0
+        # with open(sample_file + strand + ".bedgraph", "r") as bedgraph_fh:
+        with open(bedgraph_basename + strand + bg_extension, "r") as bedgraph_fh:
+            # Running through the BedGraph file
+            for bam_line in bedgraph_fh:
+                """
+                i += 1
+                if i % 10000 == 0:
+                    pbar.update(i)
+                """
+                # Getting the BAM line info
+                bam_chrom = bam_line.split("\t")[0]
+                bam_start, bam_stop, bam_cpt = map(float, bam_line.split("\t")[1:4])
+                # Skip the line if the chromosome is not in the index
+                if bam_chrom not in index_chrom_list:
+                    if bam_chrom not in unknown_chrom:
+                        unknown_chrom.append(bam_chrom)
+                        print "\r                          \r Chromosome '" + bam_chrom + "' not found in index."  # MB: to adapt with the progress bar
+                    continue
+                # If this is a new chromosome (or the first one)
+                if bam_chrom != prev_chrom:
+                    print prev_chrom
+                    intergenic_adds = 0.0
+                    # (Re)opening the GTF index and looking for the first line of the matching chr
+                    try:
+                        gtf_index_file.close()
+                    except UnboundLocalError:
+                        pass
+                    gtf_index_file = open(genome_index, "r")
+                    endGTF = False
+                    #read_gtf(gtf_index_file, sign)
+                    read_gtf(gtf_index_file, sign, endGTF)
+                    while bam_chrom != gtf_chrom:
+                        #read_gtf(gtf_index_file, sign)
+                        endGTF = read_gtf(gtf_index_file, sign, endGTF)
+                        if endGTF:
+                            break
+                    prev_chrom = bam_chrom
+
+                # Looking for the first matching annotation in the GTF index
+                while (not endGTF) and (gtf_chrom == bam_chrom) and (bam_start >= gtf_stop):
+                    #read_gtf(gtf_index_file, sign)
+                    read_gtf(gtf_index_file, sign, endGTF)
+                    if gtf_chrom != bam_chrom:
+                        print "Coucou"
+                        endGTF = True
+                # Processing BAM lines before the first GTF annotation if there are
+                if bam_start < gtf_start:
+                    # Increase the "intergenic" category counter with all or part of the BAM interval
+                    try:
+                        intergenic_adds += min(bam_stop, gtf_start) - bam_start
+                        # cpt[sample_name][("intergenic", "intergenic")] += (min(bam_stop,
+                        #cpt[sample_label][("intergenic", "intergenic")] += (min(bam_stop, gtf_start) - bam_start) * bam_cpt
+                        cpt[("intergenic", "intergenic")] += (min(bam_stop, gtf_start) - bam_start) * bam_cpt
+                    except KeyError:
+                        # cpt[sample_name][("intergenic", "intergenic")] = (min(bam_stop,
+                        #cpt[sample_label][("intergenic", "intergenic")] = (min(bam_stop, gtf_start) - bam_start) * bam_cpt
+                        cpt[("intergenic", "intergenic")] = (min(bam_stop, gtf_start) - bam_start) * bam_cpt
+                    # Go to next line if the BAM interval was totally upstream the first GTF annotation, carry on with the remaining part otherwise
+                    if endGTF or (bam_stop <= gtf_start):
+                        continue
+                    else:
+                        bam_start = gtf_start
+
+                # We can start the crossover
+                while not endGTF:
+                    # Update category counter
+                    # add_info(cpt[sample_name], gtf_features, bam_start, min(bam_stop, gtf_stop), coverage=bam_cpt)
+                    # count_genome_features(cpt[sample_name], gtf_features, bam_start, min(bam_stop, gtf_stop), coverage=bam_cpt)
+                    #count_genome_features(cpt[sample_label], gtf_features, bam_start, min(bam_stop, gtf_stop), coverage=bam_cpt)
+                    count_genome_features(cpt, gtf_features, bam_start, min(bam_stop, gtf_stop), coverage=bam_cpt)
+                    # Read the next GTF file line if the BAM line is not entirely covered
+                    if bam_stop > gtf_stop:
+                        # Update the BAM start pointer
+                        bam_start = gtf_stop
+                        #endGTF = read_gtf(gtf_index_file, sign)
+                        endGTF = read_gtf(gtf_index_file, sign, endGTF)
+                        # If we read a new chromosome in the GTF file then it is considered finished
+                        if bam_chrom != gtf_chrom:
+                            endGTF = True
+                        if endGTF:
+                            break
+                    else:
+                        # Next if the BAM line is entirely covered
+                        bam_start = bam_stop
+                        break
+
+                # Processing the end of the BAM line if necessary
+                if endGTF and (bam_stop > bam_start):
+                    try:
+                        # cpt[sample_name][("intergenic", "intergenic")] += (bam_stop - bam_start) * bam_cpt
+                        #cpt[sample_label][("intergenic", "intergenic")] += (bam_stop - bam_start) * bam_cpt
+                        cpt[("intergenic", "intergenic")] += (bam_stop - bam_start) * bam_cpt
+                    except KeyError:
+                        # cpt[sample_name][("intergenic", "intergenic")] = (bam_stop - bam_start) * bam_cpt
+                        #cpt[sample_label][("intergenic", "intergenic")] = (bam_stop - bam_start) * bam_cpt
+                        cpt[("intergenic", "intergenic")] = (bam_stop - bam_start) * bam_cpt
+            try:  ## This try only happens when processing a special file as the Toy dataset (with an empty bedgraph file)
+                gtf_index_file.close()
+            except UnboundLocalError:
+                pass
+    #pbar.finish()
+    return sample_label, cpt, unknown_chrom
+
+
 #def intersect_bedgraphs_and_index_to_counts_categories(sample_files, sample_labels, prios, genome_index, biotype_prios=None): ## MB: To review
 def intersect_bedgraphs_and_index_to_counts_categories(sample_labels, bedgraph_files, biotype_prios=None): ## MB: To review
-    global gtf_line, gtf_chrom, gtf_start, gtf_stop, gtf_cat, endGTF
+    #global gtf_line, gtf_chrom, gtf_start, gtf_stop, gtf_cat, endGTF
     unknown_chrom = []
     cpt = {}  # Counter for the nucleotides in the BAM input file(s)
     #for n in range(len(sample_files)):
     if bedgraph_files == []:
         bedgraph_files = sample_labels
+
+    pbar = progressbar.ProgressBar(widgets=["Intersecting BAM and genome ", progressbar.Percentage(), " ", progressbar.Bar(), progressbar.Timer()], maxval=len(sample_labels)).start()
+    pool = Pool(options.nb_processors)
+    results = list(pbar(pool.imap(intersect_bedgraphs_and_index_to_count_categories_1bam, zip(sample_labels, bedgraph_files))))
+    """
+    results = []
+    for s, b in zip(sample_labels, bedgraph_files):
+        results.append(intersect_bedgraphs_and_index_to_count_categories_1bam((s, b)))
+    """
+    for res in results:
+        init_dict(cpt, res[0], res[1])
+        unknown_chrom.append(res[2])
+    print "Unknown chromosomes: " + str(set([i for u in unknown_chrom for i in u])) + "."
+    """
     for sample_label, bedgraph_basename in zip(sample_labels, bedgraph_files):
         #sample_file = sample_files[n]
         #sample_name = sample_labels[n]
@@ -624,7 +794,6 @@ def intersect_bedgraphs_and_index_to_counts_categories(sample_labels, bedgraph_f
                         try:
                             gtf_index_file.close()
                         except UnboundLocalError:
-                            sys.exit("Coucou")
                             pass
                         gtf_index_file = open(genome_index, "r")
                         endGTF = False
@@ -687,8 +856,12 @@ def intersect_bedgraphs_and_index_to_counts_categories(sample_labels, bedgraph_f
                         except KeyError:
                             #cpt[sample_name][("intergenic", "intergenic")] = (bam_stop - bam_start) * bam_cpt
                             cpt[sample_label][("intergenic", "intergenic")] = (bam_stop - bam_start) * bam_cpt
-                gtf_index_file.close()
+                try:  ## This try only happens when processing a special file as the Toy dataset (with an empty bedgraph file)
+                    gtf_index_file.close()
+                except UnboundLocalError:
+                    pass
         pbar.finish()
+    """
     return cpt
 
 
@@ -1823,6 +1996,7 @@ if __name__ == "__main__":
     if intersect_indexes_BedGraph:
         print "# Intersecting index and BedGraph files"
         cpt = intersect_bedgraphs_and_index_to_counts_categories(labels, bedgraphs)
+        print "Cpt2:", cpt
         # Write the counts to an output file
         write_counts_in_files(cpt, cpt_genome)
 
