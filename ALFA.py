@@ -512,10 +512,8 @@ def generate_bedgraph_files_parallel(sample_labels, bam_files):
     return None
 
 
-#def read_gtf(gtf_index_file, sign):
-def read_gtf(gtf_index_file, sign, endGTF):
-    #global gtf_line, gtf_chrom, gtf_start, gtf_stop, gtf_features, endGTF
-    global gtf_line, gtf_chrom, gtf_start, gtf_stop, gtf_features
+def read_gtf(gtf_index_file, sign):
+    global gtf_line, gtf_chrom, gtf_start, gtf_stop, gtf_features, endGTF
     strand = ""
     while strand != sign:
         gtf_line = gtf_index_file.readline()
