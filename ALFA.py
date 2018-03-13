@@ -5,6 +5,7 @@ __author__ = "noel & bahin"
 """ ALFA provides a global overview of features distribution composing NGS dataset(s). """
 
 import argparse
+import pysam
 import os
 import numpy
 import copy
@@ -355,6 +356,21 @@ def register_interval(features_dict, chrom, stranded_index_fh, unstranded_index_
                     continue
 
 
+def design_chunks(dict, size=10000000):
+    """ Creates a dict filled with chunks of one chr/scaffold or """
+    i = 0
+    packs = {"chunk0": []}
+    current_pack = 0
+    for scaf in sorted(dict, key=lambda x: dict[x]):
+        if (current_pack + dict[scaf]) < size:
+            current_pack += dict[scaf]
+        else:
+            i += 1
+            current_pack = 0
+            packs["chunk" + str(i)] = []
+        packs["chunk" + str(i)].append(scaf)
+    return packs
+
 
 def generate_genome_index(annotation, unstranded_genome_index, stranded_genome_index, chrom_sizes):
     """ Create an index of the genome annotations and save it in a file. """
@@ -472,18 +488,21 @@ def run_genomecov((strand, bam_file, sample_label, name)):
 
 def generate_bedgraph_files_parallel(sample_labels, bam_files):
     """ Creates, through multi-processors, BedGraph files from BAM ones. """
-    # Defining parameters sets to give to the genomecov instances to run
+    # Sorting the BAM file on size to process the biggest first
+    files = zip(sample_labels, bam_files, [os.stat(i).st_size for i in bam_files])
+    files.sort(key = lambda p: p[2], reverse=True)
+    # Defining parameters sets to provide to the genomecov instances to run
     parameter_sets = []
-    for s, b in zip(sample_labels, bam_files):
+    for l, b, s in files:
         # If the dataset is stranded, one BedGraph file for each strand is created
         if options.strandness in ["forward", "fr-firststrand"]:
-            parameter_sets.append(["+", b, s, ".plus"])
-            parameter_sets.append(["-", b, s, ".minus"])
+            parameter_sets.append(["+", b, l, ".plus"])
+            parameter_sets.append(["-", b, l, ".minus"])
         elif options.strandness in ["reverse", "fr-secondstrand"]:
-            parameter_sets.append(["-", b, s, ".plus"])
-            parameter_sets.append(["+", b, s, ".minus"])
+            parameter_sets.append(["-", b, l, ".plus"])
+            parameter_sets.append(["+", b, l, ".minus"])
         else:
-            parameter_sets.append(["", b, s, ""])
+            parameter_sets.append(["", b, l, ""])
     # Setting the progressbar
     pbar = progressbar.ProgressBar(widgets=["Generating the BedGraph files ", progressbar.Percentage(), progressbar.Bar(), progressbar.SimpleProgress(), "|", progressbar.Timer()], maxval=len(parameter_sets)).start()
     # Setting the processors number
@@ -493,8 +512,10 @@ def generate_bedgraph_files_parallel(sample_labels, bam_files):
     return None
 
 
-def read_gtf(gtf_index_file, sign):
-    global gtf_line, gtf_chrom, gtf_start, gtf_stop, gtf_features, endGTF
+#def read_gtf(gtf_index_file, sign):
+def read_gtf(gtf_index_file, sign, endGTF):
+    #global gtf_line, gtf_chrom, gtf_start, gtf_stop, gtf_features, endGTF
+    global gtf_line, gtf_chrom, gtf_start, gtf_stop, gtf_features
     strand = ""
     while strand != sign:
         gtf_line = gtf_index_file.readline()
@@ -505,7 +526,7 @@ def read_gtf(gtf_index_file, sign):
         splitline = gtf_line.rstrip().split("\t")
         try:
             strand = splitline[3]
-        # strand information can not be found in the file file header
+        # strand information can not be found in the file header
         except IndexError:
             pass
     gtf_chrom = splitline[0]
@@ -535,6 +556,18 @@ def read_counts(sample_labels, counts_files):
                     cpt_genome[feature] = float(line.rstrip().split("\t")[2])
     #return cpt, cpt_genome, labels
     return cpt, cpt_genome
+
+
+def get_chromosome_names_in_GTF():
+    """ Function to get the list of chromosome names present in the provided GTF file. """
+    chr_list = []
+    with open(options.annotation, "r") as GTF_file:
+        for line in GTF_file:
+            if not line.startswith("#"):
+                chr = line.split("\t")[0]
+                if chr not in chr_list:
+                    chr_list.append(chr)
+    return sorted(chr_list)
 
 
 def get_chromosome_names_in_index(genome_index):
@@ -1794,6 +1827,24 @@ if __name__ == "__main__":
                 sys.exit("Error: your current configuration does not allow graphical interface ('DISPLAY' variable is not set on your system).\nExiting")
             else:
                 print >> sys.stderr, "WARNING: your current configuration does not allow graphical interface ('DISPLAY' variable is not set on your system).\nPlotting step will not be performed."
+
+    # Checking whether there is at least one common chromosome between the GTF or genome index and each BAM file
+    if options.bam:
+        # Checking the chromosome names list from the reference genome
+        if options.annotation:
+            # Checking the chromosomes list from GTF file
+            reference_chr_list = get_chromosome_names_in_GTF()
+        else:
+            # Checking chromosome list from genome index
+            reference_chr_list = get_chromosome_names_in_index(genome_index)
+        # Checking the chromosome names list from each BAM file
+        for i in xrange(0, len(options.bam), 2):
+            BAM_chr_list = pysam.AlignmentFile(options.bam[i], "r").references
+            # Checking if there is at least one common chromosome name between the reference genome and the processed BAM file
+            if not any(i in reference_chr_list for i in BAM_chr_list):
+                print ("Reference genome chromosomes: " + str(reference_chr_list))
+                print ("BAM file chromosomes: " + str(list(BAM_chr_list)))
+                sys.exit("Error: no matching chromosome between the BAM file '" + options.bam[i] + "' and the reference genome.\n### End of program")
 
     ## Executing the step(s)
 
