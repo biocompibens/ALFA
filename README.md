@@ -78,6 +78,7 @@ Usage:
 Arguments:
 * _**-a/--annotation**_ specifies the path to the genomic annotation file (GTF format) to generate indexes.
 * _**-g/--genome_index**_ defines index files basename. In absence of this option, the annotation file basename will be used.
+* _**-p/--processors**_ specifies the number of processors used
 * _**--chr_len specifies**_ the path to the tab-delimited text file defining chromosome names and lengths. In absence of this option, lengths will be estimated using the GTF file. Chr_len file example:
 
 > “Chr12    100000”
@@ -98,6 +99,7 @@ Arguments:
 * _**--bam**_ specifies BAM files paths and associated labels (labels are used within output filenames and plots legends)
 * _**-s/--strandness**_ specifies the strandness of the library. Authorized values are: ‘unstranded’ (default), ’forward’/’fr-firststrand’ and ‘reverse’/’fr-secondstrand’
 * _**-d/--categories_depth**_ specifies the depth for the categories (see [Categories depth](#categories-depth))
+* _**-p/--processors**_ specifies the number of processors used (will use at most twice the BAM file number)
 * _**-t/--threshold**_ set the y-axis limits
 * _**--pdf or --svg or --png**_ specifies the path to save the plots in the chosen format
 * _**-n/--no_display**_ do not create and show the plots
