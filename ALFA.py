@@ -480,7 +480,7 @@ def run_genomecov((strand, bam_file, sample_label, name)):
     cmd = "bedtools genomecov -bg -split "
     if strand != "":
         cmd += "-strand " + strand
-    cmd += " -ibam " + bam_file + " > " + sample_label + name + ".bedgraph"
+    cmd += " -ibam " + bam_file + " > " + sample_label + name + bedgraph_extension
     # Running the command
     subprocess.call(cmd, shell=True)
     return None
@@ -598,11 +598,9 @@ def intersect_bedgraphs_and_index_to_count_categories_1_file((sample_labels, bed
     endGTF = False  # Reaching the next chr or the end of the GTF index
     intergenic_adds = 0.0
     # Checking if the bedgraph file is empty
-    bg_extension = ".bedgraph"
-    if os.stat(bedgraph_files + strand + bg_extension).st_size == 0:
+    if os.stat(bedgraph_files + strand + bedgraph_extension).st_size == 0:
         return sample_labels, sign, {}, []
-    #with open(sample_file + strand + ".bedgraph", "r") as bedgraph_fh:
-    with open(bedgraph_files + strand + bg_extension, "r") as bedgraph_fh:
+    with open(bedgraph_files + strand + bedgraph_extension, "r") as bedgraph_fh:
         # Running through the BedGraph file
         for bam_line in bedgraph_fh:
             # Getting the BAM line info
@@ -1677,6 +1675,8 @@ if __name__ == "__main__":
         else:
             if not generate_indexes and not options.genome_index:
                sys.exit("\nError: parameter '-g/--genome_index' should be provided.\n### End of program")
+            # Setting the bedgraph extension
+            bedgraph_extension = ".bedgraph"
             # Checking the input BAM files
             for i in xrange(0, len(options.bam), 2):
                 # Check whether the BAM file exists
@@ -1706,11 +1706,11 @@ if __name__ == "__main__":
                 label = "_".join(re.findall(r"[\w\-']+", options.bam[i + 1]))
                 # Check whether the BedGraph file(s) and counts file that will be generated already exists
                 if options.strandness == "unstranded":
-                    existing_file(label + ".bedgraph")
+                    existing_file(label + bedgraph_extension)
                     existing_file(label + ".unstranded.feature_counts.tsv")
                 else:
-                    existing_file(label + ".plus.bedgraph")
-                    existing_file(label + ".minus.bedgraph")
+                    existing_file(label + ".plus" + bedgraph_extension)
+                    existing_file(label + ".minus" + bedgraph_extension)
                     existing_file(label + ".stranded.feature_counts.tsv")
                 # Register the sample label and filename
                 labels.append(label)
@@ -1727,14 +1727,18 @@ if __name__ == "__main__":
             sample_file_nb = 2
         else:
             sample_file_nb = 3
+        # Setting the bedgraph extension
+        bedgraph_extension = options.bedgraph[0].split(".")[-1]
+        if bedgraph_extension not in (".bedgraph", ".bg"):
+            sys.exit("\nError: at least one of the BedGrapg files doesn't have a '.bedgraph'/'.bg' extension.\n### End of program ###")
         # Checking the input BedGraph files
         for i in xrange(0, len(options.bedgraph), sample_file_nb):
             # Check whether the BedGraph file(s) exists
-            for j in xrange(0,sample_file_nb - 1):
+            for j in xrange(0, sample_file_nb - 1):
                 try:
                     open(options.bedgraph[i + j])
                 except IOError:
-                    if not (options.bedgraph[i + j].endswith(".bedgraph") or options.bedgraph[i + j].endswith(".bg")):
+                    if not options.bedgraph[i + j].endswith(bedgraph_extension):
                         sys.exit("\nError: it looks like BedGraph files and associated labels are not correctly provided.\n"
                              "Make sure to follow the expected format: --bedgraph BedGraph_file1 Label1 [BedGraph_file2 Label2 ...]."
                              "\n### End of program ###")
@@ -1744,13 +1748,9 @@ if __name__ == "__main__":
                     sys.exit("\nError: it looks like BedGraph files and associated labels are not correctly provided.\n"
                          "Make sure to follow the expected format: --bedgraph BedGraph_file1 Label1 [BedGraph_file2 Label2 ...]."
                          "\n### End of program ###")
-                # Check whether the BedGraph file extension is "bedgraph"/"bg"
-                if not (options.bedgraph[i + j].endswith(".bedgraph") or options.bedgraph[i + j].endswith(".bg")):
-                    sys.exit("\nError: the BedGrapg file" + options.bedgraph[i + j] + "  hasn't a '.bedgraph'/'.bg' extension."
-                             "\n### End of program ###")
             # Check whether the labels hasn't a "bedgraph"/"bg" extension
             try:
-                if options.bedgraph[i  + sample_file_nb - 1].endswith('.bedgraph') or options.bedgraph[i  + sample_file_nb - 1].endswith('.bg'):
+                if options.bedgraph[i  + sample_file_nb - 1].endswith(bedgraph_extension) or options.bedgraph[i  + sample_file_nb - 1].endswith('.bg'):
                     sys.exit("\nError: the label " + options.bedgraph[i  + sample_file_nb - 1] + " has a '.bedgraph'/'.bg' extension.\n"
                              "Make sure to follow the expected format: "
                              "--bedgraph BedGraph_file1 Label1 [BedGraph_file2 Label2 ...]."
@@ -1760,7 +1760,7 @@ if __name__ == "__main__":
                          "Make sure to follow the expected format: --bedgraph BedGraph_file1 Label1 [BedGraph_file2 Label2 ...]."
                          "\n### End of program ###")
             # Register the sample label and filename(s)
-            bedgraphs.append(re.sub("(.(plus|minus))?.((bg)|(bedgraph))", "", options.bedgraph[i]))
+            bedgraphs.append(re.sub("(.(plus|minus))?" + bedgraph_extension, "", options.bedgraph[i]))
             label = "_".join(re.findall(r"[\w\-']+", options.bedgraph[i  + sample_file_nb - 1]))
             labels.append(label)
             # Check whether the count file(s) that will be created already exists
