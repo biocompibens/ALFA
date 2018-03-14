@@ -84,32 +84,32 @@ Arguments:
 
 Important: the GTF file has to be sorted by position. Otherwise, you can use the following command line to sort it
 
-    sort -k1,1 -k4,4n -k5,5nr file.gtf > file.sorted.gtf
+    sort -k1,1 -k4,4n -k5,5nr GTF_FILE > SORTED_GTF_FILE
 
 #### Processing reads files
 Usage:
 
-    ALFA.py -g GENOME_INDEX -i BAM1 LABEL1 [BAM2 LABEL2 …]
+    ALFA.py -g GENOME_INDEX -i BAM_FILE1 LABEL1 [BAM_FILE2 LABEL2 …]
                          [-s STRAND] [-n]
                          [-d {1,2,3,4}] [--pdf output.pdf]
 
 Arguments:
 * _**-g/--genome_index**_ specifies path and basename of existing index files
-* _**-i/--input**_ specifies BAM files paths and associated labels (labels are used within output filenames and plots legends)
-* _**-s/--strand**_ specifies the strandness of the library. Authorized values are: ‘unstranded’ (default), ’forward’/’fr-firststrand’ and ‘reverse’/’fr-secondstrand’.
+* _**--bam**_ specifies BAM files paths and associated labels (labels are used within output filenames and plots legends)
+* _**-s/--strandness**_ specifies the strandness of the library. Authorized values are: ‘unstranded’ (default), ’forward’/’fr-firststrand’ and ‘reverse’/’fr-secondstrand’
 * _**-d/--categories_depth**_ specifies the depth for the categories (see [Categories depth](#categories-depth))
 * _**-t/--threshold**_ set the y-axis limits
-* _**--pdf**_ specifies the path to save the plots in a PDF report.
-* _**-n/--no_plot**_ do not create and show the plots
+* _**--pdf or --svg or --png**_ specifies the path to save the plots in the chosen format
+* _**-n/--no_display**_ do not create and show the plots
 
 Important: BAM files have to be sorted by position. Otherwise, you can use the 'sort' module of samtools suite
 
-    samtools sort file.bam -T aln.sorted -O bam -o file.sorted.bam
+    samtools sort BAM_FILE -T aln.sorted -O bam -o SORTED_BAM_FILE
 
 #### Advanced possibilities
 * *Indexing + processing*
 
-> create the genome indexes and process your BAM files at once using both _**-a/--annotation**_ and _**-i/--input**_ options.
+> create the genome indexes and process your BAM files at once using both _**-a/--annotation**_ and _**--bam**_ options.
 
 * *Processing bedgraph files*
 
@@ -117,7 +117,7 @@ Important: BAM files have to be sorted by position. Otherwise, you can use the '
 
 * *Running the tool from counts*
 
-> specify the count files previously generated to avoid running the script again on already processed datasets using the _**-c/--counts**_ option (instead of _**-i/--input**_).
+> specify the count files previously generated to avoid running the script again on already processed datasets using the _**-c/--counts**_ option (instead of _**--bam**_).
 
 ### Categories depth
 ALFA can assign categories to nucleotides according to different hierarchical levels considered in the GTF file using the _**-d/--categories_depth**_ option.
