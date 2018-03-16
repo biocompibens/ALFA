@@ -587,7 +587,7 @@ def read_index():
                 chrom = line.split("\t")[0]
                 if chrom not in index_chrom_list:
                     index_chrom_list.append(chrom)
-                count_genome_features(cpt_genome, line.rstrip().split("\t")[4:], line.split("\t")[1], line.split("\t")[2], options.ambiguous)
+                count_genome_features(cpt_genome, line.rstrip().split("\t")[4:], line.split("\t")[1], line.split("\t")[2], options.keep_ambiguous)
 
 
 def intersect_bedgraphs_and_index_to_count_categories_1_file((sample_labels, bedgraph_files, discard_ambiguous, biotype_prios, strand, sign)): ## MB: To review
@@ -1305,7 +1305,7 @@ if __name__ == "__main__":
     parser.add_argument("-t", "--threshold", dest="threshold", nargs=2, metavar=("ymin", "ymax"), type=float,
                         help="Set axis limits for enrichment plots.\n\n")
     parser.add_argument("-p", "--processors", dest="nb_processors", type=int, default=1, help="Set the number of processors used for multi-processing operations.\n\n")
-    parser.add_argument("--ambiguous", action="store_const", const=False, default=True, help="Do not discard ambiguous features")
+    parser.add_argument("--keep_ambiguous", action="store_const", const=False, default=True, help="Keep reads mapping to different features.\n\n")
 
     if len(sys.argv) == 1:
         parser.print_usage()
@@ -1797,8 +1797,10 @@ if __name__ == "__main__":
         elif options.annotation:
             # Otherwise the GTF filename without extension will be the basename
             genome_index_basename = options.annotation.split("/")[-1].split(".gtf")[0]
-        stranded_genome_index = genome_index_basename + ".stranded.index"
-        unstranded_genome_index = genome_index_basename + ".unstranded.index"
+        #stranded_genome_index = genome_index_basename + ".stranded.index"
+        stranded_genome_index = genome_index_basename + ".stranded.ALFA_index"
+        #unstranded_genome_index = genome_index_basename + ".unstranded.index"
+        unstranded_genome_index = genome_index_basename + ".unstranded.ALFA_index"
         if options.strandness == "unstranded":
             genome_index = unstranded_genome_index
         else:
@@ -1851,7 +1853,7 @@ if __name__ == "__main__":
         # Checking if the index files already exist
         if os.path.isfile(stranded_genome_index):
             sys.exit("\nError: index files named '" + genome_index_basename +
-                     ".stranded.index' already exists but you provided a GTF file. If you want to generate a new index, "
+                     ".stranded.ALFA_index' already exists but you provided a GTF file. If you want to generate a new index, "
                      "please delete these files or specify an other path.\n### End of program")
         # Running the index generation commands
         print "# Generating the genome index files"
@@ -1880,7 +1882,7 @@ if __name__ == "__main__":
     # Indexes and BedGraph files intersection
     if intersect_indexes_BedGraph:
         print "# Intersecting index and BedGraph files"
-        cpt = intersect_bedgraphs_and_index_to_count_categories(labels, bedgraphs, options.ambiguous)        # Write the counts to an output file
+        cpt = intersect_bedgraphs_and_index_to_count_categories(labels, bedgraphs, options.keep_ambiguous)        # Write the counts to an output file
         write_counts_in_files(cpt, cpt_genome)
 
     ## Plot generation ## MB: all the section still to review
@@ -1930,7 +1932,7 @@ if __name__ == "__main__":
         parent_categs = parent_categ_groups[options.categories_depth - 1]
         final_cat_cpt, final_genome_cpt, filtered_cat_cpt = group_counts_by_categ(cpt, cpt_genome, final_cats, filtered_biotype)
         # If ambiguous features were discarded, print the percentage for each sample
-        if options.ambiguous == True and not options.counts:
+        if options.keep_ambiguous == True and not options.counts:
             display_percentage_of_ambiguous(cpt)
         # If only counts are provided, check whether 'ambiguous' feature exists in at least one sample and then display the percentages
         elif options.counts and any([('ambiguous','ambiguous') in features for features in cpt.values()]):
