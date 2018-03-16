@@ -90,7 +90,7 @@ Important: the GTF file has to be sorted by position. Otherwise, you can use the
 #### Processing reads files
 Usage:
 
-    ALFA.py -g GENOME_INDEX -i BAM_FILE1 LABEL1 [BAM_FILE2 LABEL2 …]
+    ALFA.py -g GENOME_INDEX --bam BAM_FILE1 LABEL1 [BAM_FILE2 LABEL2 …]
                          [-s STRAND] [-n]
                          [-d {1,2,3,4}] [--pdf output.pdf]
 
