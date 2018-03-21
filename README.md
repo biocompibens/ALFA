@@ -56,11 +56,11 @@ Dependencies:
   - python libs: argparse, pysam, copy, subprocess, matplotlib, re, progressbar, multiprocessing
 
 ## Quick start
-There is a [toy dataset](https://github.com/biocompibens/ALFA/tree/master/Toy_dataset) in the respository in order to test the tool installation. To do so, one can go in the directory and run the following command:
+There is a [quick start](https://github.com/biocompibens/ALFA/tree/master/Quick_start) in the respository in order to test the tool installation. To do so, one can go in the directory and run the following command:
 
-    python ../ALFA.py -a toy.gtf -g toy_reference -i toy.bam toy --chr_len chr_len.txt
-![Quick start terminal](https://github.com/biocompibens/ALFA/blob/master/Images/quick_start_terminal.png)
-![Quick start plots](https://github.com/biocompibens/ALFA/blob/master/Images/quick_start_plots.png)
+    python ALFA.py -a quick_start.gtf --chr_len quick_start.chr_len.txt -g quick_start --bam quick_start.bam quick_start
+![Quick start terminal](https://github.com/biocompibens/ALFA/blob/master/Images/quick_start.terminal.png)
+![Quick start plots](https://github.com/biocompibens/ALFA/blob/master/Images/quick_start.svg)
 
 ## Detailed example
 Here is an illustrated detailed example produced by ALFA from fake input files.
