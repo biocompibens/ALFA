@@ -20,9 +20,9 @@ ALFA provides a global overview of features distribution composing NGS dataset(s
 ALFA produces two outputs: plots and count files.
 
 ### Plots
-![Output example](https://github.com/biocompibens/ALFA/blob/master/Images/image_readme2.png)
+![Output example](https://github.com/biocompibens/ALFA/blob/master/Images/outputs_demo.svg)
 
-**Legend**: Two images display the nucleotides distributions among the different features, one for the categories (A) and another one for the biotypes (B). Each image is composed of two plots: the top one (A1/B1) represents the raw nucleotides fraction of the reads that mapped to each feature in the samples whereas the bottom one (A2/B2) represents the feature enrichment/depletion relative to the genome ”surface” occupied by this feature.
+**Legend**: Two images display the nucleotides distributions among the different features, one for the categories (A) and another one for the biotypes (B). Each image is composed of two plots: the top ones (1) represents the raw nucleotides fraction of the reads that mapped to each feature in the samples whereas the bottom ones (2) represents the feature enrichment/depletion relative to the genome ”surface” occupied by this feature.
 
 ### Count files
 For each input sample, a count table with the following information is produced:
@@ -32,7 +32,7 @@ For each input sample, a count table with the following information is produced:
 
 > Using -c/--count option, this file can be used to plot again the results and avoid the whole program execution.
 
-![Count file example](https://github.com/biocompibens/ALFA/blob/master/Images/counts_table.head.png)
+![Count file example](https://github.com/biocompibens/ALFA/blob/master/Images/counts.head.png)
 
 ## Installation
 You can either download the code by clicking the ZIP link on this webpage or clone the project using:
