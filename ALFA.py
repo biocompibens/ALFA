@@ -7,7 +7,6 @@ __author__ = "noel & bahin"
 import argparse
 import pysam
 import os
-import numpy
 import copy
 import sys
 import subprocess
@@ -21,9 +20,9 @@ from matplotlib.backends.backend_pdf import PdfPages
 import matplotlib
 import progressbar
 import collections
-import matplotlib as mpl
 import numpy as np
 from multiprocessing import Pool
+from tqdm import *
 
 matplotlib.rcParams["svg.fonttype"] = "none"
 
@@ -64,6 +63,74 @@ def existing_file(filename):
     """ Checks if filename already exists and exit if so. """
     if os.path.isfile(filename):
         sys.exit("Error: The file '" + filename + "' is about to be produced but already exists in the directory. \n### End of program")
+
+
+def GTF_splitter(GTF_file, size=10000):
+    """ Function to split a GTF file into chunks of one chromosome or several chromosomes/scaffold up to N (default=10k) lines. """
+    if os.path.isfile(chunk_basename + "1.gtf"):
+        sys.exit("Error: There is already a file called '" + chunk_basename + "1.gtf' in the directory. Running the command would crush this file. Aborting")
+    prev_chr = ""  # Chr/scaffold previously processed
+    prev_cpt = 0  # Currently building chunk file line counter
+    cpt = 0  # Processed chr/scaffold line counter
+    cpt_chunk = 1  # Chunk counter
+    old_chunk = open("old.gtf", "w")  # Currently building chunk file, before concatenation
+    current_file = open("current.gtf", "w")  # New piece to add to the building chunk file (one chromosome/scaffold)
+    # Processing the input GTF file
+    with open(GTF_file, "r") as input_file:
+        for line in input_file:
+            # Burning header lines
+            if line.startswith("#"):
+                continue
+            # Getting the chromosome/scaffold
+            chr = line.split("\t")[0]  # Processed chr/scaffold
+            if (chr != prev_chr) and (prev_chr != ""):
+                # Closing the chr/scaffold file
+                current_file.close()
+                if ((cpt > size) or (prev_cpt + cpt > size)) and (prev_cpt != 0):  # If the processed chr/scaffold with or without the currently building chunk exceeds 10k lines
+                    # Packing up the currently building chunk file without the last chr/scaffold
+                    old_chunk.close()
+                    subprocess.call("mv old.gtf " + chunk_basename + str(cpt_chunk) + ".gtf", shell=True)
+                    cpt_chunk += 1
+                    old_chunk = open("old.gtf", "w")
+                    prev_cpt = 0
+                if cpt > size:  # The processed chr/scaffold is more than 10k lines
+                    # Packing up the processed chr/scaffold
+                    current_file.close()
+                    subprocess.call("mv current.gtf " + chunk_basename + str(cpt_chunk) + ".gtf", shell=True)
+                    current_file = open("current.gtf", "w")
+                    # Updating counters
+                    cpt_chunk += 1
+                else:  # Adding the processed chr/scaffold to the currently building chunk file is still lesser than 10k lines
+                    # Concatenating the currently building chunk file with the processed chr/scaffold file
+                    old_chunk.close()
+                    subprocess.call("cat current.gtf >> old.gtf", shell=True)
+                    # Rename the currently building chunk file
+                    old_chunk = open("old.gtf", "a")
+                    current_file = open("current.gtf", "w")
+                    # Updating the counters
+                    prev_cpt += cpt
+                # Updating the processed chr/scaffold line counter and the previous chromosome
+                cpt = 0
+                prev_chr = chr
+                current_file.write(line)
+            else:  # First content line or another line for the processed chr/scaffold
+                current_file.write(line)
+                prev_chr = chr
+                cpt += 1
+        # Processing the last chr/scaffold
+        if prev_cpt + cpt > size:  # The processed chr/scaffold is more than 10k lines
+            #  Packing up the currently building chunk file without the last chr/scaffold
+            old_chunk.close()
+            subprocess.call("mv old.gtf " + chunk_basename + str(cpt_chunk) + ".gtf", shell=True)
+            cpt_chunk += 1
+            old_chunk = open("old.gtf", "w")
+        # Concatenating the currently building chunk file with the processed chr/scaffold file
+        old_chunk.close()
+        current_file.close()
+        subprocess.call("cat current.gtf >> old.gtf", shell=True)
+        # Rename the currently building chunk file
+        subprocess.call("mv old.gtf " + chunk_basename + str(cpt_chunk) + ".gtf", shell=True)
+    subprocess.call("rm -f current.gtf old.gtf", shell=True)
 
 
 def get_chromosome_lengths():
@@ -319,10 +386,7 @@ def add_info(cpt, feat_values, start, stop, chrom=None, unstranded_genome_index=
 
 def register_interval(features_dict, chrom, stranded_index_fh, unstranded_index_fh):
     """ Write the interval features info into the genome index files. """
-    # Adding the chromosome to the list if not present
-    if chrom not in index_chrom_list:
-        index_chrom_list.append(chrom)
-    # Writing the chromosome in the index file
+    # Writing the interval in the index file
     with open(unstranded_index_fh, "a") as unstranded_index_fh, open(stranded_index_fh, "a") as stranded_index_fh:
         # Initializing the first interval start and features
         sorted_pos = sorted(features_dict["+"].keys())
@@ -356,44 +420,32 @@ def register_interval(features_dict, chrom, stranded_index_fh, unstranded_index_
                     continue
 
 
-def design_chunks(dict, size=10000000):
-    """ Creates a dict filled with chunks of one chr/scaffold or """
-    i = 0
-    packs = {"chunk0": []}
-    current_pack = 0
-    for scaf in sorted(dict, key=lambda x: dict[x]):
-        if (current_pack + dict[scaf]) < size:
-            current_pack += dict[scaf]
-        else:
-            i += 1
-            current_pack = 0
-            packs["chunk" + str(i)] = []
-        packs["chunk" + str(i)].append(scaf)
-    return packs
+def merge_index_chunks():
+    """ Merges the genome index chunks into a single file. """
+    for fh, strandness in zip([unstranded_genome_index, stranded_genome_index], ["unstranded", "stranded"]):
+        files = [f for f in os.listdir(".") if f.startswith(chunk_basename) and f.endswith(".gtf." + strandness + ".index")]
+        with open(fh, "a") as output_file:
+            for file in files:
+                with open(file, "r") as input_file:
+                    for line in input_file:
+                        output_file.write(line)
 
 
-def generate_genome_index(annotation, unstranded_genome_index, stranded_genome_index, chrom_sizes):
-    """ Create an index of the genome annotations and save it in a file. """
-    # Initializations
-    intervals_dict = {}
-    max_value = -1
-    prev_chrom = ""
-    i = 0  # Line counter
-    # Write the chromosome lengths as comment lines before the genome index
-    with open(unstranded_genome_index, "w") as unstranded_index_fh, open(stranded_genome_index, "w") as stranded_index_fh:
-        for key, value in chrom_sizes.items():
-            unstranded_index_fh.write("#%s\t%s\n" % (key, value))
-            stranded_index_fh.write("#%s\t%s\n" % (key, value))
-    # Progress bar to track the genome indexes creation
-    nb_lines = sum(1 for _ in open(annotation))
-    pbar = progressbar.ProgressBar(widgets=["Indexing the genome ", progressbar.Percentage(), " ", progressbar.Bar(), progressbar.Timer()], maxval=nb_lines).start()
-    # Browsing the GTF file and writing into genome index files
+def chunks_cleaner():
+    """ Cleans the chunks created to index the genome. """
+    for f in os.listdir("."):
+        if f.startswith(chunk_basename):
+            os.remove(f)
+
+
+def generate_genome_index_1chr((annotation, stranded_genome_index)):
     with open(annotation, "r") as gtf_fh:
+        chunk_basename = annotation.lstrip("chunk.ALFA.").rstrip(".gtf")
+        max_value = -1
+        intervals_dicts = []
+        intervals_dict = {}
+        prev_chrom = ""
         for line in gtf_fh:
-            i += 1
-            # Update the progressbar every 1k lines
-            if i % 1000 == 1:
-                pbar.update(i)
             # Processing lines except comment ones
             if not line.startswith("#"):
                 # Getting the line info
@@ -409,7 +461,10 @@ def generate_genome_index(annotation, unstranded_genome_index, stranded_genome_i
                 if start > max_value or chrom != prev_chrom:
                     # Write the previous features
                     if intervals_dict:
-                        register_interval(intervals_dict, prev_chrom, stranded_genome_index, unstranded_genome_index)
+                        register_interval(intervals_dict, prev_chrom, annotation + ".stranded.index", annotation + ".unstranded.index")
+                    if chrom != prev_chrom:
+                        with open("chunk.ALFA." + chunk_basename + ".txt", "a") as input_file:
+                            input_file.write(chrom + "\n")
                     prev_chrom = chrom
                     # (Re)Initializing the intervals info dict
                     intervals_dict = {strand: {start: {biotype: [cat]}, stop: {}}, antisense: {start: {}, stop: {}}}
@@ -419,50 +474,54 @@ def generate_genome_index(annotation, unstranded_genome_index, stranded_genome_i
                 else:
                     # Storing the intervals on the strand of the current feature
                     stranded_intervals = intervals_dict[strand]
-                    added_info = False # Variable to know if the features info were already added
+                    added_info = False  # Variable to know if the features info were already added
                     # Browsing the existing boundaries
                     for boundary in sorted(stranded_intervals):
                         # While the GTF line start is after the browsed boundary: keep the browsed boundary features info in case the GTF line start is before the next boundary
                         if boundary < start:
-                            stored_feat_strand, stored_feat_antisense = [dict(stranded_intervals[boundary]), dict(intervals_dict[antisense][boundary])]
+                            stored_feat_strand, stored_feat_antisense = [dict(stranded_intervals[boundary]),
+                                                                         dict(intervals_dict[antisense][boundary])]
 
                         # The GTF line start is already an existing boundary: store the existing features info (to manage after the GTF line stop) and update it with the GTF line features info
                         elif boundary == start:
-                            stored_feat_strand, stored_feat_antisense = [dict(stranded_intervals[boundary]), dict(intervals_dict[antisense][boundary])]
+                            stored_feat_strand, stored_feat_antisense = [dict(stranded_intervals[boundary]),
+                                                                         dict(intervals_dict[antisense][boundary])]
                             # Adding the GTF line features info to the interval
                             try:
                                 stranded_intervals[boundary][biotype] = stranded_intervals[boundary][biotype] + [cat]
-                            except KeyError: # If the GTF line features info regard an unregistered biotype
+                            except KeyError:  # If the GTF line features info regard an unregistered biotype
                                 stranded_intervals[boundary][biotype] = [cat]
-                            added_info = True # The features info were added
+                            added_info = True  # The features info were added
 
                         # The browsed boundary is after the GTF line start: add the GTF line features info
                         elif boundary > start:
                             # Create a new boundary for the GTF line start if necessary (if it is between 2 existing boundaries, it was not created before)
                             if not added_info:
                                 stranded_intervals[start] = copy.deepcopy(stored_feat_strand)
-                                #stranded_intervals[start][biotype] = [cat]
+                                # stranded_intervals[start][biotype] = [cat]
                                 try:
                                     stranded_intervals[start][biotype].append(cat)
                                 except KeyError:
                                     stranded_intervals[start][biotype] = [cat]
                                 intervals_dict[antisense][start] = copy.deepcopy(stored_feat_antisense)
-                                added_info = True # The features info were added
+                                added_info = True  # The features info were added
                             # While the browsed boundary is before the GTF line stop: store the existing features info (to manage after the GTF line stop) and update it with the GTF line features info
                             if boundary < stop:
-                                stored_feat_strand, stored_feat_antisense = [dict(stranded_intervals[boundary]), dict(intervals_dict[antisense][boundary])]
+                                stored_feat_strand, stored_feat_antisense = [dict(stranded_intervals[boundary]),
+                                                                             dict(intervals_dict[antisense][boundary])]
                                 try:
-                                    stranded_intervals[boundary][biotype] = stranded_intervals[boundary][biotype] + [cat]
+                                    stranded_intervals[boundary][biotype] = stranded_intervals[boundary][biotype] + [
+                                        cat]
                                 except KeyError:
                                     stranded_intervals[boundary][biotype] = [cat]
                             # The GTF line stop is already exists, nothing more to do, the GTF line features info are integrated
                             elif boundary == stop:
                                 break
                             # The browsed boundary is after the GTF line stop: create a new boundary for the GTF line stop (with the stored features info)
-                            else: # boundary > stop
+                            else:  # boundary > stop
                                 stranded_intervals[stop] = copy.deepcopy(stored_feat_strand)
                                 intervals_dict[antisense][stop] = copy.deepcopy(stored_feat_antisense)
-                                break # The GTF line features info are integrated
+                                break  # The GTF line features info are integrated
                     # If the GTF line stop is after the last boundary, extend the dictionary
                     if stop > max_value:
                         max_value = stop
@@ -470,8 +529,30 @@ def generate_genome_index(annotation, unstranded_genome_index, stranded_genome_i
                         intervals_dict[antisense][stop] = {}
 
         # Store the categories of the last chromosome
-        register_interval(intervals_dict, chrom, stranded_genome_index, unstranded_genome_index)
-    pbar.finish()
+        register_interval(intervals_dict, chrom, annotation + ".stranded.index", annotation + ".unstranded.index")
+        if chrom != prev_chrom:
+            with open("chunk.ALFA." + chunk_basename + ".txt", "a") as input_file:
+                input_file.write(chrom + "\n")
+    return intervals_dicts
+
+
+def generate_genome_index(unstranded_genome_index, stranded_genome_index, chrom_sizes):
+    """ Create an index of the genome annotations and save it in a file. """
+    # Write the chromosome lengths as comment lines before the genome index
+    with open(unstranded_genome_index, "w") as unstranded_index_fh, open(stranded_genome_index, "w") as stranded_index_fh:
+        for key, value in chrom_sizes.items():
+            unstranded_index_fh.write("#%s\t%s\n" % (key, value))
+            stranded_index_fh.write("#%s\t%s\n" % (key, value))
+    # Chunk file list creation
+    files = [f for f in os.listdir(".") if f.startswith("chunk.ALFA.") and f.endswith(".gtf")]
+    file_sizes = [os.stat(f).st_size for f in files]
+    # Sorting the chunks by file size
+    files_plus_sizes = [list(x) for x in zip(files, file_sizes)]
+    files_plus_sizes.sort(key = lambda p: p[1], reverse=True)
+    # Progress bar to track the genome indexes creation
+    pbar = progressbar.ProgressBar(widgets=["Indexing the genome ", progressbar.Percentage(), " ", progressbar.Bar(), progressbar.Timer()], maxval=len(files)).start()
+    pool = Pool(options.nb_processors)
+    list(pbar(pool.imap_unordered(generate_genome_index_1chr, files_plus_sizes)))
 
 
 def run_genomecov((strand, bam_file, sample_label, name)):
@@ -859,7 +940,7 @@ def one_sample_plot(ordered_categs, percentages, enrichment, n_cat, index, index
             color=cols, )
     ### Piecharts
     pielabels = [ordered_categs[i] if percentages[i] > 0.025 else "" for i in xrange(n_cat)]
-    sum_enrichment = numpy.sum(enrichment)
+    sum_enrichment = np.sum(enrichment)
     pielabels_enrichment = [ordered_categs[i] if enrichment[i] / sum_enrichment > 0.025 else "" for i in xrange(n_cat)]
     # Categories piechart
     ax3 = plt.subplot2grid((2, 4), (0, 2))
@@ -900,8 +981,8 @@ def make_plot(sample_labels, ordered_categs, categ_counts, genome_counts, pdf, c
     #n_exp = len(sample_names)
     nb_samples = len(categ_counts)
     ##Initialization of the matrix of counts (nrow=nb_experiements, ncol=nb_categorie)
-    #counts = numpy.matrix(numpy.zeros(shape=(n_exp, n_cat)))
-    counts = numpy.matrix(numpy.zeros(shape=(nb_samples, n_cat)))
+    #counts = np.matrix(np.zeros(shape=(n_exp, n_cat)))
+    counts = np.matrix(np.zeros(shape=(nb_samples, n_cat)))
     '''
     for exp in xrange(len(sample_names)):
         for cat in xrange(len(ordered_categs)):
@@ -930,9 +1011,9 @@ def make_plot(sample_labels, ordered_categs, categ_counts, genome_counts, pdf, c
         sizes[cpt] /= float(sizes_sum)
 
     ## Create array which contains the percentage of reads in each categ for every sample
-    percentages = numpy.array(counts / numpy.sum(counts, axis=1))
+    percentages = np.array(counts / np.sum(counts, axis=1))
     ## Create the enrichment array (counts divided by the categorie sizes in the genome)
-    enrichment = numpy.array(percentages / sizes)
+    enrichment = np.array(percentages / sizes)
     if "antisense_pos" in locals():
         '''
         for i in xrange(len(sample_names)):
@@ -941,7 +1022,7 @@ def make_plot(sample_labels, ordered_categs, categ_counts, genome_counts, pdf, c
         for n in xrange(nb_samples):
             enrichment[n][antisense_pos] = 0
 
-    # enrichment=numpy.log(numpy.array(percentages/sizes))
+    # enrichment=np.log(np.array(percentages/sizes))
     #for exp in xrange(n_exp):
     for n in xrange(nb_samples):
         for i in xrange(n_cat):
@@ -971,7 +1052,7 @@ def make_plot(sample_labels, ordered_categs, categ_counts, genome_counts, pdf, c
     ## Parameters for the plot
     opacity = 1
     # Create a vector which contains the position of each bar
-    index = numpy.arange(n_cat)
+    index = np.arange(n_cat)
     # Size of the bars (depends on the categs number)
     #bar_width = 0.9 / n_exp
     bar_width = 0.9 / nb_samples
@@ -1057,7 +1138,7 @@ def make_plot(sample_labels, ordered_categs, categ_counts, genome_counts, pdf, c
             for y in xrange(n_cat):
                 #val = enrichment[i][y]
                 val = enrichment[n][y]
-                if not numpy.isnan(val) and not (threshold_bottom < val < threshold_top):
+                if not np.isnan(val) and not (threshold_bottom < val < threshold_top):
                     #rect = rects[i][y]
                     rect = rects[n][y]
                     rect_height = rect.get_height()
@@ -1857,13 +1938,26 @@ if __name__ == "__main__":
                      "please delete these files or specify an other path.\n### End of program")
         # Running the index generation commands
         print "# Generating the genome index files"
+        # Getting the PID of the process as a unique random number
+        pid = os.getpgrp()
+        chunk_basename = "chunk.ALFA." + str(pid) + "."
+        # Splitting the GTF file into chunks
+        GTF_splitter(options.annotation)
         # Getting chromosomes lengths
         lengths = get_chromosome_lengths()
         # Generating the index files
-        generate_genome_index(options.annotation, unstranded_genome_index, stranded_genome_index, lengths)
+        generate_genome_index(unstranded_genome_index, stranded_genome_index, lengths)
+        # Merging the genome index chunks
+        merge_index_chunks()
         # Displaying the list of indexed chromosomes
+        for f in os.listdir("."):
+            if f.startswith("chunk.ALFA.") and f.endswith(".txt"):
+                with open(f, "r") as input_file:
+                    for line in input_file:
+                        index_chrom_list.append(line.rstrip())
         index_chrom_list.sort(key=alphanum_key)
         print "Indexed chromosomes: " + ", ".join(index_chrom_list)
+        chunks_cleaner()
     if generate_indexes or not options.counts:
         # Getting index info
         read_index()
