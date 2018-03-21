@@ -35,14 +35,25 @@ For each input sample, a count table with the following information is produced:
 ![Count file example](https://github.com/biocompibens/ALFA/blob/master/Images/counts.head.png)
 
 ## Installation
+### GitHub
 You can either download the code by clicking the ZIP link on this webpage or clone the project using:
 
     git clone https://github.com/biocompibens/ALFA
 
-### Requirements
-RAM: 1 GB should be sufficient for a set aligned on the human genome
+### Pip
+You can install ALFA through the command:
 
-Dependencies: Bedtools suite (v2.20.0 and above)
+    pip install ALFA
+
+### Galaxy
+You can run ALFA on Galaxy, the instance administrator can find the progam on the mail tool shed.
+
+### Requirements
+RAM: 1 GB should be sufficient for a BAM file aligned on the human genome
+
+Dependencies:
+  - Bedtools suite (v2.20.0 and above)
+  - python libs: argparse, pysam, copy, subprocess, matplotlib, re, progressbar, multiprocessing
 
 ## Quick start
 There is a [toy dataset](https://github.com/biocompibens/ALFA/tree/master/Toy_dataset) in the respository in order to test the tool installation. To do so, one can go in the directory and run the following command:
