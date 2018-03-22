@@ -1312,27 +1312,31 @@ def unnecessary_param(param, message):
 
 def usage_message():
     return """
-    Generate genome indexes:
-         python ALFA.py -a GTF_FILE  [-g GENOME_INDEX]
-                                         [--chr_len CHR_LENGTHS_FILE]
+    Generate ALFA genome indexes:
+         python ALFA.py -a GTF [-g GENOME_INDEX_BASENAME]
+                                        [--chr_len CHR_LENGTHS_FILE]
+                                        [-p NB_PROCESSORS]
     Process BAM file(s):
-         python ALFA.py -g GENOME_INDEX -i BAM1 LABEL1 [BAM2 LABEL2 ...]
-                                         [--bedgraph] [-s STRAND]
-                                         [-n] [--pdf output.pdf]
-                                         [-d {1,2,3,4}] [-t YMIN YMAX]
-    Index genome + process BAM:
-         python ALFA.py -a GTF_FILE [-g GENOME_INDEX]
-                            -i BAM1 LABEL1 [BAM2 LABEL2 ...]
-                            [--chr_len CHR_LENGTHS_FILE]
-                            [--bedgraph][-s STRAND]
-                            [-n] [--pdf output.pdf]
-                            [-d {1,2,3,4}] [-t YMIN YMAX]
+         python ALFA.py -g GENOME_INDEX_BASENAME --bam BAM1 LABEL1 [BAM2 LABEL2 ...]
+                                        [--bedgraph] [-s STRAND]
+                                        [-d {1,2,3,4}] [-t YMIN YMAX]
+                                        [--keep-ambiguous]
+                                        [-n] [--pdf output.pdf] [--svg output.svg] [--png output.png]
+                                        [-p NB_PROCESSORS]
+    Index genome + process BAM files(s):
+         python ALFA.py -a GTF [-g GENOME_INDEX_BASENAME] [--chr_len CHR_LENGTHS_FILE]
+                                        --bam BAM1 LABEL1 [BAM2 LABEL2 ...]
+                                        [--bedgraph][-s STRAND]
+                                        [-d {1,2,3,4}] [-t YMIN YMAX]
+                                        [--keep-ambiguous]
+                                        [-n] [--pdf output.pdf] [--svg output.svg] [--png output.png]
+                                        [-p NB_PROCESSORS]
 
-    Process previously created ALFA counts file(s):
+    Process previously created ALFA count file(s):
          python ALFA.py -c COUNTS1 [COUNTS2 ...]
-                            [-s STRAND]
-                            [-n] [--pdf output.pdf]
-                            [-d {1,2,3,4}] [-t YMIN YMAX]
+                                        [-s STRAND]
+                                        [-d {1,2,3,4}] [-t YMIN YMAX]
+                                        [-n] [--pdf output.pdf] [--svg output.svg] [--png output.png]
 
         """
 
@@ -1346,25 +1350,25 @@ if __name__ == "__main__":
     #### Parse command line arguments and store them in the variable options
     parser = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter, usage=usage_message())
     parser.add_argument("--version", action="version", version="version 1.0",
-                        help="Show ALFA version number and exit\n\n-----------\n\n")
+                        help="Show ALFA version number and exit.\n\n-----------\n\n")
     # Options regarding the index
-    parser.add_argument("-g", "--genome_index",
-                        help="Genome index files path and basename for existing index, or path and basename for new index creation\n\n")
-    parser.add_argument("-a", "--annotation", metavar="GTF_FILE", help="Genomic annotations file (GTF format)\n\n")
-    parser.add_argument("--chr_len", help="Tabulated file containing chromosome names and lengths\n\n-----------\n\n")
+    parser.add_argument("-g", "--genome_index", metavar="GENOME_INDEX_BASENAME",
+                        help="Genome index files path and basename for existing index, or path and basename for new index creation.\n\n")
+    parser.add_argument("-a", "--annotation", metavar="GTF_FILE", help="Genomic annotations file (GTF format).\n\n")
+    parser.add_argument("--chr_len", help="Tabulated file containing chromosome names and lengths.\n\n-----------\n\n")
 
     # Options regarding the intersection step
     #parser.add_argument('-i', '--input', '--bam', dest='input', metavar=('BAM_FILE1 LABEL1', ""), nargs='+',
                         #help='Input BAM file(s) and label(s). The BAM files must be sorted by position.\n\n')
-    parser.add_argument("--bam", metavar=("BAM_FILE1 LABEL1", ""), nargs="+",
+    parser.add_argument("--bam", metavar=("BAM1 LABEL1", ""), nargs="+",
                         help="Input BAM file(s) and label(s). The BAM files must be sorted by position.\n\n") ## MB: position AND chr??
     # parser.add_argument('--bedgraph', action='store_const',default = False, const = True, help="Use this options if your input file(s) is(are) already in bedgraph format\n\n")
     #parser.add_argument('--bedgraph', dest='bedgraph', action='store_const', default=False, const=True,
                         #help="Use this options if your input file(s) is(are) already in bedgraph format\n\n")
-    parser.add_argument("--bedgraph", metavar=("BEDGRAPH_FILE1 LABEL1", ""), nargs="+",
+    parser.add_argument("--bedgraph", metavar=("BEDGRAPH1 LABEL1", ""), nargs="+",
                         help="Use this options if your input is/are BedGraph file(s).\n\n")
-    parser.add_argument("-c", "--counts", metavar=("COUNTS_FILE", ""), nargs="+",
-                        help="Use this options instead of '-i/--input' to provide ALFA counts files as input \ninstead of bam/bedgraph files.\n\n")
+    parser.add_argument("-c", "--counts", metavar=("COUNTS1", ""), nargs="+",
+                        help="Use this options instead of '--bam/--bedgraph' to provide ALFA counts files as input \ninstead of bam/bedgraph files.\n\n")
     #parser.add_argument('-s', '--strandness', dest="strandness", nargs=1, action='store', default=['unstranded'], choices=['unstranded', 'forward', 'reverse', 'fr-firststrand', 'fr-secondstrand'], metavar="", help="Library orientation. Choose within: 'unstranded', 'forward'/'fr-firststrand' \nor 'reverse'/'fr-secondstrand'. (Default: 'unstranded')\n\n-----------\n\n")
     parser.add_argument("-s", "--strandness", default="unstranded",
                         choices=["unstranded", "forward", "reverse", "fr-firststrand", "fr-secondstrand"], metavar="",
@@ -1377,16 +1381,16 @@ if __name__ == "__main__":
     parser.add_argument("-d", "--categories_depth", type=int, default=3, choices=range(1, 5),
                         help="Use this option to set the hierarchical level that will be considered in the GTF file (default=3): \n(1) gene,intergenic; \n(2) intron,exon,intergenic; \n(3) 5'UTR,CDS,3'UTR,intron,intergenic; \n(4) start_codon,5'UTR,CDS,3'UTR,stop_codon,intron,intergenic. \n\n")
     parser.add_argument("--pdf", nargs="?", const="ALFA_plots.pdf",
-                        help="Save produced plots in PDF format at specified path ('categories_plots.pdf' if no argument provided).\n\n")
+                        help="Save produced plots in PDF format at the specified path ('categories_plots.pdf' if no argument provided).\n\n")
     parser.add_argument("--png", nargs="?", const="ALFA_plots.png",
-                        help="Save produced plots in PNG format with provided argument as basename \nor 'categories.png' and 'biotypes.png' if no argument provided.\n\n")
+                        help="Save produced plots in PNG format with the provided argument as basename \n('categories.png' and 'biotypes.png' if no argument provided).\n\n")
     parser.add_argument("--svg", nargs="?", const="ALFA_plots.svg",
-                        help="Save produced plots in SVG format with provided argument as basename \nor 'categories.svg' and 'biotypes.svg' if no argument provided.\n\n")
+                        help="Save produced plots in SVG format with the provided argument as basename \nor 'categories.svg' and 'biotypes.svg' if no argument provided.\n\n")
     parser.add_argument("-n", "--no_display", action="store_const", const=True, default=False, help="Do not display plots.\n\n") # We have to add "const=None" to avoid a bug in argparse
-    parser.add_argument("-t", "--threshold", dest="threshold", nargs=2, metavar=("ymin", "ymax"), type=float,
-                        help="Set axis limits for enrichment plots.\n\n")
+    parser.add_argument("-t", "--threshold", dest="threshold", nargs=2, metavar=("YMIN", "YMAX"), type=float,
+                        help="Set ordinate axis limits for enrichment plots.\n\n")
     parser.add_argument("-p", "--processors", dest="nb_processors", type=int, default=1, help="Set the number of processors used for multi-processing operations.\n\n")
-    parser.add_argument("--keep_ambiguous", action="store_const", const=False, default=True, help="Keep reads mapping to different features.\n\n")
+    parser.add_argument("--keep_ambiguous", action="store_const", const=False, default=True, help="Keep reads mapping to different features (discarded by default).\n\n")
 
     if len(sys.argv) == 1:
         parser.print_usage()
