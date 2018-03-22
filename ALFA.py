@@ -589,7 +589,7 @@ def generate_bedgraph_files_parallel(sample_labels, bam_files):
     # Setting the processors number
     pool = Pool(options.nb_processors)
     # Running the instances
-    list(pbar(pool.imap(run_genomecov, parameter_sets)))
+    list(pbar(pool.imap_unordered(run_genomecov, parameter_sets)))
     return None
 
 
@@ -776,7 +776,7 @@ def intersect_bedgraphs_and_index_to_count_categories(sample_labels, bedgraph_fi
     inputs = [sample + strand for sample in zip(sample_labels, bedgraph_files, [discard_ambiguous] * len(sample_labels), [biotype_prios] * len(sample_labels)) for strand in strands]
 
     # Running the intersection in parallel
-    results = list(pbar(pool.imap(intersect_bedgraphs_and_index_to_count_categories_1_file, inputs)))
+    results = list(pbar(pool.imap_unordered(intersect_bedgraphs_and_index_to_count_categories_1_file, inputs)))
 
     # Reformatting the results
     for res in results:
