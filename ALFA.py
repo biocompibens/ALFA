@@ -1810,8 +1810,8 @@ if __name__ == "__main__":
             sample_file_nb = 3
         # Setting the bedgraph extension
         bedgraph_extension = options.bedgraph[0].split(".")[-1]
-        if bedgraph_extension not in (".bedgraph", ".bg"):
-            sys.exit("\nError: at least one of the BedGrapg files doesn't have a '.bedgraph'/'.bg' extension.\n### End of program ###")
+        if bedgraph_extension not in ("bedgraph", "bg"):
+            sys.exit("\nError: at least one of the BedGraph files doesn't have a '.bedgraph'/'.bg' extension.\n### End of program ###")
         # Checking the input BedGraph files
         for i in xrange(0, len(options.bedgraph), sample_file_nb):
             # Check whether the BedGraph file(s) exists
