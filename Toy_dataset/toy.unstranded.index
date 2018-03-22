@@ -1,4 +1,0 @@
-#Chr1	1500
-Chr1	250	375	.	protein_coding:five_prime_utr,gene,transcript
-Chr1	375	1000	.	protein_coding:exon,CDS
-Chr1	1000	1250	.	protein_coding:three_prime_utr,gene,transcript
