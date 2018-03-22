@@ -75,20 +75,20 @@ The basic ALFA workflow consists in 2 steps performed at once or separately:
 
 * Generating ALFA genome index files (stranded and unstranded)
 
-> The user supplies an annotations file (GTF format) to generate indexes that will be used in the 2nd step. The genome index files are saved and need to be generated only once for each annotation file.
+> The user supplies an annotations file (GTF format) to generate ALFA indexes that will be used in the 2nd step. The ALFA genome index files are saved and need to be generated only once for each annotation file.
 
-* Intersecting mapped reads with the genome index files
+* Intersecting mapped reads with the ALFA genome index files
 
-> The user provides the previously generated genome indexes as well as mapped reads file(s) (BAM format) that are intersected to determine the proportion of reads (at nucleotide resolution) within each of the genomic features. As an output, ALFA produces a count file for each input as well as plots based on these files.
+> The user provides the previously generated ALFA genome indexes as well as mapped reads file(s) (BAM format) that are intersected to determine the proportion of reads (at nucleotide resolution) within each of the genomic features. As an output, ALFA produces a count file for each input as well as plots based on these files.
 
-#### Generating index files
+#### Generating ALFA index files
 Usage:
 
     ALFA.py -a GTF_FILE [-g GENOME_INDEX] [--chr_len CHR_LENGTHS_FILE] [-p NB_CPUS]
 
 Arguments:
-* _**-a/--annotation**_ specifies the path to the genomic annotation file (GTF format) to generate indexes.
-* _**-g/--genome_index**_ defines index files basename. In absence of this option, the annotation file basename will be used.
+* _**-a/--annotation**_ specifies the path to the genomic annotation file (GTF format).
+* _**-g/--genome_index**_ defines ALFA index files basename. In absence of this option, the annotation file basename will be used.
 * _**-p/--processors**_ specifies the number of processors used
 * _**--chr_len specifies**_ the path to the tab-delimited text file defining chromosome names and lengths. In absence of this option, lengths will be estimated using the GTF file. Chr_len file example:
 
@@ -106,7 +106,7 @@ Usage:
                          [-n] [--{pdf, svg, png} output.{pdf, svg, png}] [-p NB_CPUS]
 
 Arguments:
-* _**-g/--genome_index**_ specifies path and basename of existing index files
+* _**-g/--genome_index**_ specifies path and basename of existing ALFA index files
 * _**--bam**_ specifies BAM files paths and associated labels (labels are used within output filenames and plots legends)
 * _**-s/--strandness**_ specifies the strandness of the library. Authorized values are: ‘unstranded’ (default), ’forward’/’fr-firststrand’ and ‘reverse’/’fr-secondstrand’
 * _**-d/--categories_depth**_ specifies the depth for the categories (see [Categories depth](#categories-depth))
@@ -122,7 +122,7 @@ Important: BAM files have to be sorted by position. Otherwise, you can use the '
 #### Advanced possibilities
 * *Indexing + processing*
 
-> create the genome indexes and process your BAM files at once using both _**-a/--annotation**_ and _**--bam**_ options. Example:
+> create the ALFA genome indexes and process your BAM files at once using both _**-a/--annotation**_ and _**--bam**_ options. Example:
 ```
 python ALFA.py -a quick_start.gtf -g quick_start --bam quick_start.bam quick_start
 ```
