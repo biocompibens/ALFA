@@ -73,9 +73,9 @@ The figure shows an illustration of the input BAM file reads distribution on the
 ### ALFA usages
 The basic ALFA workflow consists in 2 steps performed at once or separately:
 
-* Generating genome index files (stranded and unstranded)
+* Generating ALFA genome index files (stranded and unstranded)
 
-> The user supplies an annotations file (in GTF format) to generate indexes that will be used in the 2nd step. The genome index files are saved and need to be generated only once for each annotation file.
+> The user supplies an annotations file (GTF format) to generate indexes that will be used in the 2nd step. The genome index files are saved and need to be generated only once for each annotation file.
 
 * Intersecting mapped reads with the genome index files
 
@@ -84,7 +84,7 @@ The basic ALFA workflow consists in 2 steps performed at once or separately:
 #### Generating index files
 Usage:
 
-    ALFA.py -a GTF_FILE [-g GENOME_INDEX] [--chr_len CHR_LENGTHS_FILE]
+    ALFA.py -a GTF_FILE [-g GENOME_INDEX] [--chr_len CHR_LENGTHS_FILE] [-p NB_CPUS]
 
 Arguments:
 * _**-a/--annotation**_ specifies the path to the genomic annotation file (GTF format) to generate indexes.
@@ -94,7 +94,7 @@ Arguments:
 
 > “Chr12    100000”
 
-Important: the GTF file has to be sorted by position. Otherwise, you can use the following command line to sort it
+Important: the GTF file has to be sorted by position. Otherwise, you can use the following command line to sort it:
 
     sort -k1,1 -k4,4n -k5,5nr GTF_FILE > SORTED_GTF_FILE
 
@@ -102,8 +102,8 @@ Important: the GTF file has to be sorted by position. Otherwise, you can use the
 Usage:
 
     ALFA.py -g GENOME_INDEX --bam BAM_FILE1 LABEL1 [BAM_FILE2 LABEL2 …]
-                         [-s STRAND] [-n]
-                         [-d {1,2,3,4}] [--pdf output.pdf]
+                         [-s STRAND] [-d {1,2,3,4}] [-t YMIN YMAX]
+                         [-n] [--{pdf, svg, png} output.{pdf, svg, png}] [-p NB_CPUS]
 
 Arguments:
 * _**-g/--genome_index**_ specifies path and basename of existing index files
@@ -115,22 +115,31 @@ Arguments:
 * _**--pdf or --svg or --png**_ specifies the path to save the plots in the chosen format
 * _**-n/--no_display**_ do not create and show the plots
 
-Important: BAM files have to be sorted by position. Otherwise, you can use the 'sort' module of samtools suite
+Important: BAM files have to be sorted by position. Otherwise, you can use the 'sort' module of samtools suite:
 
     samtools sort BAM_FILE -T aln.sorted -O bam -o SORTED_BAM_FILE
 
 #### Advanced possibilities
 * *Indexing + processing*
 
-> create the genome indexes and process your BAM files at once using both _**-a/--annotation**_ and _**--bam**_ options.
+> create the genome indexes and process your BAM files at once using both _**-a/--annotation**_ and _**--bam**_ options. Example:
+```
+python ALFA.py -a quick_start.gtf -g quick_start --bam quick_start.bam quick_start
+```
 
 * *Processing bedgraph files*
 
-> provide the data in the coverage bedgraph format to skip the bam to bedgraph and coverageBed steps using _**--bedgraph**_ flag.
+> provide the data in the coverage bedgraph format to skip the bam to bedgraph and coverageBed steps using _**--bedgraph**_ flag. Example:
+```
+python ALFA.py -g quick_start --bedgraph quick_start.bedgraph quick_start
+```
 
 * *Running the tool from counts*
 
-> specify the count files previously generated to avoid running the script again on already processed datasets using the _**-c/--counts**_ option (instead of _**--bam**_).
+> specify the count files previously generated to avoid running the script again on already processed datasets using the _**-c/--counts**_ option (instead of _**--bam**_). Example:
+```
+python ALFA.py -c quick_start.feature_counts.tsv
+```
 
 ### Categories depth
 ALFA can assign categories to nucleotides according to different hierarchical levels considered in the GTF file using the _**-d/--categories_depth**_ option.
@@ -138,18 +147,18 @@ Here are the features considered in the 4 different levels:
 
 1. Gene / intergenic
 2. Exon / intron / intergenic
-3. 5’-UTR / CDS / 3’-UTR / intron / intergenic (default)
+3. (Default) 5’-UTR / CDS / 3’-UTR / intron / intergenic
 4. 5’-UTR / start_codon / CDS / stop_codon / 3’-UTR / intron / intergenic
 
 *Warning: using a non-homogeneous GTF file in term of deep level annotations may lead to inconsistent results due to the fact that, for instance, reads mapping to genes without UTR annotation will increase the CDS category count whereas on the other genes, the UTR categories may be increased.*
 
 ### Priorities
-By default, as GTF files are built on a hierarchical way, some assumptions are made on categories priorities.
+By default, as GTF files are built on a hierarchical way, some assumptions are made on categories priorities:
 > start_codon/stop_codon > five_prime_utr/three_prime_utr/CDS > exon > transcript > gene
 
-This means, for example, that a nucleotide found in a *gene* as well as in a *transcript* will be counted within the *transcript* category.
+This means, for example, that a nucleotide found in a *exon* as well as in a *CDS* will be counted within the *CDS* category.
 In case of a nucleotide found in two categories of equal priority, the count is split between them.
 Overlapping biotype priorities are first solved with the associated category, in case of an equality, the previous principle is applied.
 
 ### Unknown feature
-If ALFA meets a category that is not reference in its code, it won’t take it into account as its priority is tricky to assess. However, an unknown biotype is added on the fly and will be processed.
+If ALFA meets a category that is not referenced in its code, it will be ignored since its priority is tricky to assess. However, an unknown biotype is added on the fly and will be processed.
