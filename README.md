@@ -67,7 +67,7 @@ Here is an illustrated detailed example produced by ALFA from fake input files.
 
 The BAM file contains 10 reads fully mapped to unique genomic categories referring to a GTF file describing a genome made of only one gene (without introns).
 The figure shows an illustration of the input BAM file reads distribution on the genome (A). These reads are converted to proportions on the top plot produced by ALFA (B). As an example, 60% of the reads (n=6) are mapped to a CDS region. This plot is then normalized according to the "surface" that each category occupies within a given genome described in the input GTF file (C). Finally, the bottom plot produced by ALFA shows the enrichment/depletion of the different categories (D). For instance, the CDS regions are enriched by a factor of 1.2 since 60% of the nucleotides from the reads map to this feature although the genome is only composed of 50% of CDS regions.
-![Detailed example](https://github.com/biocompibens/ALFA/blob/master/Images/detailed_example.svg)
+![Detailed example](https://github.com/biocompibens/ALFA/blob/master/Images/detailed_example.png)
 
 ## Manual
 ### ALFA usages
