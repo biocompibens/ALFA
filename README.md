@@ -103,17 +103,19 @@ Usage:
 
     ALFA.py -g GENOME_INDEX --bam BAM_FILE1 LABEL1 [BAM_FILE2 LABEL2 …]
                          [-s STRAND] [-d {1,2,3,4}] [-t YMIN YMAX]
-                         [-n] [--{pdf, svg, png} output.{pdf, svg, png}] [-p NB_CPUS]
+                         [-n] [--{pdf, svg, png} output.{pdf, svg, png}]
+                         [--keep_ambiguous] [-p NB_CPUS]
 
 Arguments:
 * _**-g/--genome_index**_ specifies path and basename of existing ALFA index files
 * _**--bam**_ specifies BAM files paths and associated labels (labels are used within output filenames and plots legends)
 * _**-s/--strandness**_ specifies the strandness of the library. Authorized values are: ‘unstranded’ (default), ’forward’/’fr-firststrand’ and ‘reverse’/’fr-secondstrand’
 * _**-d/--categories_depth**_ specifies the depth for the categories (see [Categories depth](#categories-depth))
-* _**-p/--processors**_ specifies the number of processors used (will use at most twice the BAM file number)
 * _**-t/--threshold**_ set the y-axis limits
 * _**--pdf or --svg or --png**_ specifies the path to save the plots in the chosen format
 * _**-n/--no_display**_ do not create and show the plots
+* _**--keep_ambiguous**_ specifies that the nucleotides mapping to more than one feature (category or biotype) is equally split between the different features instead of being discarded
+* _**-p/--processors**_ specifies the number of processors used (will use at most twice the BAM file number)
 
 Important: BAM files have to be sorted by position. Otherwise, you can use the 'sort' module of samtools suite:
 
@@ -156,9 +158,10 @@ Here are the features considered in the 4 different levels:
 By default, as GTF files are built on a hierarchical way, some assumptions are made on categories priorities:
 > start_codon/stop_codon > five_prime_utr/three_prime_utr/CDS > exon > transcript > gene
 
-This means, for example, that a nucleotide found in a *exon* as well as in a *CDS* will be counted within the *CDS* category.
-In case of a nucleotide found in two categories of equal priority, the count is split between them.
-Overlapping biotype priorities are first solved with the associated category, in case of an equality, the previous principle is applied.
+This means, for example, that a nucleotide associated to an *exon* as well as to a *CDS* will be accounted for the *CDS* category.
+
+### Ambiguity
+In case of a nucleotide mapping to overlapping categories, by default, it is discarded. Although with the option _**--keep_ambiguous**_, the count will be split equally between the different categories. Overlapping biotype priorities are first solved with the associated category, in case of an equality, the previous principle is applied.
 
 ### Unknown feature
 If ALFA meets a category that is not referenced in its code, it will be ignored since its priority is tricky to assess. However, an unknown biotype is added on the fly and will be processed.
