@@ -131,9 +131,10 @@ python ALFA.py -a quick_start.gtf -g quick_start --bam quick_start.bam quick_sta
 
 * *Processing bedgraph files*
 
-> provide the data in the coverage bedgraph format to skip the bam to bedgraph and coverageBed steps using _**--bedgraph**_ flag. Example:
+> provide the data in the coverage bedgraph format to skip the bam to bedgraph and coverageBed steps using _**--bedgraph**_ flag. Example (unstranded and stranded):
 ```
 python ALFA.py -g quick_start --bedgraph quick_start.bedgraph quick_start
+python ALFA.py -g quick_start --bedgraph quick_start.plus.bedgraph quick_start.plus.bedgraph quick_start -s forward
 ```
 
 * *Running the tool from counts*
