@@ -20,7 +20,7 @@ ALFA provides a global overview of features distribution composing NGS dataset(s
 ALFA produces two outputs: plots and count files.
 
 ### Plots
-![Output example](https://github.com/biocompibens/ALFA/blob/master/Images/outputs_demo.svg)
+![Output example](https://github.com/biocompibens/ALFA/blob/master/Images/outputs_demo.improved.png)
 
 **Legend**: Two images display the nucleotides distributions among the different features, one for the categories (A) and another one for the biotypes (B). Each image is composed of two plots: the top ones (1) represents the raw nucleotides fraction of the reads that mapped to each feature in the samples whereas the bottom ones (2) represents the feature enrichment/depletion relative to the genome ”surface” occupied by this feature.
 
@@ -60,7 +60,7 @@ There is a [quick start](https://github.com/biocompibens/ALFA/tree/master/Quick_
 
     python ALFA.py -a quick_start.gtf --chr_len quick_start.chr_len.txt -g quick_start --bam quick_start.bam quick_start
 ![Quick start terminal](https://github.com/biocompibens/ALFA/blob/master/Images/quick_start.terminal.png)
-![Quick start plots](https://github.com/biocompibens/ALFA/blob/master/Images/quick_start.svg)
+![Quick start plots](https://github.com/biocompibens/ALFA/blob/master/Images/quick_start.improved.png)
 
 ## Detailed example
 Here is an illustrated detailed example produced by ALFA from fake input files.
