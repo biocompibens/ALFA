@@ -1813,8 +1813,8 @@ if __name__ == "__main__":
         else:
             sample_file_nb = 3
         # Setting the bedgraph extension
-        bedgraph_extension = options.bedgraph[0].split(".")[-1]
-        if bedgraph_extension not in ("bedgraph", "bg"):
+        bedgraph_extension = "." + options.bedgraph[0].split(".")[-1]
+        if bedgraph_extension not in (".bedgraph", ".bg"):
             sys.exit("\nError: at least one of the BedGraph files doesn't have a '.bedgraph'/'.bg' extension.\n### End of program ###")
         # Checking the input BedGraph files
         for i in xrange(0, len(options.bedgraph), sample_file_nb):
@@ -1835,7 +1835,7 @@ if __name__ == "__main__":
                          "\n### End of program ###")
             # Check whether the labels hasn't a "bedgraph"/"bg" extension
             try:
-                if options.bedgraph[i  + sample_file_nb - 1].endswith(bedgraph_extension) or options.bedgraph[i  + sample_file_nb - 1].endswith('.bg'):
+                if options.bedgraph[i  + sample_file_nb - 1].endswith(bedgraph_extension):
                     sys.exit("\nError: the label " + options.bedgraph[i  + sample_file_nb - 1] + " has a '.bedgraph'/'.bg' extension.\n"
                              "Make sure to follow the expected format: "
                              "--bedgraph BedGraph_file1 Label1 [BedGraph_file2 Label2 ...]."
