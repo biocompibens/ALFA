@@ -162,3 +162,6 @@ Overlapping biotype priorities are first solved with the associated category, in
 
 ### Unknown feature
 If ALFA meets a category that is not referenced in its code, it will be ignored since its priority is tricky to assess. However, an unknown biotype is added on the fly and will be processed.
+
+### Acknowledgments
+We thank Felipe Delestro Matos from [IBENS Bioinformatics platform](https://www.ibens.ens.fr/?rubrique55) for the figures and plots design.
