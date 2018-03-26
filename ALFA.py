@@ -1014,6 +1014,8 @@ def make_plot(sample_labels, ordered_categs, categ_counts, genome_counts, pdf, c
     percentages = np.array(counts / np.sum(counts, axis=1))
     ## Create the enrichment array (counts divided by the categorie sizes in the genome)
     enrichment = np.array(percentages / sizes)
+    ## Set very low values to 5e-3 to make the corresponding bar visible enough
+    percentages = [[perc if (perc >  5e-3) or (perc ==0) else 5e-3 for perc in sample]for sample in percentages]
     if "antisense_pos" in locals():
         '''
         for i in xrange(len(sample_names)):
@@ -1131,7 +1133,7 @@ def make_plot(sample_labels, ordered_categs, categ_counts, genome_counts, pdf, c
     ax1.set_ylim(0, ax1.get_ylim()[1] * 1.05)
     if threshold:
         threshold_bottom = -abs(float(threshold[0])) + 1
-        threshold_top = float(threshold[1]) - 1
+        threshold_top = abs(float(threshold[1]) - 1)
 
         #for i in xrange(n_exp):
         for n in xrange(nb_samples):
