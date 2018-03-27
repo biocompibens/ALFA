@@ -1314,6 +1314,8 @@ def unnecessary_param(param, message):
 
 def usage_message():
     return """
+    README on GitHub: https://github.com/biocompibens/ALFA/blob/master/README.md
+    
     Generate ALFA genome indexes:
          python ALFA.py -a GTF [-g GENOME_INDEX_BASENAME]
                                         [--chr_len CHR_LENGTHS_FILE]
@@ -1367,8 +1369,7 @@ if __name__ == "__main__":
     # parser.add_argument('--bedgraph', action='store_const',default = False, const = True, help="Use this options if your input file(s) is(are) already in bedgraph format\n\n")
     #parser.add_argument('--bedgraph', dest='bedgraph', action='store_const', default=False, const=True,
                         #help="Use this options if your input file(s) is(are) already in bedgraph format\n\n")
-    parser.add_argument("--bedgraph", metavar=("BEDGRAPH1 LABEL1", ""), nargs="+",
-                        help="Use this options if your input is/are BedGraph file(s).\n\n")
+    parser.add_argument("--bedgraph", metavar=("BEDGRAPH1 LABEL1", ""), nargs="+", help="Use this options if your input(s) is/are BedGraph file(s). If stranded, provide the BedGraph files\nfor each strand for all samples (e.g. '--bedgraph file.plus.bedgraph file.minus.bedgraph LABEL').\n\n")
     parser.add_argument("-c", "--counts", metavar=("COUNTS1", ""), nargs="+",
                         help="Use this options instead of '--bam/--bedgraph' to provide ALFA counts files as input \ninstead of bam/bedgraph files.\n\n")
     #parser.add_argument('-s', '--strandness', dest="strandness", nargs=1, action='store', default=['unstranded'], choices=['unstranded', 'forward', 'reverse', 'fr-firststrand', 'fr-secondstrand'], metavar="", help="Library orientation. Choose within: 'unstranded', 'forward'/'fr-firststrand' \nor 'reverse'/'fr-secondstrand'. (Default: 'unstranded')\n\n-----------\n\n")
