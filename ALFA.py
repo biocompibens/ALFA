@@ -1202,20 +1202,24 @@ def make_plot(sample_labels, ordered_categs, categ_counts, genome_counts, pdf, c
             rect.set_color("#EDEDED")
         #ax2.text(index[antisense_pos] + bar_width * n_exp / 2 - 0.1, (ax2_ymax + ax2_ymin) / 2, "NA")
         ax2.text(index[antisense_pos] + bar_width * nb_samples / 2 - 0.1, (ax2_ymax + ax2_ymin) / 2, "NA")
-    # Add text for features absent in sample
-    #for i in xrange(n_exp):
+
+    # Add text for features absent in sample & correct for bars too small to be seen
     for n in xrange(nb_samples):
         for y in xrange(n_cat):
-            #if percentages[i][y] == 0:
+            # if no counts in sample for this feature, display "Abs. in sample"
             if percentages[n][y] == 0:
                 txt = ax1.text(y + bar_width * (n + 0.5), 0.02, "Abs.", rotation="vertical", color=cmap[n],
                                horizontalalignment="center", verticalalignment="bottom")
                 txt.set_path_effects([PathEffects.Stroke(linewidth=0.5), PathEffects.Normal()])
-            #elif enrichment[i][y] == 0:
-            elif enrichment[n][y] == 0:
+            # if enrichment value equal to 0, increase the line width to see the bar on the plot
+            elif enrichment[n][y] == 0 :
                 #rects[i][y].set_linewidth(1)
                 rects[n][y].set_linewidth(1)
-
+            # if enrichment value is too small to be seen, increase the bar height to 1% of the plot height
+            elif rects[n][y].get_height() < 1e-2 * (ax2_ymax - ax2_ymin):
+                rects[n][y].set_height(1e-2 * (ax2_ymax - ax2_ymin))
+                if rects[n][y].get_y() < 0:
+                    rects[n][y].set_y(-1e-2 * (ax2_ymax - ax2_ymin))
     # Remove top/right/bottom axes
     for ax in [ax1, ax2]:
         ax.spines["top"].set_visible(False)
