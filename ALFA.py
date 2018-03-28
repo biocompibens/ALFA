@@ -440,7 +440,6 @@ def chunks_cleaner():
 
 def generate_genome_index_1chr((annotation, stranded_genome_index)):
     with open(annotation, "r") as gtf_fh:
-        chunk_basename = annotation.lstrip("chunk.ALFA.").rstrip(".gtf")
         max_value = -1
         intervals_dicts = []
         intervals_dict = {}
@@ -463,7 +462,7 @@ def generate_genome_index_1chr((annotation, stranded_genome_index)):
                     if intervals_dict:
                         register_interval(intervals_dict, prev_chrom, annotation + ".stranded.index", annotation + ".unstranded.index")
                     if chrom != prev_chrom:
-                        with open("chunk.ALFA." + chunk_basename + ".txt", "a") as input_file:
+                        with open(chunk_basename + "txt", "a") as input_file:
                             input_file.write(chrom + "\n")
                     prev_chrom = chrom
                     # (Re)Initializing the intervals info dict
@@ -531,7 +530,7 @@ def generate_genome_index_1chr((annotation, stranded_genome_index)):
         # Store the categories of the last chromosome
         register_interval(intervals_dict, chrom, annotation + ".stranded.index", annotation + ".unstranded.index")
         if chrom != prev_chrom:
-            with open("chunk.ALFA." + chunk_basename + ".txt", "a") as input_file:
+            with open(chunk_basename + "txt", "a") as input_file:
                 input_file.write(chrom + "\n")
     return intervals_dicts
 
@@ -544,7 +543,7 @@ def generate_genome_index(unstranded_genome_index, stranded_genome_index, chrom_
             unstranded_index_fh.write("#%s\t%s\n" % (key, value))
             stranded_index_fh.write("#%s\t%s\n" % (key, value))
     # Chunk file list creation
-    files = [f for f in os.listdir(".") if f.startswith("chunk.ALFA.") and f.endswith(".gtf")]
+    files = [f for f in os.listdir(".") if f.startswith(chunk_basename) and f.endswith(".gtf")]
     file_sizes = [os.stat(f).st_size for f in files]
     # Sorting the chunks by file size
     files_plus_sizes = [list(x) for x in zip(files, file_sizes)]
@@ -1965,7 +1964,7 @@ if __name__ == "__main__":
         merge_index_chunks()
         # Displaying the list of indexed chromosomes
         for f in os.listdir("."):
-            if f.startswith("chunk.ALFA.") and f.endswith(".txt"):
+            if f.startswith(chunk_basename) and f.endswith(".txt"):
                 with open(f, "r") as input_file:
                     for line in input_file:
                         index_chrom_list.append(line.rstrip())
