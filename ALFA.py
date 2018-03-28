@@ -1014,8 +1014,6 @@ def make_plot(sample_labels, ordered_categs, categ_counts, genome_counts, pdf, c
     percentages = np.array(counts / np.sum(counts, axis=1))
     ## Create the enrichment array (counts divided by the categorie sizes in the genome)
     enrichment = np.array(percentages / sizes)
-    ## Set very low values to 5e-3 to make the corresponding bar visible enough
-    percentages = [[perc if (perc >  5e-3) or (perc ==0) else 5e-3 for perc in sample]for sample in percentages]
     if "antisense_pos" in locals():
         '''
         for i in xrange(len(sample_names)):
@@ -1071,23 +1069,25 @@ def make_plot(sample_labels, ordered_categs, categ_counts, genome_counts, pdf, c
     else:
         #fig, (ax1, ax2) = plt.subplots(2, figsize=(5 + (n_cat + 2 * n_exp) / 3, 10))
         fig, (ax1, ax2) = plt.subplots(2, figsize=(5 + (n_cat + 2 * nb_samples) / 3, 10))
-    # Store the bars objects for enrichment plot
+    # Store the bars objects for percentages plot
     rects = []
+    # Store the bars objects for enrichment plot
+    rects_enrichment = []
     # For each sample/experiment
     #for i in range(n_exp):
     for sample_label in sample_labels:
         # First barplot: percentage of reads in each categorie
         n = sample_labels.index(sample_label)
         #ax1.bar(index + i * bar_width, percentages[i], bar_width,
-        ax1.bar(index + n * bar_width + shift_mpl/nb_samples, percentages[n], bar_width,
+        rects.append(ax1.bar(index + n * bar_width + shift_mpl/nb_samples, percentages[n], bar_width,
                 alpha=opacity,
                 #color=cmap[i],
                 color=cmap[n],
                 #label=sample_names[i], edgecolor="#FFFFFF", lw=0)
-                label=sample_label, edgecolor="#FFFFFF", lw=0)
+                label=sample_label, edgecolor="#FFFFFF", lw=0))
         # Second barplot: enrichment relative to the genome for each categ
         # (the reads count in a categ is divided by the categ size in the genome)
-        rects.append(ax2.bar(index + n * bar_width + shift_mpl/nb_samples, enrichment[n], bar_width,
+        rects_enrichment.append(ax2.bar(index + n * bar_width + shift_mpl/nb_samples, enrichment[n], bar_width,
                              alpha=opacity,
                              #color=cmap[i],
                              color=cmap[n],
@@ -1141,8 +1141,8 @@ def make_plot(sample_labels, ordered_categs, categ_counts, genome_counts, pdf, c
                 #val = enrichment[i][y]
                 val = enrichment[n][y]
                 if not np.isnan(val) and not (threshold_bottom < val < threshold_top):
-                    #rect = rects[i][y]
-                    rect = rects[n][y]
+                    #rect = rects_enrichment[i][y]
+                    rect = rects_enrichment[n][y]
                     rect_height = rect.get_height()
                     if rect.get_y() < 0:
                         diff = rect_height + threshold_bottom
@@ -1190,8 +1190,8 @@ def make_plot(sample_labels, ordered_categs, categ_counts, genome_counts, pdf, c
     if "antisense_pos" in locals():  # ax2.text(antisense_pos+bar_width/2,ax2.get_ylim()[1]/10,'NA')
         #for i in xrange(n_exp):
         for n in xrange(nb_samples):
-            #rect = rects[i][antisense_pos]
-            rect = rects[n][antisense_pos]
+            #rect = rects_enrichment[i][antisense_pos]
+            rect = rects_enrichment[n][antisense_pos]
             rect.set_y(ax2.get_ylim()[0])
             rect.set_height(ax2.get_ylim()[1] - ax2.get_ylim()[0])
             rect.set_hatch("/")
@@ -1211,15 +1211,19 @@ def make_plot(sample_labels, ordered_categs, categ_counts, genome_counts, pdf, c
                 txt = ax1.text(y + bar_width * (n + 0.5), 0.02, "Abs.", rotation="vertical", color=cmap[n],
                                horizontalalignment="center", verticalalignment="bottom")
                 txt.set_path_effects([PathEffects.Stroke(linewidth=0.5), PathEffects.Normal()])
-            # if enrichment value equal to 0, increase the line width to see the bar on the plot
-            elif enrichment[n][y] == 0 :
-                #rects[i][y].set_linewidth(1)
-                rects[n][y].set_linewidth(1)
-            # if enrichment value is too small to be seen, increase the bar height to 1% of the plot height
-            elif rects[n][y].get_height() < 1e-2 * (ax2_ymax - ax2_ymin):
-                rects[n][y].set_height(1e-2 * (ax2_ymax - ax2_ymin))
-                if rects[n][y].get_y() < 0:
-                    rects[n][y].set_y(-1e-2 * (ax2_ymax - ax2_ymin))
+            else:
+                # if percentage value is lower than 1% of the plot height, modify it to fit this minimum value
+                if rects[n][y].get_height() < 5e-3 * (ax1.get_ylim()[1] - ax1.get_ylim()[0]):
+                    rects[n][y].set_height(5e-3 * (ax1.get_ylim()[1] - ax1.get_ylim()[0]))
+                # if enrichment value equal to 0, increase the line width to see the bar on the plot
+                if enrichment[n][y] == 0 :
+                    #rects_enrichment[i][y].set_linewidth(1)
+                    rects_enrichment[n][y].set_linewidth(1)
+                # if enrichment value is too small to be seen, increase the bar height to 1% of the plot height
+                elif rects_enrichment[n][y].get_height() < 1e-2 * (ax2_ymax - ax2_ymin):
+                    rects_enrichment[n][y].set_height(1e-2 * (ax2_ymax - ax2_ymin))
+                    if rects_enrichment[n][y].get_y() < 0:
+                        rects_enrichment[n][y].set_y(-1e-2 * (ax2_ymax - ax2_ymin))
     # Remove top/right/bottom axes
     for ax in [ax1, ax2]:
         ax.spines["top"].set_visible(False)
