@@ -1182,8 +1182,8 @@ def make_plot(sample_labels, ordered_categs, categ_counts, genome_counts, pdf, c
     yticks = [yticks[i] - 1 if yticks[i] > 9 else yticks[i] + 1 if yticks[i] < -9 else yticks[i] for i in
               xrange(len(yticks))]
     ax2.set_yticks(yticks)
-    ax2.set_yticklabels([str(int(i + 1)) + "$^{+1}$" if i > 0 and i % 1 == 0 else str(
-        i + 1) + "$^{+1}$" if i > 0 else 1 if i == 0 else str(
+    ax2.set_yticklabels([str(int(i + 1)) if i > 0 and i % 1 == 0 else str(
+        i + 1) if i > 0 else 1 if i == 0 else str(
         int(-(i - 1))) + "$^{-1}$" if i < 0 and i % 1 == 0 else str(-(i - 1)) + "$^{-1}$" for i in ax2.get_yticks()])
     # ax2.set_yticklabels([i+1 if i>0 else 1 if i==0 else "$\\frac{1}{%s}$" %-(i-1) for i in ax2.get_yticks()])
     # Change appearance of 'antisense' bars on enrichment plot since we cannot calculate an enrichment for this artificial category
