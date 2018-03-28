@@ -1219,10 +1219,17 @@ def make_plot(sample_labels, ordered_categs, categ_counts, genome_counts, pdf, c
                     #rects_enrichment[i][y].set_linewidth(1)
                     rects_enrichment[n][y].set_linewidth(1)
                 # if enrichment value is too small to be seen, increase the bar height to 1% of the plot height
-                elif rects_enrichment[n][y].get_height() < 1e-2 * (ax2_ymax - ax2_ymin):
-                    rects_enrichment[n][y].set_height(1e-2 * (ax2_ymax - ax2_ymin))
+                elif abs(rects_enrichment[n][y].get_height()) < 1e-2 * (ax2_ymax - ax2_ymin):
+                    # Correction for negative value in Matplotlib v1
                     if rects_enrichment[n][y].get_y() < 0:
+                        rects_enrichment[n][y].set_height(1e-2 * (ax2_ymax - ax2_ymin))
                         rects_enrichment[n][y].set_y(-1e-2 * (ax2_ymax - ax2_ymin))
+                    # Correction for negative value in Matplotlib v2
+                    elif rects_enrichment[n][y].get_height() < 0:
+                        rects_enrichment[n][y].set_height(-1e-2 * (ax2_ymax - ax2_ymin))
+                    # Correction for positive value
+                    else:
+                        rects_enrichment[n][y].set_height(1e-2 * (ax2_ymax - ax2_ymin))
     # Remove top/right/bottom axes
     for ax in [ax1, ax2]:
         ax.spines["top"].set_visible(False)
