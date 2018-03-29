@@ -84,7 +84,7 @@ The basic ALFA workflow consists in 2 steps performed at once or separately:
 #### Generating ALFA index files
 Usage:
 
-    ALFA.py -a GTF_FILE [-g GENOME_INDEX] [--chr_len CHR_LENGTHS_FILE] [-p NB_CPUS]
+    python ALFA.py -a GTF_FILE [-g GENOME_INDEX] [--chr_len CHR_LENGTHS_FILE] [-p NB_CPUS]
 
 Arguments:
 * _**-a/--annotation**_ specifies the path to the genomic annotation file (GTF format).
@@ -101,7 +101,7 @@ Important: the GTF file has to be sorted by position. Otherwise, you can use the
 #### Processing reads files
 Usage:
 
-    ALFA.py -g GENOME_INDEX --bam BAM_FILE1 LABEL1 [BAM_FILE2 LABEL2 …]
+    python ALFA.py -g GENOME_INDEX --bam BAM_FILE1 LABEL1 [BAM_FILE2 LABEL2 …]
                          [-s STRAND] [-d {1,2,3,4}] [-t YMIN YMAX]
                          [-n] [--{pdf, svg, png} output.{pdf, svg, png}]
                          [--keep_ambiguous] [-p NB_CPUS]
