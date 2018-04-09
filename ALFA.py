@@ -1338,7 +1338,7 @@ def usage_message():
          python ALFA.py -g GENOME_INDEX_BASENAME --bam BAM1 LABEL1 [BAM2 LABEL2 ...]
                                         [--bedgraph] [-s STRAND]
                                         [-d {1,2,3,4}] [-t YMIN YMAX]
-                                        [--keep-ambiguous]
+                                        [--keep_ambiguous]
                                         [-n] [--pdf output.pdf] [--svg output.svg] [--png output.png]
                                         [-p NB_PROCESSORS]
     Index genome + process BAM files(s):
@@ -1346,7 +1346,7 @@ def usage_message():
                                         --bam BAM1 LABEL1 [BAM2 LABEL2 ...]
                                         [--bedgraph][-s STRAND]
                                         [-d {1,2,3,4}] [-t YMIN YMAX]
-                                        [--keep-ambiguous]
+                                        [--keep_ambiguous]
                                         [-n] [--pdf output.pdf] [--svg output.svg] [--png output.png]
                                         [-p NB_PROCESSORS]
 
