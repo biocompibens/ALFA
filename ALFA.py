@@ -287,103 +287,6 @@ def count_genome_features(cpt, features, start, stop, discard_ambiguous, coverag
         # TODO: Add an option to provide biotype priorities and handle it
         pass
 
-'''
-def add_info(cpt, feat_values, start, stop, chrom=None, unstranded_genome_index=None, stranded_genome_index=None,
-             biotype_prios=None, coverage=1, categ_prios=None):
-    """
-    From an annotated genomic interval (start/stop positions and associated feature: one or more category(ies)/biotype pair(s) )
-    - If a file is provided: write the  information at the end of the index file being generated;
-    - else: browse the features and update the counts of categories/biotypes found in the genome.
-    """
-    ## Writing in the file if it was provided
-    if stranded_genome_index:
-        # If only one strand has a feature, this feature will directly be written on the unstranded index
-        if feat_values[0] == {}:
-            stranded_genome_index.write('\t'.join((chrom, start, stop, '+', 'antisense\n')))
-        elif feat_values[1] == {}:
-            stranded_genome_index.write('\t'.join((chrom, start, stop, '-', 'antisense\n')))
-
-        write_feature_on_index(feat_values[0], chrom, start, stop, '+', stranded_genome_index)
-        write_feature_on_index(feat_values[1], chrom, start, stop, '-', stranded_genome_index)
-        unstranded_feat = dict(feat_values[0], **feat_values[1])
-        for name in set(feat_values[0]) & set(feat_values[1]):
-            unstranded_feat[name] += feat_values[0][name]
-        write_feature_on_index(unstranded_feat, chrom, start, stop, '.', unstranded_genome_index)
-
-        if feat_values[0] == {}:
-            # An interval with no feature corresponds to a region annotated only on the reverse strand: update 'antisense' counts
-            stranded_genome_index.write('\t'.join((chrom, start, stop, '+', 'antisense\n')))
-            #write_feature_on_index(feat_values[1], chrom, start, stop, '-', stranded_genome_index, unstranded_genome_index)
-            write_feature_on_index(feat_values[1], chrom, start, stop, '-', stranded_genome_index)
-            write_feature_on_index(feat_values[1], chrom, start, stop, '.', unstranded_genome_index)
-        elif feat_values[1] == {}:
-                #write_feature_on_index(feat_values[0], chrom, start, stop, '+', stranded_genome_index, unstranded_genome_index)
-                write_feature_on_index(feat_values[0], chrom, start, stop, '+', stranded_genome_index)
-                write_feature_on_index(feat_values[0], chrom, start, stop, '.', unstranded_genome_index)
-                stranded_genome_index.write('\t'.join((chrom, start, stop, '-', 'antisense\n')))
-        # Else, the unstranded index should contain the union of plus and minus features
-        else:
-            write_feature_on_index(feat_values[0], chrom, start, stop, '+', stranded_genome_index)
-            write_feature_on_index(feat_values[1], chrom, start, stop, '-', stranded_genome_index)
-            unstranded_feat = dict(feat_values[0], **feat_values[1])
-            for name in set(feat_values[0]) & set(feat_values[1]):
-                unstranded_feat[name] += feat_values[0][name]
-            write_feature_on_index(unstranded_feat, chrom, start, stop, '.', unstranded_genome_index)
-
-    ## Increasing category counter(s)
-    else: ##MB Why increase if file not provided??
-        # Default behavior if no biotype priorities : category with the highest priority for each found biotype has the same weight (1/n_biotypes)
-        if not biotype_prios:
-            nb_feat = len(feat_values) ## MB: nb biotypes??
-            # For every categ(s)/biotype pairs
-            for feat in feat_values: ## MB: for each biotype
-                cur_prio = 0
-                selected_categ = []
-                # Separate categorie(s) and biotype
-                try:
-                    biot, cats = feat.split(":")
-                # Error if feature equal "antisense" : update the 'antisense/antisense' counts
-                except ValueError:
-                    try:
-                        cpt[(feat, feat)] += (int(stop) - int(start)) * coverage / float(nb_feat) ## MB: clearly write 'antisense'??
-                    except: ## MB: add a KeyError exception??
-                        cpt[(feat, feat)] = (int(stop) - int(start)) * coverage / float(nb_feat)
-                    return
-                # Browse the categories and get only the one(s) with highest priority
-                for cat in cats.split(','):
-                    try:
-                        prio = prios[cat]
-                    except: ## MB: KeyError??
-                        # TODO Find a way to add unknown categories
-                        if cat not in unknown_feature:
-                            print >> sys.stderr, "Warning: Unknown categorie %s found and ignored.\n" % cat,
-                            unknown_feature.append(cat)
-                        continue
-                    if prio > cur_prio:
-                        cur_prio = prio
-                        selected_categ = [cat]
-                    if prio == cur_prio:
-                        if cat != selected_categ: ## MB: work with set??
-                            try:
-                                if cat not in selected_categ:
-                                    selected_categ.append(cat)
-                            except TypeError: ## What TypeError??
-                                selected_categ = [selected_categ, cat]
-                # Increase each counts by the coverage divided by the number of categories and biotypes
-                nb_cats = len(selected_categ)
-                for cat in selected_categ:
-                    try:
-                        cpt[(cat, biot)] += (int(stop) - int(start)) * coverage / (float(nb_feat * nb_cats))
-                    except KeyError:
-                        cpt[(cat, biot)] = (int(stop) - int(start)) * coverage / (float(nb_feat * nb_cats))
-                    # else :
-                    # cpt[(cats,biot)] = (int(stop) - int(start)) / float(nb_feat) * coverage
-        # Else, apply biotype selection according to the priority set
-        else:
-            # TODO Add an option to pass biotype priorities and handle it
-            pass
-'''
-
 def register_interval(features_dict, chrom, stranded_index_fh, unstranded_index_fh):
     """ Write the interval features info into the genome index files. """
     # Writing the interval in the index file
@@ -906,15 +809,6 @@ def display_percentage_of_ambiguous(cpt, count_files_option=False):
             else:
                 print "    {!s:25.25} {:3.2f}% of ambiguous".format(sample, 0)
 
-# def get_cmap(N):
-# '''Returns a function that maps each index in 0, 1, ... N-1 to a distinct
-# RGB color.'''
-# color_norm  = colors.Normalize(vmin=0, vmax=N-1)
-# scalar_map = cmx.ScalarMappable(norm=color_norm, cmap='hsv')
-# def map_index_to_rgb_color(index):
-# return scalar_map.to_rgba(index)
-# return map_index_to_rgb_color
-
 def one_sample_plot(ordered_categs, percentages, enrichment, n_cat, index, index_enrichment, bar_width, counts_type,
                     title, sample_labels):
     ### Initialization
@@ -1376,17 +1270,11 @@ if __name__ == "__main__":
     parser.add_argument("--chr_len", help="Tabulated file containing chromosome names and lengths.\n\n-----------\n\n")
 
     # Options regarding the intersection step
-    #parser.add_argument('-i', '--input', '--bam', dest='input', metavar=('BAM_FILE1 LABEL1', ""), nargs='+',
-                        #help='Input BAM file(s) and label(s). The BAM files must be sorted by position.\n\n')
     parser.add_argument("--bam", metavar=("BAM1 LABEL1", ""), nargs="+",
                         help="Input BAM file(s) and label(s). The BAM files must be sorted by position.\n\n") ## MB: position AND chr??
-    # parser.add_argument('--bedgraph', action='store_const',default = False, const = True, help="Use this options if your input file(s) is(are) already in bedgraph format\n\n")
-    #parser.add_argument('--bedgraph', dest='bedgraph', action='store_const', default=False, const=True,
-                        #help="Use this options if your input file(s) is(are) already in bedgraph format\n\n")
     parser.add_argument("--bedgraph", metavar=("BEDGRAPH1 LABEL1", ""), nargs="+", help="Use this options if your input(s) is/are BedGraph file(s). If stranded, provide the BedGraph files\nfor each strand for all samples (e.g. '--bedgraph file.plus.bedgraph file.minus.bedgraph LABEL').\n\n")
     parser.add_argument("-c", "--counts", metavar=("COUNTS1", ""), nargs="+",
                         help="Use this options instead of '--bam/--bedgraph' to provide ALFA counts files as input \ninstead of bam/bedgraph files.\n\n")
-    #parser.add_argument('-s', '--strandness', dest="strandness", nargs=1, action='store', default=['unstranded'], choices=['unstranded', 'forward', 'reverse', 'fr-firststrand', 'fr-secondstrand'], metavar="", help="Library orientation. Choose within: 'unstranded', 'forward'/'fr-firststrand' \nor 'reverse'/'fr-secondstrand'. (Default: 'unstranded')\n\n-----------\n\n")
     parser.add_argument("-s", "--strandness", default="unstranded",
                         choices=["unstranded", "forward", "reverse", "fr-firststrand", "fr-secondstrand"], metavar="",
                         help="Library orientation. Choose within: 'unstranded', "
@@ -1501,27 +1389,11 @@ if __name__ == "__main__":
 
 
     # Initializing the category priority order, coding biotypes and the final list
-    # prios = {"start_codon": 7, "stop_codon": 7, "five_prime_utr": 6, "three_prime_utr": 6, "UTR": 6, "CDS": 5, "exon": 4,
-    #          "transcript": 3, "gene": 2, "antisense": 1, "intergenic": 0}
     prios = {"start_codon": 4, "stop_codon": 4, "five_prime_utr": 3, "three_prime_utr": 3, "UTR": 3, "CDS": 3,
              "exon": 2, "intron": 2, "transcript": 1.5, "gene": 1, "opposite_strand": 0, "intergenic": -1}
 
     biotype_prios = None
     # biotype_prios = {"protein_coding":1, "miRNA":2}
-
-    # Possibles groups of categories to plot
-    # categs_group1 = {"start": ["start_codon"], "5UTR": ["five_prime_utr", "UTR"], "CDS": ["CDS", "exon"],
-    #                  "3UTR": ["three_prime_utr"], "stop": ["stop_codon"], "introns": ["transcript", "gene"],
-    #                  "intergenic": ["intergenic"], "antisense": ["antisense"]}
-    # categs_group2 = {"5UTR": ["five_prime_utr", "UTR"], "CDS": ["CDS", "exon", "start_codon", "stop_codon"],
-    #                  "3UTR": ["three_prime_utr"], "introns": ["transcript", "gene"], "intergenic": ["intergenic"],
-    #                  "antisense": ["antisense"]}
-    # categs_group3 = {"exons": ["five_prime_utr", "three_prime_utr", "UTR", "CDS", "exon", "start_codon", "stop_codon"],
-    #                  "introns": ["transcript", "gene"], "intergenic": ["intergenic"], "antisense": ["antisense"]}
-    # categs_group4 = {
-    #     "gene": ["five_prime_utr", "three_prime_utr", "UTR", "CDS", "exon", "start_codon", "stop_codon", "transcript",
-    #              "gene"], "intergenic": ["intergenic"], "antisense": ["antisense"]}
-
 
     categs_level1 = {"gene": ["five_prime_utr", "three_prime_utr", "UTR", "CDS", "exon", "intron", "start_codon",
                              "stop_codon", "transcript", "gene"],
@@ -1909,16 +1781,12 @@ if __name__ == "__main__":
     # If no plot is displayed or saved, plot parameters are useless
     if (options.no_display and not (options.pdf or options.png or options.svg)) or not(intersect_indexes_BedGraph or options.counts):
         # unnecessary_param(options.categories_depth, "Warning: the parameter '-d/--categories_depth' will not be used because no plots will be displayed or saved.")
-        # # Cannot be tested because options.categories_depth has always a value (default value if option not specified by user)
+        # Cannot be tested because options.categories_depth has always a value (default value if option not specified by user)
         unnecessary_param(options.threshold, "Warning: the parameter '-t/--threshold' will not be used because no plots will be displayed or saved.")
         unnecessary_param(options.biotype_filter, "Warning: the parameter '--biotype_filter' will not be used because no plots will be displayed or saved.")
         if options.counts:
             sys.exit("Error: there is nothing to do (counts are provided and no display or plot saving is required")
     else:
-        ## [BN] X server check
-        # if not X server:
-            #options.no_display = True
-            #Message
         try:
             x_server = os.environ['DISPLAY']
             generate_plot = True
@@ -1989,7 +1857,7 @@ if __name__ == "__main__":
         print "# Generating the BedGraph files"
         #sample_files, sample_labels = generate_bedgraph_files()
         #generate_bedgraph_files(labels, bams)
-        #### Tests MB parallel
+        #### Tests MB parallel #TODO
         generate_bedgraph_files_parallel(labels, bams)
         #### End tests
 
@@ -2007,7 +1875,7 @@ if __name__ == "__main__":
             #cpt, cpt_genome, sample_names = read_counts(options.counts)
             cpt, cpt_genome = read_counts(labels, count_files)
         # Managing the unknown biotypes
-        for sample_label, counters in cpt.items():
+        for sample_label, counters in cpt.items():  #TODO: improve code, initialize biotypes = [] possible???
             for (cat, biot) in counters:
                 if biot not in biotypes:
                     unknown_biot.add(biot)
@@ -2056,15 +1924,12 @@ if __name__ == "__main__":
             if ("opposite_strand", "opposite_strand") in dic.keys(): break
         else:
             cat_list.remove("opposite_strand")
-        #make_plot(labels, cat_list, sample_labels, final_cat_cpt, final_genome_cpt, pdf, "categories", options.threshold, svg=options.svg, png=options.png)
         make_plot(labels, cat_list, final_cat_cpt, final_genome_cpt, pdf, "Categories", options.threshold, svg=options.svg, png=options.png, categ_groups= parent_categs)
         if filtered_biotype:
-            #make_plot(labels, cat_list, sample_labels, filtered_cat_cpt, final_genome_cpt, pdf, "categories", options.threshold, title="Categories distribution for '" + filtered_biotype + "' biotype", svg=options.svg, png=options.png)
             make_plot(labels, cat_list, filtered_cat_cpt, final_genome_cpt, pdf, "Categories", options.threshold, title="Categories distribution for '" + filtered_biotype + "' biotype", svg=options.svg, png=options.png, categ_groups= parent_categs)
         ## Generate the biotypes plot
         # Recategorization within the final biotypes and plot generation
         final_cat_cpt, final_genome_cpt = group_counts_by_biotype(cpt, cpt_genome, biotypes)
-        #make_plot(biotypes, sample_labels, final_cat_cpt, final_genome_cpt, pdf, "biotypes", options.threshold, svg=options.svg, png=options.png)
         make_plot(labels, biotypes, final_cat_cpt, final_genome_cpt, pdf, "Biotypes", options.threshold, svg=options.svg, png=options.png)
 
 
