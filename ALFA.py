@@ -593,7 +593,6 @@ def intersect_bedgraphs_and_index_to_count_categories_1_file((sample_labels, bed
             if bam_chrom not in index_chrom_list:
                 if bam_chrom not in unknown_chrom:
                     unknown_chrom.append(bam_chrom)
-                    print "\r                          \r Chromosome '" + bam_chrom + "' not found in index."  # MB: to adapt with the progress bar
                 continue
             # If this is a new chromosome (or the first one)
             if bam_chrom != prev_chrom:
@@ -1712,13 +1711,13 @@ if __name__ == "__main__":
                     open(options.bedgraph[i + j])
                 except IOError:
                     if not options.bedgraph[i + j].endswith(bedgraph_extension):
-                        sys.exit("\nError: it looks like BedGraph files and associated labels are not correctly provided.\n"
+                        sys.exit("\nError: it looks like BedGraph file(s) and associated label(s) are not correctly provided.\n"
                              "Make sure to follow the expected format: --bedgraph BedGraph_file1 Label1 [BedGraph_file2 Label2 ...]."
                              "\n### End of program ###")
                     else:
                         sys.exit("\nError: the BedGraph file " + options.bedgraph[i + j] + " was not found.\n### End of program")
                 except IndexError:
-                    sys.exit("\nError: it looks like BedGraph files and associated labels are not correctly provided.\n"
+                    sys.exit("\nError: it looks like BedGraph file(s) and associated label(s) are not correctly provided.\n"
                          "Make sure to follow the expected format: --bedgraph BedGraph_file1 Label1 [BedGraph_file2 Label2 ...]."
                          "\n### End of program ###")
             # Check whether the labels hasn't a "bedgraph"/"bg" extension
@@ -1729,7 +1728,7 @@ if __name__ == "__main__":
                              "--bedgraph BedGraph_file1 Label1 [BedGraph_file2 Label2 ...]."
                              "\n### End of program ###")
             except IndexError:
-                sys.exit("\nError: it looks like BedGraph files and associated labels are not correctly provided.\n"
+                sys.exit("\nError: it looks like BedGraph file(s) and associated label(s) are not correctly provided.\n"
                          "Make sure to follow the expected format: --bedgraph BedGraph_file1 Label1 [BedGraph_file2 Label2 ...]."
                          "\n### End of program ###")
             # Register the sample label and filename(s)
