@@ -1268,7 +1268,7 @@ if __name__ == "__main__":
                              "(Default: 'unstranded')\n\n-----------\n\n")
 
     # Options regarding the plot
-    parser.add_argument("--biotype_filter", help=argparse.SUPPRESS)  # "Make an extra plot of categories distribution using only counts of the specified biotype." ## MB: TO DISPLAY (no suppress)
+    #parser.add_argument("--biotype_filter", help=argparse.SUPPRESS)  # "Make an extra plot of categories distribution using only counts of the specified biotype."
     parser.add_argument("-d", "--categories_depth", type=int, default=3, choices=range(1, 5),
                         help="Use this option to set the hierarchical level that will be considered in the GTF file (default=3): \n(1) gene,intergenic; \n(2) intron,exon,intergenic; \n(3) 5'UTR,CDS,3'UTR,intron,intergenic; \n(4) start_codon,5'UTR,CDS,3'UTR,stop_codon,intron,intergenic. \n\n")
     parser.add_argument("--pdf", nargs="?", const="ALFA_plots.pdf",
@@ -1769,7 +1769,7 @@ if __name__ == "__main__":
         # unnecessary_param(options.categories_depth, "Warning: the parameter '-d/--categories_depth' will not be used because no plots will be displayed or saved.")
         # Cannot be tested because options.categories_depth has always a value (default value if option not specified by user)
         unnecessary_param(options.threshold, "Warning: the parameter '-t/--threshold' will not be used because no plots will be displayed or saved.")
-        unnecessary_param(options.biotype_filter, "Warning: the parameter '--biotype_filter' will not be used because no plots will be displayed or saved.")
+        #unnecessary_param(options.biotype_filter, "Warning: the parameter '--biotype_filter' will not be used because no plots will be displayed or saved.")
         if options.counts:
             sys.exit("Error: there is nothing to do (counts are provided and no display or plot saving is required")
     else:
@@ -1879,6 +1879,7 @@ if __name__ == "__main__":
             pass
         biotypes_group1 = sorted(biotypes_group1)
         # Filtering biotypes if necessary
+        """
         filtered_biotype = None
         if options.biotype_filter:
             for sample_label in cpt:
@@ -1889,6 +1890,7 @@ if __name__ == "__main__":
                         break
             if filtered_biotype:
                 print "\nWarning: biotype '" + options.biotype_filter + "' not found. Please check the biotype name and that this biotype exists in your sample(s)."
+        """
 
         ## Generate the categories plot
         # Recategorizing within the final categories and plot generation
