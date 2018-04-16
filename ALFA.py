@@ -854,9 +854,7 @@ def one_sample_plot(ordered_categs, percentages, enrichment, n_cat, index, index
     return fig, ax1, ax2
 
 
-#def make_plot(ordered_categs, sample_names, categ_counts, genome_counts, pdf, counts_type, threshold, title=None,
-def make_plot(sample_labels, ordered_categs, categ_counts, genome_counts, pdf, counts_type, threshold, title=None, svg=None, png=None,
-              categ_groups=[]):  # MB: to review
+def make_plot(sample_labels, ordered_categs, categ_counts, genome_counts, counts_type, title=None, categ_groups=[]):
 
     #Test matplotlib version. If __version__ >= 2, use a shift value to correct the positions of bars and xticks
     if int(matplotlib.__version__[0]) == 2:
@@ -1023,9 +1021,9 @@ def make_plot(sample_labels, ordered_categs, categ_counts, genome_counts, pdf, c
     ax2_ymin = min(ax2_ymin)
     margin_top, margin_bottom = (abs(0.05 * ax2_ymax), abs(0.05 * ax2_ymin))
     ax1.set_ylim(0, ax1.get_ylim()[1] * 1.05)
-    if threshold:
-        threshold_bottom = -abs(float(threshold[0])) + 1
-        threshold_top = abs(float(threshold[1]) - 1)
+    if options.threshold:
+        threshold_bottom = -abs(float(options.threshold[0])) + 1
+        threshold_top = abs(float(options.threshold[1]) - 1)
 
         #for i in xrange(n_exp):
         for n in xrange(nb_samples):
@@ -1143,30 +1141,19 @@ def make_plot(sample_labels, ordered_categs, categ_counts, genome_counts, pdf, c
     else:
         plt.tight_layout()
 
-    ## Showing the plot
-    if pdf:  ## TODO: allow several output formats
-        pdf.savefig(format="pdf")
-        plt.close()
-    elif svg:
-        if svg == True:
-            plt.savefig(counts_type + ".svg")
-        else:
-            if os.path.splitext(svg)[1] == ".svg":
-                plt.savefig(".".join((os.path.splitext(svg)[0], counts_type, "svg")))
-            else:
-                plt.savefig(".".join((svg, counts_type, "svg")))
-    elif png:
-        if png == True:
-            plt.savefig(counts_type + ".png")
-        else:
-            if os.path.splitext(png)[1] == ".png":
-                plt.savefig(".".join((os.path.splitext(png)[0], counts_type, "png")))
-            else:
-                plt.savefig(".".join((png, counts_type, "png")))
-    else:
+    ## Displaying or saving the plot
+    if not options.pdf and not options.svg and not options.png:
         plt.show()
-    ## Save on disk it as a png image
-    # fig.savefig('image_output.png', dpi=300, format='png', bbox_extra_artists=(lgd,), bbox_inches='tight')
+    else:  # If any of the 3 plot output format is set
+        for output_basename, output_format in [(options.pdf, "pdf"), (options.svg, "svg"), (options.png, "png")]:
+            if output_basename:
+                # Checking if the file extension have been specified and removing it if so
+                if output_basename.endswith("." + output_format):
+                    output_basename = output_basename[:-4]
+                # Saving the plot
+                plt.savefig(".".join((output_basename.rstrip("." + output_format), counts_type, output_format)))
+    plt.close()
+
 
 def annotate_group(groups, ax=None, label=None, labeloffset=30):
     """Annotates the categories with their parent group and add x-axis label"""
@@ -1902,11 +1889,7 @@ if __name__ == "__main__":
                         break
             if filtered_biotype:
                 print "\nWarning: biotype '" + options.biotype_filter + "' not found. Please check the biotype name and that this biotype exists in your sample(s)."
-        # Setting the plots filenames
-        if options.pdf: ## MB: Do the same for svg and png??
-            pdf = PdfPages(options.pdf)
-        else:
-            pdf = False
+
         ## Generate the categories plot
         # Recategorizing within the final categories and plot generation
         final_cats = categs_levels[options.categories_depth - 1]
@@ -1923,13 +1906,12 @@ if __name__ == "__main__":
             if ("opposite_strand", "opposite_strand") in dic.keys(): break
         else:
             cat_list.remove("opposite_strand")
-        make_plot(labels, cat_list, final_cat_cpt, final_genome_cpt, pdf, "Categories", options.threshold, svg=options.svg, png=options.png, categ_groups= parent_categs)
+        make_plot(labels, cat_list, final_cat_cpt, final_genome_cpt, "Categories", categ_groups= parent_categs)
         if filtered_biotype:
-            make_plot(labels, cat_list, filtered_cat_cpt, final_genome_cpt, pdf, "Categories", options.threshold, title="Categories distribution for '" + filtered_biotype + "' biotype", svg=options.svg, png=options.png, categ_groups= parent_categs)
+            make_plot(labels, cat_list, filtered_cat_cpt, final_genome_cpt, "Categories", title="Categories distribution for '" + filtered_biotype + "' biotype", categ_groups= parent_categs)
         ## Generate the biotypes plot
         # Recategorization within the final biotypes and plot generation
         final_cat_cpt, final_genome_cpt = group_counts_by_biotype(cpt, cpt_genome, biotypes)
-        make_plot(labels, biotypes, final_cat_cpt, final_genome_cpt, pdf, "Biotypes", options.threshold, svg=options.svg, png=options.png)
-
+        make_plot(labels, biotypes, final_cat_cpt, final_genome_cpt, "Biotypes")
 
     print "### End of program ###"
