@@ -83,31 +83,27 @@ def GTF_splitter(GTF_file, size=10000):
                 continue
             # Getting the chromosome/scaffold
             chr = line.split("\t")[0]  # Processed chr/scaffold
+            # Reaching another chromosome/scaffold
             if (chr != prev_chr) and (prev_chr != ""):
-                # Closing the chr/scaffold file
-                current_file.close()
-                if ((cpt > size) or (prev_cpt + cpt > size)) and (prev_cpt != 0):  # If the processed chr/scaffold with or without the currently building chunk exceeds 10k lines
-                    # Packing up the currently building chunk file without the last chr/scaffold
-                    old_chunk.close()
-                    subprocess.call("mv old.gtf " + chunk_basename + str(cpt_chunk) + ".gtf", shell=True)
-                    cpt_chunk += 1
-                    old_chunk = open("old.gtf", "w")
-                    prev_cpt = 0
-                if cpt > size:  # The processed chr/scaffold is more than 10k lines
+                if cpt > size:
                     # Packing up the processed chr/scaffold
                     current_file.close()
                     subprocess.call("mv current.gtf " + chunk_basename + str(cpt_chunk) + ".gtf", shell=True)
                     current_file = open("current.gtf", "w")
                     # Updating counters
                     cpt_chunk += 1
-                else:  # Adding the processed chr/scaffold to the currently building chunk file is still lesser than 10k lines
-                    # Concatenating the currently building chunk file with the processed chr/scaffold file
-                    old_chunk.close()
+                else:
+                    if cpt + prev_cpt > size:
+                        # Packing up the currently building chunk file without the last chr/scaffold
+                        subprocess.call("mv old.gtf " + chunk_basename + str(cpt_chunk) + ".gtf", shell=True)
+                        # Updating counters
+                        cpt_chunk += 1
+                        prev_cpt = 0
+                    # Moving the new piece to the currently building chunk file
+                    current_file.close()
                     subprocess.call("cat current.gtf >> old.gtf", shell=True)
-                    # Rename the currently building chunk file
-                    old_chunk = open("old.gtf", "a")
                     current_file = open("current.gtf", "w")
-                    # Updating the counters
+                    # Updating counters
                     prev_cpt += cpt
                 # Updating the processed chr/scaffold line counter and the previous chromosome
                 cpt = 0
@@ -117,19 +113,21 @@ def GTF_splitter(GTF_file, size=10000):
                 current_file.write(line)
                 prev_chr = chr
                 cpt += 1
-        # Processing the last chr/scaffold
-        if prev_cpt + cpt > size:  # The processed chr/scaffold is more than 10k lines
-            #  Packing up the currently building chunk file without the last chr/scaffold
-            old_chunk.close()
-            subprocess.call("mv old.gtf " + chunk_basename + str(cpt_chunk) + ".gtf", shell=True)
-            cpt_chunk += 1
-            old_chunk = open("old.gtf", "w")
-        # Concatenating the currently building chunk file with the processed chr/scaffold file
-        old_chunk.close()
+        # Processing the last chromosome/scaffold
         current_file.close()
-        subprocess.call("cat current.gtf >> old.gtf", shell=True)
-        # Rename the currently building chunk file
-        subprocess.call("mv old.gtf " + chunk_basename + str(cpt_chunk) + ".gtf", shell=True)
+        if prev_cpt == 0:  # There was only one chromosome/scaffold in the annotation file
+            # Packing up the processed chr/scaffold
+            subprocess.call("mv current.gtf " + chunk_basename + str(cpt_chunk) + ".gtf", shell=True)
+        else:
+            if prev_cpt + cpt > size:
+                # Packing up the processed chr/scaffold
+                subprocess.call("mv current.gtf " + chunk_basename + str(cpt_chunk) + ".gtf", shell=True)
+                cpt_chunk += 1
+            else:
+                # Moving the new piece to the currently building chunk file
+                subprocess.call("cat current.gtf >> old.gtf", shell=True)
+            # Packing up the currently building chunk file without the last chr/scaffold
+            subprocess.call("mv old.gtf " + chunk_basename + str(cpt_chunk) + ".gtf", shell=True)
     subprocess.call("rm -f current.gtf old.gtf", shell=True)
 
 
