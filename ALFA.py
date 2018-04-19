@@ -682,7 +682,7 @@ def write_counts_in_files(cpt, genome_counts):
     """ Writes the biotype/category counts in an output file. """
     for sample_label, counters in cpt.items():
         sample_label = "_".join(re.findall(r"[\w\-']+", sample_label))
-        with open(sample_label + ".feature_counts.tsv", "w") as output_fh:
+        with open(sample_label + ".ALFA_feature_counts.tsv", "w") as output_fh:
             output_fh.write("#Category,biotype\tCounts_in_BAM/BedGraph\tSize_in_genome\n")
             for features_pair, counts in counters.items():
                 output_fh.write("%s\t%s\t%s\n" % (",".join(features_pair), counts, genome_counts[features_pair]))
@@ -1301,12 +1301,12 @@ if __name__ == "__main__":
         for filename in options.counts:
             if not os.path.isfile(filename):
                 sys.exit("Error: the file '" + filename + "' doesn't exist.\n### End of program")
-            # Checking whether the counts file(s) have the correct "feature_counts.tsv" extension
-            if not filename.endswith(".feature_counts.tsv"):
-                sys.exit("Error: the counts file '" + filename + "' doesn't have the extension 'feature_counts.tsv'.\n### End of program")
+            # Checking whether the counts file(s) have the correct "ALFA_feature_counts.tsv" extension
+            if not filename.endswith(".ALFA_feature_counts.tsv"):
+                sys.exit("Error: the counts file '" + filename + "' doesn't have the extension 'ALFA_feature_counts.tsv'.\n### End of program")
             # Registering the sample labels
             label = os.path.basename(filename)
-            label = re.sub(".feature_counts.tsv", "", label)
+            label = re.sub(".ALFA_feature_counts.tsv", "", label)
             label = "_".join(re.findall(r"[\w\-']+", label))
             labels.append(label)
             # Registering the counts filename
@@ -1393,8 +1393,8 @@ if __name__ == "__main__":
                     existing_file(label + ".plus" + bedgraph_extension)
                     existing_file(label + ".minus" + bedgraph_extension)
                 # Checking whether the counts file(s) that will be created already exist
-                if os.path.isfile(label + ".feature_counts.tsv"):
-                    sys.exit("Error: The file '" + label + ".feature_counts.tsv' is about to be produced but already exists in the directory. \n### End of program")
+                if os.path.isfile(label + ".ALFA_feature_counts.tsv"):
+                    sys.exit("Error: The file '" + label + ".ALFA_feature_counts.tsv' is about to be produced but already exists in the directory. \n### End of program")
                 # Listing the BAM chromosome(s) to check whether there is at least one common with the reference genome
                 BAM_chr_list = pysam.AlignmentFile(options.bam[sample_package_nb], "r").references
                 # Checking if there is at least one common chromosome name between the reference genome and the processed BAM file
@@ -1446,7 +1446,7 @@ if __name__ == "__main__":
                 label = "_".join(re.findall(r"[\w\-']+", options.bedgraph[sample_package_nb + sample_file_nb - 1]))
                 labels.append(label)
                 # Checking whether the count file(s) that will be created already exist
-                existing_file(label + ".feature_counts.tsv")
+                existing_file(label + ".ALFA_feature_counts.tsv")
             # Set this step as a task to process
             intersect_indexes_BedGraph = True
 
