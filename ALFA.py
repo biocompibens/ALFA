@@ -944,7 +944,7 @@ def make_plot(sample_labels, ordered_categs, categ_counts, genome_counts, counts
         cmap = [cmap(i) for i in xrange(n_exp)]
     '''
     if nb_samples > ncolor:
-        cmap = plt.get_cmap("Set3", nb_samples)
+        cmap = plt.get_cmap("tab20", nb_samples)
         cmap = [cmap(i) for i in xrange(nb_samples)]
 
     ## Parameters for the plot
