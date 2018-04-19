@@ -12,7 +12,6 @@ import sys
 import subprocess
 import matplotlib
 import matplotlib.pyplot as plt
-import matplotlib.cm as cmx
 import matplotlib.patheffects as PathEffects
 import re
 import progressbar
@@ -45,7 +44,7 @@ def alphanum_key(s):
     """ Turn a string into a list of string and number chunks.
         "z23a" -> ["z", 23, "a"]
     """
-    return [ tryint(c) for c in re.split("([0-9]+)", s) ]
+    return [tryint(c) for c in re.split("([0-9]+)", s)]
 
 
 def existing_file(filename):
@@ -165,30 +164,11 @@ def get_chromosome_lengths():
     return lengths
 
 
-def write_feature_on_index(feat, chrom, start, stop, sign, stranded_genome_index):
-    """ Write one new line in the stranded index file and, if necessary, the unstranded index file. """
-    grouped_by_biotype_features = []
-    for biotype, categs in feat.iteritems():
-        categ_list = []
-        for cat in set(categs):
-            categ_list.append(cat)
-        grouped_by_biotype_features.append(":".join((str(biotype), ",".join(categ_list))))
-
-    #stranded_genome_index.write('\t'.join((chrom, start, stop, sign, '')) + '\t'.join(grouped_by_biotype_features) + '\n')
-    stranded_genome_index.write(
-        '\t'.join((chrom, start, stop, sign)) + '\t' + '\t'.join(grouped_by_biotype_features) + '\n')
-    if unstranded_genome_index: ## MB: Why? Not always unstranded and stranded??
-        #unstranded_genome_index.write('\t'.join((chrom, start, stop, '.', '')) + '\t'.join(grouped_by_biotype_features) + '\n')
-        unstranded_genome_index.write(
-            '\t'.join((chrom, start, stop, '.')) + '\t' + '\t'.join(grouped_by_biotype_features) + '\n')
-
-
 def write_index_line(feat, chrom, start, stop, sign, fh):
     """ Write a new line in an index file. """
     # Formatting the features info
     feat_by_biotype = []
     for biot, cat in feat.iteritems():
-        #feat_by_biotype.append(":".join((str(biot), ",".join(set(cat)))))
         feat_by_biotype.append(":".join((str(biot), ",".join(set(cat)))))
     # Writing the features info in the index file
     fh.write("\t".join((chrom, start, stop, sign)) + "\t" + "\t".join(feat_by_biotype) + "\n")
@@ -212,12 +192,12 @@ def write_index(feat_values, chrom, start, stop, stranded_genome_index, unstrand
     write_index_line(unstranded_feat, chrom, start, stop, ".", unstranded_genome_index)
 
 
-def count_genome_features(cpt, features, start, stop, discard_ambiguous, coverage=1):
+def count_genome_features(cpt, features, start, stop, coverage=1):
     """ Reads genome index and registers feature counts. """
     # If no biotype priority: category with the highest priority for each found biotype has the same weight (1/n_biotypes)
     if not biotype_prios:
         nb_biot = len(features)
-        if discard_ambiguous == True and nb_biot != 1:
+        if options.keep_ambiguous and nb_biot != 1:
             # Increment "ambiguous" counter if more than 1 biotype
             try:
                 cpt[("ambiguous", "ambiguous")] += (int(stop) - int(start)) * coverage
@@ -255,11 +235,11 @@ def count_genome_features(cpt, features, start, stop, discard_ambiguous, coverag
                         cur_cat.add(cat)
 
                 nb_cat = len(cur_cat)
-                if discard_ambiguous == True and nb_cat != 1:
+                if options.keep_ambiguous and nb_cat != 1:
                     # Increment "ambiguous" counter if more than 1 category
                     try:
                         cpt[("ambiguous", "ambiguous")] += (int(stop) - int(start)) * coverage / (float(nb_biot))
-                    except:
+                    except KeyError:
                         cpt[("ambiguous", "ambiguous")] = (int(stop) - int(start)) * coverage / (float(nb_biot))
                 else:
                     # Increase each counts by the coverage divided by the number of categories and biotypes
@@ -329,7 +309,7 @@ def chunks_cleaner():
             os.remove(f)
 
 
-def generate_genome_index_1chr((annotation, stranded_genome_index)):  #TODO: remove second parameter??
+def generate_genome_index_1chr(annotation):
     # Setting the annotation file basename
     annotation_basename = re.sub(".gtf$", "", annotation)
     # Processing the annotation file
@@ -429,7 +409,7 @@ def generate_genome_index_1chr((annotation, stranded_genome_index)):  #TODO: rem
     return intervals_dicts
 
 
-def generate_genome_index(unstranded_genome_index, stranded_genome_index, chrom_sizes):
+def generate_genome_index(chrom_sizes):
     """ Create an index of the genome annotations and save it in a file. """
     # Write the chromosome lengths as comment lines before the genome index
     with open(unstranded_genome_index, "w") as unstranded_index_fh, open(stranded_genome_index, "w") as stranded_index_fh:
@@ -437,15 +417,14 @@ def generate_genome_index(unstranded_genome_index, stranded_genome_index, chrom_
             unstranded_index_fh.write("#%s\t%s\n" % (key, value))
             stranded_index_fh.write("#%s\t%s\n" % (key, value))
     # Chunk file list creation
-    files = [f for f in os.listdir(".") if f.startswith(chunk_basename) and f.endswith(".gtf")]
-    file_sizes = [os.stat(f).st_size for f in files]
+    chunks = np.array([f for f in os.listdir(".") if f.startswith(chunk_basename) and f.endswith(".gtf")])
     # Sorting the chunks by file size
-    files_plus_sizes = [list(x) for x in zip(files, file_sizes)]
-    files_plus_sizes.sort(key=lambda p: p[1], reverse=True)
+    file_sizes = np.array([os.stat(f).st_size for f in chunks])
+    chunks = chunks[file_sizes.argsort()]
     # Progress bar to track the genome indexes creation
-    pbar = progressbar.ProgressBar(widgets=["Indexing the genome ", progressbar.Percentage(), " ", progressbar.Bar(), progressbar.Timer()], maxval=len(files)).start()
+    pbar = progressbar.ProgressBar(widgets=["Indexing the genome ", progressbar.Percentage(), " ", progressbar.Bar(), progressbar.Timer()], maxval=len(chunks)).start()
     pool = Pool(options.nb_processors)
-    list(pbar(pool.imap_unordered(generate_genome_index_1chr, files_plus_sizes)))
+    list(pbar(pool.imap_unordered(generate_genome_index_1chr, chunks)))
     """
     # Non-parallel version for debugging
     for f in files_plus_sizes:
@@ -512,26 +491,18 @@ def read_gtf(gtf_index_file, sign):
     return endGTF
 
 
-#def read_counts(counts_files):
 def read_counts(sample_labels, counts_files):
     """ Reads the counts from an input file. """
     cpt = {}
     cpt_genome = {}
-    #for fcounts in counts_files:
     for sample_label, filename in zip(sample_labels, counts_files):
-        #label = os.path.splitext(os.path.basename(fcounts))[0]
-        #labels.append(label)
-        #cpt[label] = {}
         cpt[sample_label] = {}
-        #with open(fcounts, "r") as counts_fh:
         with open(filename, "r") as counts_fh:
             for line in counts_fh:
                 if not line.startswith("#"):
                     feature = tuple(line.split("\t")[0].split(","))
-                    #cpt[label][feature] = float(line.split("\t")[1])
                     cpt[sample_label][feature] = float(line.split("\t")[1])
                     cpt_genome[feature] = float(line.rstrip().split("\t")[2])
-    #return cpt, cpt_genome, labels
     return cpt, cpt_genome
 
 
@@ -566,10 +537,10 @@ def read_index():
                 chrom = line.split("\t")[0]
                 if chrom not in index_chrom_list:
                     index_chrom_list.append(chrom)
-                count_genome_features(cpt_genome, line.rstrip().split("\t")[4:], line.split("\t")[1], line.split("\t")[2], options.keep_ambiguous)
+                count_genome_features(cpt_genome, line.rstrip().split("\t")[4:], line.split("\t")[1], line.split("\t")[2])
 
 
-def intersect_bedgraphs_and_index_to_count_categories_1_file((sample_labels, bedgraph_files, discard_ambiguous, biotype_prios, strand, sign)): ## MB: To review
+def intersect_bedgraphs_and_index_to_count_categories_1_file((sample_labels, bedgraph_files, biotype_prios, strand, sign)):
     global gtf_line, gtf_chrom, gtf_start, gtf_stop, gtf_cat, endGTF
     unknown_chrom = []
     cpt = {}  # Counter for the nucleotides in the BAM input file(s)
@@ -630,7 +601,7 @@ def intersect_bedgraphs_and_index_to_count_categories_1_file((sample_labels, bed
             # We can start the crossover
             while not endGTF:
                 # Update category counter
-                count_genome_features(cpt, gtf_features, bam_start, min(bam_stop, gtf_stop), discard_ambiguous, coverage=bam_cpt)
+                count_genome_features(cpt, gtf_features, bam_start, min(bam_stop, gtf_stop), coverage=bam_cpt)
                 # Read the next GTF file line if the BAM line is not entirely covered
                 if bam_stop > gtf_stop:
                     # Update the BAM start pointer
@@ -656,12 +627,12 @@ def intersect_bedgraphs_and_index_to_count_categories_1_file((sample_labels, bed
         try:
             gtf_index_file.close()
         except UnboundLocalError:
-            # Then the file is not opended and can't be closed
+            # Then the file is not opened and can't be closed
             pass
     return sample_labels, sign, cpt, unknown_chrom
 
 
-def intersect_bedgraphs_and_index_to_count_categories(sample_labels, bedgraph_files, discard_ambiguous, biotype_prios=None): ## MB: To review
+def intersect_bedgraphs_and_index_to_count_categories(sample_labels, bedgraph_files, biotype_prios=None): ## MB: To review
     # Initializing variables
     unknown_chrom = []
     cpt = {}  # Counter for the nucleotides in the BAM input file(s)
@@ -675,7 +646,7 @@ def intersect_bedgraphs_and_index_to_count_categories(sample_labels, bedgraph_fi
     # Initializing the progress bar
     pbar = progressbar.ProgressBar(widgets=["Intersecting BAM and genome ", progressbar.Percentage(), " ", progressbar.Bar(), progressbar.SimpleProgress(), "|", progressbar.Timer()], maxval=len(sample_labels) * len(strands)).start()
     pool = Pool(options.nb_processors)
-    inputs = [sample + strand for sample in zip(sample_labels, bedgraph_files, [discard_ambiguous] * len(sample_labels), [biotype_prios] * len(sample_labels)) for strand in strands]
+    inputs = [sample + strand for sample in zip(sample_labels, bedgraph_files, [biotype_prios] * len(sample_labels)) for strand in strands]
 
     # Running the intersection in parallel
     results = list(pbar(pool.imap_unordered(intersect_bedgraphs_and_index_to_count_categories_1_file, inputs)))
@@ -1113,7 +1084,7 @@ def make_plot(sample_labels, ordered_categs, categ_counts, genome_counts, counts
                 if rects[n][y].get_height() < 5e-3 * (ax1.get_ylim()[1] - ax1.get_ylim()[0]):
                     rects[n][y].set_height(5e-3 * (ax1.get_ylim()[1] - ax1.get_ylim()[0]))
                 # if enrichment value equal to 0, increase the line width to see the bar on the plot
-                if enrichment[n][y] == 0 :
+                if enrichment[n][y] == 0:
                     #rects_enrichment[i][y].set_linewidth(1)
                     rects_enrichment[n][y].set_linewidth(1)
                 # if enrichment value is too small to be seen, increase the bar height to 1% of the plot height
@@ -1265,7 +1236,7 @@ if __name__ == "__main__":
 
     # Options regarding the intersection step
     parser.add_argument("--bam", metavar=("BAM1 LABEL1", ""), nargs="+",
-                        help="Input BAM file(s) and label(s). The BAM files must be sorted by position.\n\n") ## MB: position AND chr??
+                        help="Input BAM file(s) and label(s). The BAM files must be sorted by position.\n\n") ## TODO: position AND chr??
     parser.add_argument("--bedgraph", metavar=("BEDGRAPH1 LABEL1", ""), nargs="+", help="Use this options if your input(s) is/are BedGraph file(s). If stranded, provide the BedGraph files\nfor each strand for all samples (e.g. '--bedgraph file.plus.bedgraph file.minus.bedgraph LABEL').\n\n")
     parser.add_argument("-c", "--counts", metavar=("COUNTS1", ""), nargs="+",
                         help="Use this options instead of '--bam/--bedgraph' to provide ALFA counts files as input \ninstead of bam/bedgraph files.\n\n")
@@ -1302,7 +1273,7 @@ if __name__ == "__main__":
     labels = []
     bams = []
     bedgraphs = []
-    bedgraph_extension = ".bedgraph"  # TODO: useful??
+    bedgraph_extension = ".bedgraph"
     count_files = []
     lengths = {}
     index_chrom_list = []  # Not a set because we need to sort it according to the chromosome names later
@@ -1545,9 +1516,9 @@ if __name__ == "__main__":
     categs_levels = [categs_level1, categs_level2, categs_level3, categs_level4]
 
     parent_categ_level1 = []
-    parent_categ_level2 = [{"gene":[0.5,2.5]}]
-    parent_categ_level3 = [{"exon":[0.5,3.5]}, {"gene":[0.5,5.5]}]
-    parent_categ_level4 = [{"CDS":[1.5,3.5]}, {"exon":[0.5,5.5]},{"gene":[0.5,7.5]}]
+    parent_categ_level2 = [{"gene": [0.5, 2.5]}]
+    parent_categ_level3 = [{"exon": [0.5, 3.5]}, {"gene": [0.5, 5.5]}]
+    parent_categ_level4 = [{"CDS": [1.5, 3.5]}, {"exon": [0.5, 5.5]}, {"gene": [0.5, 7.5]}]
     parent_categ_groups = [parent_categ_level1, parent_categ_level2, parent_categ_level3, parent_categ_level4]
 
     cat_list = ["5UTR", "start", "CDS", "CDS_body", "stop", "3UTR", "exons", "undescribed_exons", "introns", "gene", "undescribed_genes", "intergenic", "opposite_strand", "ambiguous"]
@@ -1570,9 +1541,9 @@ if __name__ == "__main__":
                                        "unitary_pseudogene", "unprocessed_pseudogene", "processed_pseudogene",
                                        "IG_C_pseudogene", "IG_J_pseudogene", "IG_V_pseudogene", "pseudogene"],
                        "TR": ["TR_C_gene", "TR_D_gene", "TR_J_gene", "TR_V_gene"],
-                       "IG": ["IG_C_gene", "IG_D_gene", "IG_J_gene", "IG_V_gene"], \
-                       "MT_RNA": ["Mt_rRNA", "Mt_tRNA"], \
-                       "ncRNA": ["lincRNA", "macro_lncRNA", "3prime_overlapping_ncrna", "ncRNA"], \
+                       "IG": ["IG_C_gene", "IG_D_gene", "IG_J_gene", "IG_V_gene"],
+                       "MT_RNA": ["Mt_rRNA", "Mt_tRNA"],
+                       "ncRNA": ["lincRNA", "macro_lncRNA", "3prime_overlapping_ncrna", "ncRNA"],
                        "others": ["misc_RNA", "processed_transcript", "ribozyme", "scaRNA", "sense_intronic",
                                   "sense_overlapping", "TEC", "vaultRNA"],
                        "opposite_strand": ["opposite_strand"]}
@@ -1601,7 +1572,7 @@ if __name__ == "__main__":
         # Getting chromosomes lengths
         lengths = get_chromosome_lengths()
         # Generating the index files
-        generate_genome_index(unstranded_genome_index, stranded_genome_index, lengths)
+        generate_genome_index(lengths)
         # Merging the genome index chunks
         merge_index_chunks()
         # Displaying the list of indexed chromosomes
@@ -1627,7 +1598,7 @@ if __name__ == "__main__":
     # Indexes and BedGraph files intersection
     if intersect_indexes_BedGraph:
         print "# Intersecting index and BedGraph files"
-        cpt = intersect_bedgraphs_and_index_to_count_categories(labels, bedgraphs, options.keep_ambiguous)        # Write the counts to an output file
+        cpt = intersect_bedgraphs_and_index_to_count_categories(labels, bedgraphs)        # Write the counts to an output file
         write_counts_in_files(cpt, cpt_genome)
 
     ## Plot generation ## MB: all the section still to review
@@ -1675,7 +1646,7 @@ if __name__ == "__main__":
         parent_categs = parent_categ_groups[options.categories_depth - 1]
         final_cat_cpt, final_genome_cpt, filtered_cat_cpt = group_counts_by_categ(cpt, cpt_genome, final_cats, filtered_biotype)
         # If ambiguous features were discarded, print the percentage for each sample
-        if options.keep_ambiguous == True and not options.counts:
+        if options.keep_ambiguous and not options.counts:
             display_percentage_of_ambiguous(cpt)
         # If only counts are provided, check whether 'ambiguous' feature exists in at least one sample and then display the percentages
         elif options.counts and any([('ambiguous', 'ambiguous') in features for features in cpt.values()]):
