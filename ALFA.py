@@ -10,20 +10,17 @@ import os
 import copy
 import sys
 import subprocess
+import matplotlib
 import matplotlib.pyplot as plt
 import matplotlib.cm as cmx
-import matplotlib.colors as colors
 import matplotlib.patheffects as PathEffects
 import re
-from matplotlib.backends.backend_pdf import PdfPages
-# To correctly embed the texts when saving plots in svg format
-import matplotlib
 import progressbar
 import collections
 import numpy as np
 from multiprocessing import Pool
-from tqdm import *
 
+# To correctly embed the texts when saving plots in svg format
 matplotlib.rcParams["svg.fonttype"] = "none"
 
 
@@ -51,14 +48,6 @@ def alphanum_key(s):
     return [ tryint(c) for c in re.split("([0-9]+)", s) ]
 
 
-def required_arg(arg, aliases):
-    """ Function to display the help and quit if a required argument is missing. """
-    if not arg:
-        print >> sys.stderr, "\nError: %s argument is missing.\n" % aliases
-        parser.print_usage()
-        sys.exit(1)
-
-
 def existing_file(filename):
     """ Checks if filename already exists and exit if so. """
     if os.path.isfile(filename):
@@ -66,14 +55,13 @@ def existing_file(filename):
 
 
 def GTF_splitter(GTF_file, size=10000):
-    """ Function to split a GTF file into chunks of one chromosome or several chromosomes/scaffold up to N (default=10k) lines. """
+    """ Function to split a GTF file into chunks of one chromosome or several chromosomes/scaffolds up to N (default=10k) lines. """
     if os.path.isfile(chunk_basename + "1.gtf"):
         sys.exit("Error: There is already a file called '" + chunk_basename + "1.gtf' in the directory. Running the command would crush this file. Aborting")
     prev_chr = ""  # Chr/scaffold previously processed
     prev_cpt = 0  # Currently building chunk file line counter
     cpt = 0  # Processed chr/scaffold line counter
     cpt_chunk = 1  # Chunk counter
-    old_chunk = open("old.gtf", "w")  # Currently building chunk file, before concatenation
     current_file = open("current.gtf", "w")  # New piece to add to the building chunk file (one chromosome/scaffold)
     # Processing the input GTF file
     with open(GTF_file, "r") as input_file:
@@ -128,6 +116,7 @@ def GTF_splitter(GTF_file, size=10000):
                 subprocess.call("cat current.gtf >> old.gtf", shell=True)
             # Packing up the currently building chunk file without the last chr/scaffold
             subprocess.call("mv old.gtf " + chunk_basename + str(cpt_chunk) + ".gtf", shell=True)
+    # Cleaning
     subprocess.call("rm -f current.gtf old.gtf", shell=True)
 
 
@@ -285,6 +274,7 @@ def count_genome_features(cpt, features, start, stop, discard_ambiguous, coverag
         # TODO: Add an option to provide biotype priorities and handle it
         pass
 
+
 def register_interval(features_dict, chrom, stranded_index_fh, unstranded_index_fh):
     """ Write the interval features info into the genome index files. """
     # Writing the interval in the index file
@@ -324,7 +314,7 @@ def register_interval(features_dict, chrom, stranded_index_fh, unstranded_index_
 def merge_index_chunks():
     """ Merges the genome index chunks into a single file. """
     for fh, strandness in zip([unstranded_genome_index, stranded_genome_index], ["unstranded", "stranded"]):
-        files = [f for f in os.listdir(".") if f.startswith(chunk_basename) and f.endswith(".gtf." + strandness + ".index")]
+        files = [f for f in os.listdir(".") if f.startswith(chunk_basename) and f.endswith(strandness + ".ALFA_index")]
         with open(fh, "a") as output_file:
             for file in files:
                 with open(file, "r") as input_file:
@@ -339,7 +329,10 @@ def chunks_cleaner():
             os.remove(f)
 
 
-def generate_genome_index_1chr((annotation, stranded_genome_index)):
+def generate_genome_index_1chr((annotation, stranded_genome_index)):  #TODO: remove second parameter??
+    # Setting the annotation file basename
+    annotation_basename = re.sub(".gtf$", "", annotation)
+    # Processing the annotation file
     with open(annotation, "r") as gtf_fh:
         max_value = -1
         intervals_dicts = []
@@ -361,7 +354,7 @@ def generate_genome_index_1chr((annotation, stranded_genome_index)):
                 if start > max_value or chrom != prev_chrom:
                     # Write the previous features
                     if intervals_dict:
-                        register_interval(intervals_dict, prev_chrom, annotation + ".stranded.index", annotation + ".unstranded.index")
+                        register_interval(intervals_dict, prev_chrom, annotation_basename + ".stranded.ALFA_index", annotation_basename + ".unstranded.ALFA_index")
                     if chrom != prev_chrom:
                         with open(chunk_basename + "txt", "a") as input_file:
                             input_file.write(chrom + "\n")
@@ -429,7 +422,7 @@ def generate_genome_index_1chr((annotation, stranded_genome_index)):
                         intervals_dict[antisense][stop] = {}
 
         # Store the categories of the last chromosome
-        register_interval(intervals_dict, chrom, annotation + ".stranded.index", annotation + ".unstranded.index")
+        register_interval(intervals_dict, chrom, annotation_basename + ".stranded.ALFA_index", annotation_basename + ".unstranded.ALFA_index")
         if chrom != prev_chrom:
             with open(chunk_basename + "txt", "a") as input_file:
                 input_file.write(chrom + "\n")
@@ -448,11 +441,16 @@ def generate_genome_index(unstranded_genome_index, stranded_genome_index, chrom_
     file_sizes = [os.stat(f).st_size for f in files]
     # Sorting the chunks by file size
     files_plus_sizes = [list(x) for x in zip(files, file_sizes)]
-    files_plus_sizes.sort(key = lambda p: p[1], reverse=True)
+    files_plus_sizes.sort(key=lambda p: p[1], reverse=True)
     # Progress bar to track the genome indexes creation
     pbar = progressbar.ProgressBar(widgets=["Indexing the genome ", progressbar.Percentage(), " ", progressbar.Bar(), progressbar.Timer()], maxval=len(files)).start()
     pool = Pool(options.nb_processors)
     list(pbar(pool.imap_unordered(generate_genome_index_1chr, files_plus_sizes)))
+    """
+    # Non-parallel version for debugging
+    for f in files_plus_sizes:
+        generate_genome_index_1chr(f)
+    """
 
 
 def run_genomecov((strand, bam_file, sample_label, name)):
@@ -471,7 +469,7 @@ def generate_bedgraph_files_parallel(sample_labels, bam_files):
     """ Creates, through multi-processors, BedGraph files from BAM ones. """
     # Sorting the BAM file on size to process the biggest first
     files = zip(sample_labels, bam_files, [os.stat(i).st_size for i in bam_files])
-    files.sort(key = lambda p: p[2], reverse=True)
+    files.sort(key=lambda p: p[2], reverse=True)
     # Defining parameters sets to provide to the genomecov instances to run
     parameter_sets = []
     for l, b, s in files:
@@ -578,7 +576,7 @@ def intersect_bedgraphs_and_index_to_count_categories_1_file((sample_labels, bed
     prev_chrom = ""
     endGTF = False  # Reaching the next chr or the end of the GTF index
     intergenic_adds = 0.0
-    # Checking if the bedgraph file is empty
+    # Checking if the BedGraph file is empty
     if os.stat(bedgraph_files + strand + bedgraph_extension).st_size == 0:
         return sample_labels, sign, {}, []
     with open(bedgraph_files + strand + bedgraph_extension, "r") as bedgraph_fh:
@@ -654,7 +652,12 @@ def intersect_bedgraphs_and_index_to_count_categories_1_file((sample_labels, bed
                     cpt[("intergenic", "intergenic")] += (bam_stop - bam_start) * bam_cpt
                 except KeyError:
                     cpt[("intergenic", "intergenic")] = (bam_stop - bam_start) * bam_cpt
-        gtf_index_file.close()
+        # In stranded mode, if one of the BedGraph files doesn't have any of the chromosomes from the reference file, the error is not detected during the preprocessing (a chromosome is found within the other BedGraph file)
+        try:
+            gtf_index_file.close()
+        except UnboundLocalError:
+            # Then the file is not opended and can't be closed
+            pass
     return sample_labels, sign, cpt, unknown_chrom
 
 
@@ -676,6 +679,12 @@ def intersect_bedgraphs_and_index_to_count_categories(sample_labels, bedgraph_fi
 
     # Running the intersection in parallel
     results = list(pbar(pool.imap_unordered(intersect_bedgraphs_and_index_to_count_categories_1_file, inputs)))
+    """
+    # Non-parallel version for debugging
+    results = []
+    for i in inputs:
+        results.append(intersect_bedgraphs_and_index_to_count_categories_1_file(i))
+    """
 
     # Reformatting the results
     for res in results:
@@ -703,7 +712,7 @@ def write_counts_in_files(cpt, genome_counts):
     for sample_label, counters in cpt.items():
         sample_label = "_".join(re.findall(r"[\w\-']+", sample_label))
         with open(sample_label + ".feature_counts.tsv", "w") as output_fh:
-            output_fh.write("#Category,biotype\tCounts_in_bam\tSize_in_genome\n")
+            output_fh.write("#Category,biotype\tCounts_in_BAM/BedGraph\tSize_in_genome\n")
             for features_pair, counts in counters.items():
                 output_fh.write("%s\t%s\t%s\n" % (",".join(features_pair), counts, genome_counts[features_pair]))
 
@@ -805,6 +814,7 @@ def display_percentage_of_ambiguous(cpt, count_files_option=False):
                 print "    {!s:25.25} {:3.2f}% of ambiguous (this sample may have been processed with --ambiguous option)".format(sample, 0)
             else:
                 print "    {!s:25.25} {:3.2f}% of ambiguous".format(sample, 0)
+
 
 def one_sample_plot(ordered_categs, percentages, enrichment, n_cat, index, index_enrichment, bar_width, counts_type,
                     title, sample_labels):
@@ -1049,7 +1059,6 @@ def make_plot(sample_labels, ordered_categs, categ_counts, genome_counts, counts
     ax1.set_ylabel("Proportion of reads (%)")
     ax2.set_ylabel("Enrichment relative to genome")
 
-
     # Add the categories on the x-axis
     #ax1.set_xticks(index + bar_width * n_exp / 2)
     ax1.set_xticks(index + bar_width * nb_samples / 2)
@@ -1127,7 +1136,6 @@ def make_plot(sample_labels, ordered_categs, categ_counts, genome_counts, counts
         ax.tick_params(axis="x", which="both", bottom="on", top="off", labelbottom="on")
         ax.tick_params(axis="y", which="both", left="on", right="off", labelleft="on")
 
-
     ### Add second axis with categ groups
     annotate_group(categ_groups, label=None, ax=ax1)
     annotate_group(categ_groups, label=None, ax=ax2)
@@ -1188,6 +1196,7 @@ def annotate_group(groups, ax=None, label=None, labeloffset=30):
 
     return
 
+
 def filter_categs_on_biotype(selected_biotype, cpt):
     filtered_cpt = {}
     for sample in cpt:
@@ -1235,6 +1244,7 @@ def usage_message():
                                         [-n] [--pdf output.pdf] [--svg output.svg] [--png output.png]
 
         """
+
 
 ##########################################################################
 #                           MAIN                                         #
@@ -1286,91 +1296,212 @@ if __name__ == "__main__":
         sys.exit(1)
 
     options = parser.parse_args()
+    print "### ALFA ###"
 
-    '''
+    # Sample labels and file paths
+    labels = []
+    bams = []
+    bedgraphs = []
+    bedgraph_extension = ".bedgraph"  # TODO: useful??
+    count_files = []
+    lengths = {}
+    index_chrom_list = []  # Not a set because we need to sort it according to the chromosome names later
+
     # Booleans for steps to be executed
-    make_index = False
-    intersect_reads = False
-    process_counts = False
+    generate_index = False
+    generate_BedGraph = False
+    intersect_indexes_BedGraph = False
+    generate_plot = False
+
+    # Checking whether the script will be able to write in the current directory
+    if not os.access(".", os.W_OK):
+        # The only exception would be if the user already has the count files and wants to display the plots without saving them
+        if not options.counts or options.pdf or options.svg or options.png:
+            sys.exit("Error: write permission denied in the directory, ALFA will not be able to run correctly.\n### End of program")
 
     #### Check arguments conformity and define which steps have to be performed
     print "### Checking parameters"
+    # Checking whether there is at least one parameter among "-a", "--bam/bedgraph" and "-c"
+    if not (options.counts or options.bam or options.bedgraph or options.annotation):
+        sys.exit("Error: argument(s) are missing. At least '-a', '--bam', '--bedgraph' or '-c' is required. Please refer to help (-h/--help) and usage cases for more details.\n### End of program")
+    # Checking the parameters related to the counts file(s)
     if options.counts:
-        # Aucun autre argument requis, precise that the other won't be used (if this is true!!)
-        # Vérifier extension input
-
-        # Action: Only do the plot
-        process_counts = True
+        # Checking whether the counts file(s) exist
+        for filename in options.counts:
+            if not os.path.isfile(filename):
+                sys.exit("Error: the file '" + filename + "' doesn't exist.\n### End of program")
+            # Checking whether the counts file(s) have the correct "feature_counts.tsv" extension
+            if not filename.endswith(".feature_counts.tsv"):
+                sys.exit("Error: the counts file '" + filename + "' doesn't have the extension 'feature_counts.tsv'.\n### End of program")
+            # Registering the sample labels
+            label = os.path.basename(filename)
+            label = re.sub(".feature_counts.tsv", "", label)
+            label = "_".join(re.findall(r"[\w\-']+", label))
+            labels.append(label)
+            # Registering the counts filename
+            count_files.append(filename)
     else:
-        if options.annotation:
-            # If '-gi' parameter is present
-            if options.genome_index:
-                genome_index_basename = options.genome_index
-            else:
-                # Otherwise the GTF filename without extension will be the basename
-                genome_index_basename = options.annotation.split("/")[-1].split(".gtf")[0]
-            # Check if the indexes were already created and warn the user
-            if os.path.isfile(genome_index_basename + ".stranded.index"):
-                if options.input:
-                    print >> sys.stderr, "Warning: an index file named '%s' already exists and will be used. If you want to create a new index, please delete this file or specify an other path." % (
-                    genome_index_basename + ".stranded.index")
-                else:
-                    sys.exit(
-                        "Error: an index file named %s already exists. If you want to create a new index, please delete this file or specify an other path.\n" % (
-                        genome_index_basename + ".stranded.index"))
-            # Create them otherwise
-            else:
-                make_index = True
-        # If the index is already done
-        if options.input:
-            # Required arguments are the input and the genome_index
-            if 'genome_index_basename' not in locals():
-                required_arg(options.genome_index, "-g/--genome_index")
-                genome_index_basename = options.genome_index
-            required_arg(options.input, "-i/--input/--bam")
-            for i in xrange(0, len(options.input), 2):
-                # Check whether the input file exists
-                try:
-                    open(options.input[i])
-                except IOError:
-                    sys.exit("Error: the input file " + options.input[i] + " was not found. Aborting.")
-                # Check whether the input file extensions are 'bam', 'bedgraph' or 'bg' and the label extension are no
-                try:
-                    extension = os.path.splitext(options.input[i + 1])[1]
-                    if extension in ('.bam', '.bedgraph', '.bg'):
-                        sys.exit("Error: it seems input files and associated labels are not correctly provided.\n\
-                        Make sure to follow the expected format : -i Input_file1 Label1 [Input_file2 Label2 ...].")
-                except:
-                    sys.exit(
-                        "Error: it seems input files and associated labels are not correctly provided.\nMake sure to follow the expected format : -i Input_file1 Label1 [Input_file2 Label2 ...].")
-
-            intersect_reads = True
-        # Vérifier input's extension
-        # TODO
-    if not (options.counts or options.input or options.annotation):
-        sys.exit(
-            "\nError : some arguments are missing At least '-a', '-c' or '-i' is required. Please refer to help (-h/--help) and usage cases for more details.\n")
-    if not options.counts:
-        # Declare genome_index variables
-        stranded_genome_index = genome_index_basename + ".stranded.index"
-        unstranded_genome_index = genome_index_basename + ".unstranded.index"
-        if options.strandness[0] == "unstranded":
+        # If the counts are not provided, then at least '-a' or '-g' arguments are mandatory
+        if not options.annotation and not options.genome_index:
+            sys.exit("Error: at least '-a' or '-g' argument is missing.\n###End of program")
+        # Declare genome_index variables (either from the parameter "-g" of from the annotation filename)
+        if options.genome_index:
+            genome_index_basename = options.genome_index
+        else:
+            # Otherwise the GTF filename without extension will be used as the basename
+            genome_index_basename = options.annotation.split("/")[-1].split(".gtf")[0]
+        # Setting the stranded and unstranded ALFA index files and choosing the one to use
+        stranded_genome_index = genome_index_basename + ".stranded.ALFA_index"
+        unstranded_genome_index = genome_index_basename + ".unstranded.ALFA_index"
+        if options.strandness == "unstranded":
             genome_index = unstranded_genome_index
         else:
             genome_index = stranded_genome_index
-    '''
+        # Checking the parameters related to genome annotation and ALFA index files
+        if options.annotation:
+            # Checking whether the annotation file exists
+            if not os.path.isfile(options.annotation):
+                sys.exit("Error: the file '" + options.annotation + "' doesn't exist.\n### End of program")
+            # Checking whether the chromosomes lengths file exists
+            if options.chr_len and not os.path.isfile(options.chr_len):
+                sys.exit("Error: the file '" + options.chr_len + "' doesn't exist.\n### End of program")
+            # If "--genome_index" parameter is present, setting the future ALFA index basename
+            if options.genome_index:
+                genome_index_basename = options.genome_index
+            else:
+                # Otherwise the GTF filename without extension will be used as the basename
+                genome_index_basename = options.annotation.split("/")[-1].split(".gtf")[0]
+            # Set this step as a task to process
+            generate_index = True
+            # Check if the ALFA indexes already exist and warning if BAM/BedGrap(s) is/are provided, raise an error otherwise
+            if os.path.isfile(genome_index_basename + ".stranded.ALFA_index") or os.path.isfile(
+                            genome_index_basename + ".unstranded.ALFA_index"):
+                if options.bam or options.bedgraph:
+                    print >> sys.stderr, "Warning: an ALFA index file named '%s' already exists and will be used. If you want to create a new index, please delete this file or specify another path." % (genome_index_basename + ".(un)stranded.ALFA_index")
+                    generate_index = False
+                else:
+                    sys.exit("Error: an ALFA index file named '%s' already exists. If you want to create a new index, please delete this file or specify an other path.\n### End of program" % (
+                            genome_index_basename + ".(un)stranded.ALFA_index"))
+        elif options.genome_index:  # Checking whether the ALFA index files exist if no annotation file was provided
+            if not os.path.isfile(options.genome_index + ".stranded.ALFA_index") or not os.path.isfile(
+                            options.genome_index + ".unstranded.ALFA_index"):
+                sys.exit("Error: the file '" + options.genome_index + ".stranded.ALFA_index" + "' and/or the file '" + options.genome_index + ".unstranded.ALFA_index" + "' doesn't exist.\n### End of program")
+            genome_index_basename = options.genome_index
+
+        # Getting the reference genome chromosome list to check whether there is at least one in common with each BAM/BedGraph file
+        if options.bam or options.bedgraph:
+            if options.annotation:
+                # Checking the chromosomes list from GTF file
+                reference_chr_list = get_chromosome_names_in_GTF()
+            else:
+                # Checking chromosome list from genome index
+                reference_chr_list = get_chromosome_names_in_index(genome_index)
+
+        # Checking parameters related to the BAM file(s)
+        if options.bam:
+            # Checking the input BAM file(s)
+            if len(options.bam) % 2 != 0:
+                sys.exit("Error: Make sure to follow the expected format: --bam BAM_file1 Label1 [BAM_file2 Label2 ...].\n### End of program ###")
+            for sample_package_nb in xrange(0, len(options.bam), 2):
+                # Check whether the BAM file exists
+                if not os.path.isfile(options.bam[sample_package_nb]):
+                    sys.exit("Error: the file '" + options.bam[sample_package_nb] + "' doesn't exist.\n### End of program")
+                # Check whether the BAM file has a correct extension
+                if not options.bam[sample_package_nb].endswith(".bam"):
+                    sys.exit("Error: at least one of the BAM file(s) doesn't have a '.bam' extension.\n"
+                             "Make sure to follow the expected format: --bam BAM_file1 Label1 [BAM_file2 Label2 ...].\n### End of program ###")
+                # Registering the BAM filename
+                bams.append(options.bam[sample_package_nb])
+                # Registering the label(s) (all that is not a character or a "minus" will be transformer into a "_")
+                label = "_".join(re.findall(r"[\w\-']+", options.bam[sample_package_nb + 1]))
+                labels.append(label)
+                # Checking whether the BedGraph file(s) don't already exist
+                if options.strandness == "unstranded":
+                    existing_file(label + bedgraph_extension)
+                else:
+                    existing_file(label + ".plus" + bedgraph_extension)
+                    existing_file(label + ".minus" + bedgraph_extension)
+                # Checking whether the counts file(s) that will be created already exist
+                if os.path.isfile(label + ".feature_counts.tsv"):
+                    sys.exit("Error: The file '" + label + ".feature_counts.tsv' is about to be produced but already exists in the directory. \n### End of program")
+                # Listing the BAM chromosome(s) to check whether there is at least one common with the reference genome
+                BAM_chr_list = pysam.AlignmentFile(options.bam[sample_package_nb], "r").references
+                # Checking if there is at least one common chromosome name between the reference genome and the processed BAM file
+                if not any(i in reference_chr_list for i in BAM_chr_list):
+                    print ("Reference genome chromosome(s): " + str(reference_chr_list))
+                    print ("BAM file chromosome(s): " + str(list(BAM_chr_list)))
+                    sys.exit("Error: no matching chromosome between the BAM file '" + options.bam[sample_package_nb] + "' and the reference genome.\n### End of program")
+            # Set these steps as a tasks to process
+            generate_BedGraph = True
+            intersect_indexes_BedGraph = True
+
+        # Checking parameters related to the BedGraph file(s)
+        if options.bedgraph:
+            # Determining the number of files (BedGraph + label(s)) expected
+            if options.strandness == "unstranded":
+                sample_file_nb = 2
+            else:
+                sample_file_nb = 3
+            # Setting and checking the BedGraph extension
+            bedgraph_extension = "." + options.bedgraph[0].split(".")[-1]
+            # Checking the input BedGraph file(s)
+            for sample_package_nb in xrange(0, len(options.bedgraph), sample_file_nb):
+                for sample_file in xrange(0, sample_file_nb - 1):
+                    # Check whether the BedGraph file exists
+                    if not os.path.isfile(options.bedgraph[sample_package_nb + sample_file]):
+                        sys.exit("Error: the file '" + options.bedgraph[
+                            sample_package_nb + sample_file] + "' doesn't exist.\n### End of program")
+                    # Check whether the BedGraph file has a correct extension
+                    if options.bedgraph[sample_package_nb + sample_file].split(".")[-1] not in ("bedgraph", "bg"):
+                        sys.exit("Error: at least one of the BedGraph files doesn't have a '.bedgraph'/'.bg' extension."
+                                 "Make sure to follow the expected format: --bedgraph BedGraph_file1 Label1 [BedGraph_file2 Label2 ...].\n"
+                                 "Or for stranded samples: --bedgraph BedGraph_file1_plus BedGraph_file2_minus Label1 [...].\n### End of program ###")
+                    # Listing the BedGraph chromosome(s) to check whether there is at least one common with the reference genome
+                    bedgraph_chr_list = []
+                    with open(options.bedgraph[sample_package_nb + sample_file], "r") as bedgraph_file:
+                        for line in bedgraph_file:
+                            chr = line.split("\t")[0]
+                            if chr not in bedgraph_chr_list:
+                                bedgraph_chr_list.append(chr)
+                    # Checking if there is at least one common chromosome name between the reference genome and the processed BedGraph file
+                    if not any(i in reference_chr_list for i in bedgraph_chr_list):
+                        print ("Reference genome chromosome(s): " + str(reference_chr_list))
+                        print ("BedGraph file chromosome(s): " + str(list(bedgraph_chr_list)))
+                        sys.exit("Error: no matching chromosome between the BedGraph file '" + options.bedgraph[
+                            sample_package_nb + sample_file] + "' and the reference genome.\n### End of program")
+                    # Register the BedGraph filename(s)
+                    bedgraphs.append(re.sub("(.(plus|minus))?" + bedgraph_extension, "", options.bedgraph[sample_package_nb + sample_file]))
+                # Registering the label(s) (all that is not a character or a "minus" will be transformer into a "_")
+                label = "_".join(re.findall(r"[\w\-']+", options.bedgraph[sample_package_nb + sample_file_nb - 1]))
+                labels.append(label)
+                # Checking whether the count file(s) that will be created already exist
+                existing_file(label + ".feature_counts.tsv")
+            # Set this step as a task to process
+            intersect_indexes_BedGraph = True
+
+    # Checking that there is no duplicated labels
+    if len(labels) != len(set(labels)):
+        sys.exit("Error: at least one label is duplicated.\n### End of program")
+
+    # Setting whether plots should be generated
+    try:
+        # Checking if a X server environment variable is set
+        x_server = os.environ['DISPLAY']
+        # Plots are generated except if the flag "no_display" was used or if there is only the "-a" and eventually the "-g" argument
+        if not options.no_display and (options.counts or options.svg or options.pdf or options.png or options.bam or options.bedgraph):
+            generate_plot = True
+            # Checking the sample number for the colors
+            if len(labels) > 20:
+                print >> sys.stderr, "Warning: there are more than 20 samples, some colors on the plot will be duplicated."
+    except KeyError:
+        print >> sys.stderr, "Warning: your current configuration does not allow graphical interface ('$DISPLAY' variable is not set). Plotting step will not be performed."
+
+
     #### Initialization of some variables
 
     # Miscellaneous variables
     reverse_strand = {"+": "-", "-": "+"}
-    samples = collections.OrderedDict() # Structure: {<label>: [<filename1>(, <filename2>)]} # Example: {'Toy': ['toy.bam']}
-
-    #Sample labels and file paths
-    labels = []
-    bams = []
-    bedgraphs = []
-    count_files = []
-
+    samples = collections.OrderedDict()  # Structure: {<label>: [<filename1>(, <filename2>)]} # Example: {'Toy': ['toy.bam']}
 
     # Initializing the category priority order, coding biotypes and the final list
     prios = {"start_codon": 4, "stop_codon": 4, "five_prime_utr": 3, "three_prime_utr": 3, "UTR": 3, "CDS": 3,
@@ -1450,364 +1581,16 @@ if __name__ == "__main__":
 
     # Initializing the unknown features list
     unknown_cat = set()
-    unknown_biot= set()
+    unknown_biot = set()
 
     # Initializing the genome category counter dict
     cpt_genome = {}
-    '''
-    if process_counts:
-        #### If input files are the categories counts, just load them and continue to recategorization step
-        cpt, cpt_genome, samples_names = read_counts_files(options.counts)
-    else:
-        #### Create genome index if needed and get the sizes of categories
-        index_chrom_list = []
-        if make_index:
-            #### Get the chromosome lengths
-            lengths = get_chromosome_lengths(options)
-            # Generating the genome index files if the user didn't provide them
-            create_genome_index(options.annotation, unstranded_genome_index, stranded_genome_index, cpt_genome, prios,
-                                biotypes, lengths)
-        else:
-            # Retrieving chromosome names saved in index
-            index_chrom_list = get_chromosome_names_in_index(genome_index)
 
-
-        # print '\nChr lengths:', lengths
-
-    if intersect_reads:
-        # If the indexes already exist, read them to compute the sizes of the categories in the genome and retrieve the chromosome lengths
-        if not make_index:
-            print "\n### Reading genome indexes\n",
-            sys.stdout.flush()
-        lengths = {}
-        with open(genome_index, 'r') as genome_index_file:
-            for line in genome_index_file:
-                if line[0] == "#":
-                    lengths[line.split('\t')[0][1:]] = int(line.split('\t')[1])
-                else:
-                    add_info(cpt_genome, line.rstrip().split('\t')[4:], line.split('\t')[1], line.split('\t')[2],
-                             biotype_prios=None, categ_prios=prios)
-
-        #print 'Indexed chromosomes: ' + ', '.join((sorted(index_chrom_list)))
-        index_chrom_list.sort(key=alphanum_key)
-        print 'Indexed chromosomes: ' + ', '.join((index_chrom_list))
-
-        #### Computing the genome intergenic count: sum of the chr lengths minus sum of the genome annotated intervals
-        cpt_genome[('intergenic', 'intergenic')] = sum(lengths.itervalues()) - sum(
-            [v for x, v in cpt_genome.iteritems() if x != ('antisense', 'antisense')])
-        if not make_index:
-            print "Done!"
-        # print '\nGenome category counts:'
-        # for key,val in cpt_genome.iteritems():
-        # print key,"\t",val
-
-
-        #### Create the Bedgraph files if needed and get the files list
-
-        if not options.bedgraph:
-            # Generating the BEDGRAPH files is the user provided BAM file(s) and get the samples labels (this names will be used in the plot legend)
-            samples_files, samples_names = create_bedgraph_files(options.input, options.strandness[0])
-        else:
-            # Just initialize the files list with the bedgraph paths
-            # samples_files = [options.input[i] for i in range(0,len(options.input),2)]
-            samples_files = [re.sub('.bedgraph$', '', options.input[i]) for i in range(0, len(options.input), 2)]
-            # and get the labels
-            samples_names = [options.input[i] for i in range(1, len(options.input), 2)]
-        #### Retrieving chromosome names saved in index
-        #chrom_list = get_chromosome_names_in_index(genome_index)
-        #### Processing the BEDGRAPH files: intersecting the bedgraph with the genome index and count the number of aligned positions in each category
-        cpt = intersect_bedgraphs_and_index_to_counts_categories(samples_files, samples_names, prios, genome_index,
-                                                                 options.strandness[0], biotype_prios=None)
-
-        #### Write the counts on disk
-        write_counts_in_files(cpt, cpt_genome)
-
-    if not (intersect_reads or process_counts) or (options.quiet and options.pdf == False):
-        quit("\n### End of program")
-    print "\n### Generating plots"
-    # Updating the biotypes lists (biotypes and 'biotype_group1'): adding the 'unknow biotypes' found in gtf/index
-    if unknown_feature == []:  # 'unknown_feature' is define only during the index generation
-        # Browse the feature to determine whether some biotypes are 'unknown'
-        for sample, counts in cpt.items():
-            for (cat, biot) in counts:
-                if biot not in biotypes and cat not in unknown_feature:
-                    unknown_feature.append(biot)
-    for new_biot in unknown_feature:
-        biotypes.add(new_biot)
-        biotypes_group1["others"].append(new_biot)
-    biotypes = sorted(biotypes)
-    # move antisense categ to the end of the list
-    biotypes.remove('antisense')
-    biotypes.append('antisense')
-    biotypes_group1 = sorted(biotypes_group1)
-
-    # print '\nCounts for every category/biotype pair: ',cpt
-
-    # Generating plots
-    if options.pdf != False:
-        if options.pdf == None:
-            options.pdf = "categories_plots.pdf"
-        pdf = PdfPages(options.pdf)
-    else:
-        pdf = False
-
-    selected_biotype = None
-    if options.biotype_filter:
-        options.biotype_filter = options.biotype_filter[0]
-        for sample in cpt:
-            for feature in cpt[sample]:
-                biotype = feature[1]
-                if options.biotype_filter.lower() == biotype.lower():
-                    selected_biotype = biotype
-                    break
-        if selected_biotype == None:
-            print "\nError: biotype '" + options.biotype_filter + "' not found. Please check the biotype name and that this biotype exists in your sample(s)."
-            sys.exit()
-
-    # Print a warning message if the UTRs are not specified as 5' or 3' (they will be ploted as 5'UTR)
-    if 'UTR' in [categ[0] for counts in cpt.values() for categ in counts.keys()]:
-        print "\nWARNING: (some) 5'UTR/3'UTR are not precisely defined. Consequently, positions annotated as "UTR" will be counted as "5'UTR"\n"
-##MB
-    #### Make the plot by categories
-    #### Recategorizing with the final categories
-    final_cats = categs_groups[options.categories_depth - 1]
-    final_cat_cpt, final_genome_cpt, filtered_cat_cpt = group_counts_by_categ(cpt, cpt_genome, final_cats, selected_biotype)
-    #### Display the distribution of specified categories (or biotypes) in samples on a barplot
-    # Remove the 'antisense' category if the library type is 'unstranded'
-    for dic in cpt.values():
-        if ('antisense', 'antisense') in dic.keys(): break
-    else:
-        cat_list.remove('antisense')
-    make_plot(cat_list, samples_names, final_cat_cpt, final_genome_cpt, pdf, "categories", options.threshold,
-              svg=options.svg, png=options.png)
-    if selected_biotype:
-        make_plot(cat_list, samples_names, filtered_cat_cpt, final_genome_cpt, pdf, "categories", options.threshold,
-                  title="Categories distribution for '" + selected_biotype + "' biotype", svg=options.svg, png=options.png)
-
-    #### Make the plot by biotypes
-    #### Recategorizing with the final categories
-    final_cat_cpt, final_genome_cpt = group_counts_by_biotype(cpt, cpt_genome, biotypes)
-    #### Display the distribution of specified categories (or biotypes) in samples on a barplot
-    make_plot(biotypes, samples_names, final_cat_cpt, final_genome_cpt, pdf, "biotypes", options.threshold, svg=options.svg,
-              png=options.png)
-
-    ##### Recategorizing with the final categories
-    # final_cat_cpt,final_genome_cpt = group_counts_by_biotype(cpt,cpt_genome,biotypes_group1)
-    ##### Display the distribution of specified categories (or biotypes) in samples on a barplot
-    # make_plot(biotypes_group1,samples_names,final_cat_cpt,final_genome_cpt,pdf,"Biotype groups", options.threshold, title="Biotypes distribution in mapped reads \n(biotypes are grouped by 'family')", svg = options.svg, png = options.png)
-
-
-    if options.pdf:
-        pdf.close()
-        print "\n### Plots saved in pdf file: %s" % options.pdf
-
-    print "\n### End of program"
-    '''
-    print "### ALFA ###"
-    if not (options.annotation or options.bam or options.bedgraph or options.counts):
-        print >> sys.stderr, "\nError: At least one argument among '-a/--annotation', '--bam', '--bedgraph' or " \
-                             "'-c/--counts' is required. Please refer to help (-h/--help) and usage cases for more " \
-                             "details.\n"
-        parser.print_usage()
-        sys.exit()
-
-    ## Getting the steps to execute and checking parameters
-
-    # Getting the steps to execute
-    generate_indexes = False
-    generate_BedGraph = False
-    intersect_indexes_BedGraph = False
-    generate_plot = False
-
-    # Checking parameters for the step: indexes generation
-    if options.annotation:
-        generate_indexes = True
-    elif options.chr_len:
-            unnecessary_param(options.chr_len, "Warning: the parameter '--chr_len' will not be used because the indexes generation step will not be performed.")
-
-    # Checking parameters for the step: BedGraph files generation
-    if options.bam:
-        if options.bedgraph:
-            sys.exit("\nError: parameters '--bam' and '--bedgraph' provided, only one should be.\n### End of program")
-        else:
-            if not generate_indexes and not options.genome_index:
-               sys.exit("\nError: parameter '-g/--genome_index' should be provided.\n### End of program")
-            # Setting the bedgraph extension
-            bedgraph_extension = ".bedgraph"
-            # Checking the input BAM files
-            for i in xrange(0, len(options.bam), 2):
-                # Check whether the BAM file exists
-                try:
-                    open(options.bam[i])
-                except IOError:
-                    sys.exit("\nError: the BAM file " + options.bam[i] + " was not found.\n### End of program")
-                except IndexError:
-                    sys.exit("\nError: BAM files and associated labels are not correctly provided.\n"
-                             "Make sure to follow the expected format: --bam BAM_file1 Label1 [BAM_file2 Label2 ...]."
-                             "\n### End of program ###")
-
-                # Check whether the BAM file extension in 'bam'
-                if not options.bam[i].endswith(".bam"):
-                    sys.exit("\nError: at least one BAM file hasn't a '.bam' extension.\n### End of program ###")
-                # Check whether the labels hasn't a "bam" extension
-                try:
-                    if options.bam[i + 1].endswith(".bam"):
-                        sys.exit("\nError: at least one label for a BAM file has a '.bam' extension.\n"
-                                 "Make sure to follow the expected format: --bam BAM_file1 Label1 [BAM_file2 Label2 ...]."
-                                 "\n### End of program ###")
-                except IndexError:
-                    sys.exit("\nError: BAM files and associated labels are not correctly provided.\n"
-                             "Make sure to follow the expected format: --bam BAM_file1 Label1 [BAM_file2 Label2 ...]."
-                             "\n### End of program ###")
-                # Get label and replace invalid characters by "_"
-                label = "_".join(re.findall(r"[\w\-']+", options.bam[i + 1]))
-                # Check whether the BedGraph file(s) and counts file that will be generated already exists
-                if options.strandness == "unstranded":
-                    existing_file(label + bedgraph_extension)
-                    existing_file(label + ".unstranded.feature_counts.tsv")
-                else:
-                    existing_file(label + ".plus" + bedgraph_extension)
-                    existing_file(label + ".minus" + bedgraph_extension)
-                    existing_file(label + ".stranded.feature_counts.tsv")
-                # Register the sample label and filename
-                labels.append(label)
-                bams.append(options.bam[i])
-            # Set this step + the intersection one as tasks to process
-            generate_BedGraph = True
-            intersect_indexes_BedGraph = True
-
-    # Checking parameters for the step: indexes and BedGraph files intersection
-    if options.bedgraph:
-        if not generate_indexes and not options.genome_index:
-           sys.exit("\nError: parameter '-g/--genome_index' should be provided.\n### End of program")
-        if options.strandness == "unstranded":
-            sample_file_nb = 2
-        else:
-            sample_file_nb = 3
-        # Setting the bedgraph extension
-        bedgraph_extension = "." + options.bedgraph[0].split(".")[-1]
-        if bedgraph_extension not in (".bedgraph", ".bg"):
-            sys.exit("\nError: at least one of the BedGraph files doesn't have a '.bedgraph'/'.bg' extension.\n### End of program ###")
-        # Checking the input BedGraph files
-        for i in xrange(0, len(options.bedgraph), sample_file_nb):
-            # Check whether the BedGraph file(s) exists
-            for j in xrange(0, sample_file_nb - 1):
-                try:
-                    open(options.bedgraph[i + j])
-                except IOError:
-                    if not options.bedgraph[i + j].endswith(bedgraph_extension):
-                        sys.exit("\nError: it looks like BedGraph file(s) and associated label(s) are not correctly provided.\n"
-                             "Make sure to follow the expected format: --bedgraph BedGraph_file1 Label1 [BedGraph_file2 Label2 ...]."
-                             "\n### End of program ###")
-                    else:
-                        sys.exit("\nError: the BedGraph file " + options.bedgraph[i + j] + " was not found.\n### End of program")
-                except IndexError:
-                    sys.exit("\nError: it looks like BedGraph file(s) and associated label(s) are not correctly provided.\n"
-                         "Make sure to follow the expected format: --bedgraph BedGraph_file1 Label1 [BedGraph_file2 Label2 ...]."
-                         "\n### End of program ###")
-            # Check whether the labels hasn't a "bedgraph"/"bg" extension
-            try:
-                if options.bedgraph[i  + sample_file_nb - 1].endswith(bedgraph_extension):
-                    sys.exit("\nError: the label " + options.bedgraph[i  + sample_file_nb - 1] + " has a '.bedgraph'/'.bg' extension.\n"
-                             "Make sure to follow the expected format: "
-                             "--bedgraph BedGraph_file1 Label1 [BedGraph_file2 Label2 ...]."
-                             "\n### End of program ###")
-            except IndexError:
-                sys.exit("\nError: it looks like BedGraph file(s) and associated label(s) are not correctly provided.\n"
-                         "Make sure to follow the expected format: --bedgraph BedGraph_file1 Label1 [BedGraph_file2 Label2 ...]."
-                         "\n### End of program ###")
-            # Register the sample label and filename(s)
-            bedgraphs.append(re.sub("(.(plus|minus))?" + bedgraph_extension, "", options.bedgraph[i]))
-            label = "_".join(re.findall(r"[\w\-']+", options.bedgraph[i  + sample_file_nb - 1]))
-            labels.append(label)
-            # Check whether the count file(s) that will be created already exists
-            if options.strandness == "unstranded":
-                existing_file(label + ".unstranded.feature_counts.tsv")
-            else:
-                existing_file(label + ".stranded.feature_counts.tsv")
-        # Set this step as a task to process
-        intersect_indexes_BedGraph = True
-
-    # Checking parameters for the step: plot generation
-    if options.counts:
-        # Checking unnecessary parameters
-        unnecessary_param(options.annotation, "Warning: the parameter '-a/--annotation' will not be used because the counts are already provided.")
-        generate_indexes = False
-        unnecessary_param(options.genome_index, "Warning: the parameter '-g/--genome_index' will not be used because the counts are already provided.")
-        unnecessary_param(options.bam, "Warning: the parameter '--bam' will not be used because the counts are already provided.")
-        generate_BedGraph = False
-        unnecessary_param(options.bedgraph, "Warning: the parameter '--bedgraph' will not be used because the counts are already provided.")
-        intersect_indexes_BedGraph = False
-        # Registering the sample labels and filenames
-        for sample in options.counts:
-            label = os.path.basename(sample)
-            label = re.sub('(.(un)?stranded)?.feature_counts.tsv', '', label)
-            label = "_".join(re.findall(r"[\w\-']+", label))
-            count_files.append(sample)
-            labels.append(label)
-    else:
-        # Generating the genome index filenames
-        index_chrom_list = [] # Not a set because we need to sort it according to the chromosome names later
-        lengths = {}
-        if options.genome_index:
-            genome_index_basename = options.genome_index
-        elif options.annotation:
-            # Otherwise the GTF filename without extension will be the basename
-            genome_index_basename = options.annotation.split("/")[-1].split(".gtf")[0]
-        #stranded_genome_index = genome_index_basename + ".stranded.index"
-        stranded_genome_index = genome_index_basename + ".stranded.ALFA_index"
-        #unstranded_genome_index = genome_index_basename + ".unstranded.index"
-        unstranded_genome_index = genome_index_basename + ".unstranded.ALFA_index"
-        if options.strandness == "unstranded":
-            genome_index = unstranded_genome_index
-        else:
-            genome_index = stranded_genome_index
-    # If no plot is displayed or saved, plot parameters are useless
-    if (options.no_display and not (options.pdf or options.png or options.svg)) or not(intersect_indexes_BedGraph or options.counts):
-        # unnecessary_param(options.categories_depth, "Warning: the parameter '-d/--categories_depth' will not be used because no plots will be displayed or saved.")
-        # Cannot be tested because options.categories_depth has always a value (default value if option not specified by user)
-        unnecessary_param(options.threshold, "Warning: the parameter '-t/--threshold' will not be used because no plots will be displayed or saved.")
-        #unnecessary_param(options.biotype_filter, "Warning: the parameter '--biotype_filter' will not be used because no plots will be displayed or saved.")
-        if options.counts:
-            sys.exit("Error: there is nothing to do (counts are provided and no display or plot saving is required")
-    else:
-        try:
-            x_server = os.environ['DISPLAY']
-            generate_plot = True
-        except:
-            x_server = False
-            if options.counts:
-                sys.exit("Error: your current configuration does not allow graphical interface ('DISPLAY' variable is not set on your system).\nExiting")
-            else:
-                print >> sys.stderr, "WARNING: your current configuration does not allow graphical interface ('DISPLAY' variable is not set on your system).\nPlotting step will not be performed."
-
-    # Checking whether there is at least one common chromosome between the GTF or genome index and each BAM file
-    if options.bam:
-        # Checking the chromosome names list from the reference genome
-        if options.annotation:
-            # Checking the chromosomes list from GTF file
-            reference_chr_list = get_chromosome_names_in_GTF()
-        else:
-            # Checking chromosome list from genome index
-            reference_chr_list = get_chromosome_names_in_index(genome_index)
-        # Checking the chromosome names list from each BAM file
-        for i in xrange(0, len(options.bam), 2):
-            BAM_chr_list = pysam.AlignmentFile(options.bam[i], "r").references
-            # Checking if there is at least one common chromosome name between the reference genome and the processed BAM file
-            if not any(i in reference_chr_list for i in BAM_chr_list):
-                print ("Reference genome chromosomes: " + str(reference_chr_list))
-                print ("BAM file chromosomes: " + str(list(BAM_chr_list)))
-                sys.exit("Error: no matching chromosome between the BAM file '" + options.bam[i] + "' and the reference genome.\n### End of program")
 
     ## Executing the step(s)
 
     # Indexes generation
-    if generate_indexes:
-        # Checking if the index files already exist
-        if os.path.isfile(stranded_genome_index):
-            sys.exit("\nError: index files named '" + genome_index_basename +
-                     ".stranded.ALFA_index' already exists but you provided a GTF file. If you want to generate a new index, "
-                     "please delete these files or specify an other path.\n### End of program")
+    if generate_index:
         # Running the index generation commands
         print "# Generating the genome index files"
         # Getting the PID of the process as a unique random number
@@ -1830,7 +1613,7 @@ if __name__ == "__main__":
         index_chrom_list.sort(key=alphanum_key)
         print "Indexed chromosomes: " + ", ".join(index_chrom_list)
         chunks_cleaner()
-    if generate_indexes or not options.counts:
+    if generate_index or not options.counts:
         # Getting index info
         read_index()
         # Computing the genome intergenic count: sum of the chr lengths minus sum of the genome annotated intervals
@@ -1839,11 +1622,7 @@ if __name__ == "__main__":
     # BedGraph files generation
     if generate_BedGraph:
         print "# Generating the BedGraph files"
-        #sample_files, sample_labels = generate_bedgraph_files()
-        #generate_bedgraph_files(labels, bams)
-        #### Tests MB parallel #TODO
         generate_bedgraph_files_parallel(labels, bams)
-        #### End tests
 
     # Indexes and BedGraph files intersection
     if intersect_indexes_BedGraph:
@@ -1877,8 +1656,8 @@ if __name__ == "__main__":
             pass
         biotypes_group1 = sorted(biotypes_group1)
         # Filtering biotypes if necessary
-        """
         filtered_biotype = None
+        """
         if options.biotype_filter:
             for sample_label in cpt:
                 for feature in cpt[sample_label]:
@@ -1899,14 +1678,14 @@ if __name__ == "__main__":
         if options.keep_ambiguous == True and not options.counts:
             display_percentage_of_ambiguous(cpt)
         # If only counts are provided, check whether 'ambiguous' feature exists in at least one sample and then display the percentages
-        elif options.counts and any([('ambiguous','ambiguous') in features for features in cpt.values()]):
+        elif options.counts and any([('ambiguous', 'ambiguous') in features for features in cpt.values()]):
             display_percentage_of_ambiguous(cpt, options.counts)
         # Remove the "opposite_strand" category if the library type is "unstranded" ## MB: if options.strandness == "unstranded": cat_list.remove("opposite_strand")??
         for dic in cpt.values():
             if ("opposite_strand", "opposite_strand") in dic.keys(): break
         else:
             cat_list.remove("opposite_strand")
-        make_plot(labels, cat_list, final_cat_cpt, final_genome_cpt, "Categories", categ_groups= parent_categs)
+        make_plot(labels, cat_list, final_cat_cpt, final_genome_cpt, "Categories", categ_groups=parent_categs)
         if filtered_biotype:
             make_plot(labels, cat_list, filtered_cat_cpt, final_genome_cpt, "Categories", title="Categories distribution for '" + filtered_biotype + "' biotype", categ_groups= parent_categs)
         ## Generate the biotypes plot
