@@ -222,7 +222,6 @@ def count_genome_features(cpt, features, start, stop, coverage=1):
                     try:
                         prio = prios[cat]
                     except KeyError:
-                        # TODO: Find a way to add unknown categories
                         if cat not in unknown_cat:
                             print >> sys.stderr, "Warning: Unknown categorie '%s' found and ignored.\n" % cat,
                         unknown_cat.add(cat)
@@ -294,7 +293,7 @@ def register_interval(features_dict, chrom, stranded_index_fh, unstranded_index_
 def merge_index_chunks():
     """ Merges the genome index chunks into a single file. """
     for fh, strandness in zip([unstranded_genome_index, stranded_genome_index], ["unstranded", "stranded"]):
-        files = [f for f in os.listdir(".") if f.startswith(chunk_basename) and f.endswith(strandness + ".ALFA_index")]
+        files = [f for f in os.listdir(".") if f.startswith(chunk_basename) and f.endswith("." + strandness + ".ALFA_index")]
         with open(fh, "a") as output_file:
             for file in files:
                 with open(file, "r") as input_file:
@@ -1236,7 +1235,7 @@ if __name__ == "__main__":
 
     # Options regarding the intersection step
     parser.add_argument("--bam", metavar=("BAM1 LABEL1", ""), nargs="+",
-                        help="Input BAM file(s) and label(s). The BAM files must be sorted by position.\n\n") ## TODO: position AND chr??
+                        help="Input BAM file(s) and label(s). The BAM files must be sorted by position.\n\n")
     parser.add_argument("--bedgraph", metavar=("BEDGRAPH1 LABEL1", ""), nargs="+", help="Use this options if your input(s) is/are BedGraph file(s). If stranded, provide the BedGraph files\nfor each strand for all samples (e.g. '--bedgraph file.plus.bedgraph file.minus.bedgraph LABEL').\n\n")
     parser.add_argument("-c", "--counts", metavar=("COUNTS1", ""), nargs="+",
                         help="Use this options instead of '--bam/--bedgraph' to provide ALFA counts files as input \ninstead of bam/bedgraph files.\n\n")
