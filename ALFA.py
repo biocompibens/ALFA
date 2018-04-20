@@ -1608,13 +1608,11 @@ if __name__ == "__main__":
             #cpt, cpt_genome, sample_names = read_counts(options.counts)
             cpt, cpt_genome = read_counts(labels, count_files)
         # Managing the unknown biotypes
-        for sample_label, counters in cpt.items():  #TODO: improve code, initialize biotypes = [] possible???
+        for sample_label, counters in cpt.items():
             for (cat, biot) in counters:
                 if biot not in biotypes:
-                    unknown_biot.add(biot)
-        for biot in unknown_biot:
-            biotypes.add(biot)
-            biotypes_group1["others"].append(biot)
+                    biotypes.add(biot)
+                    biotypes_group1["others"].append(biot)
         biotypes = sorted(biotypes)
         # Moving antisense cat to the end of the list
         biotypes.remove("opposite_strand")
