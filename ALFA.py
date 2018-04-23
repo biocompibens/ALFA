@@ -9,6 +9,7 @@ import pysam
 import os
 import copy
 import sys
+import pybedtools
 import subprocess
 import matplotlib
 import matplotlib.pyplot as plt
@@ -462,14 +463,14 @@ def read_index():
 
 
 def run_genomecov((strand, bam_file, sample_label, name)):
-    """ Calls genomecov (from Bedtools) for a set of parameters to produce a BedGraph file. """
-    # Building the command
-    cmd = "bedtools genomecov -bg -split "
-    if strand != "":
-        cmd += "-strand " + strand
-    cmd += " -ibam " + bam_file + " > " + sample_label + name + bedgraph_extension
-    # Running the command
-    subprocess.call(cmd, shell=True)
+    """ Run genomecov (from Bedtools through pybedtools lib) for a set of parameters to produce a BedGraph file. """
+    # Load the BAM file
+    input_file = pybedtools.BedTool(bam_file)
+    # Run genomecov
+    if strand == "":
+        input_file.genome_coverage(bg=True, split=True).saveas(sample_label + name + bedgraph_extension)
+    else:
+        input_file.genome_coverage(bg=True, split=True, strand=strand).saveas(sample_label + name + bedgraph_extension)
     return None
 
 
