@@ -10,7 +10,6 @@ import os
 import copy
 import sys
 import pybedtools
-import subprocess
 import matplotlib
 import matplotlib.pyplot as plt
 import matplotlib.patheffects as PathEffects
@@ -97,20 +96,22 @@ def GTF_splitter(GTF_file, size=10000):
                 if cpt > size:
                     # Packing up the processed chr/scaffold
                     current_file.close()
-                    subprocess.call("mv current.gtf " + chunk_basename + str(cpt_chunk) + ".gtf", shell=True)
+                    os.rename("current.gtf", chunk_basename + str(cpt_chunk) + ".gtf")
                     current_file = open("current.gtf", "w")
                     # Updating counters
                     cpt_chunk += 1
                 else:
                     if cpt + prev_cpt > size:
                         # Packing up the currently building chunk file without the last chr/scaffold
-                        subprocess.call("mv old.gtf " + chunk_basename + str(cpt_chunk) + ".gtf", shell=True)
+                        os.rename("old.gtf", chunk_basename + str(cpt_chunk) + ".gtf")
                         # Updating counters
                         cpt_chunk += 1
                         prev_cpt = 0
                     # Moving the new piece to the currently building chunk file
                     current_file.close()
-                    subprocess.call("cat current.gtf >> old.gtf", shell=True)
+                    with open("current.gtf", "r") as input_file, open("old.gtf", "a") as output_file:
+                        for line in input_file:
+                            output_file.write(line.strip())
                     current_file = open("current.gtf", "w")
                     # Updating counters
                     prev_cpt += cpt
@@ -126,19 +127,19 @@ def GTF_splitter(GTF_file, size=10000):
         current_file.close()
         if prev_cpt == 0:  # There was only one chromosome/scaffold in the annotation file
             # Packing up the processed chr/scaffold
-            subprocess.call("mv current.gtf " + chunk_basename + str(cpt_chunk) + ".gtf", shell=True)
+            os.rename("current.gtf", chunk_basename + str(cpt_chunk) + ".gtf")
         else:
             if prev_cpt + cpt > size:
                 # Packing up the processed chr/scaffold
-                subprocess.call("mv current.gtf " + chunk_basename + str(cpt_chunk) + ".gtf", shell=True)
+                os.rename("current.gtf", chunk_basename + str(cpt_chunk) + ".gtf")
                 cpt_chunk += 1
             else:
                 # Moving the new piece to the currently building chunk file
-                subprocess.call("cat current.gtf >> old.gtf", shell=True)
+                with open("current.gtf", "r") as input_file, open("old.gtf", "a") as output_file:
+                    for line in input_file:
+                        output_file.write(line.strip())
             # Packing up the currently building chunk file without the last chr/scaffold
-            subprocess.call("mv old.gtf " + chunk_basename + str(cpt_chunk) + ".gtf", shell=True)
-    # Cleaning
-    subprocess.call("rm -f current.gtf old.gtf", shell=True)
+            os.rename("old.gtf", chunk_basename + str(cpt_chunk) + ".gtf")
 
 
 def get_chromosome_lengths():
