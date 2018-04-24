@@ -139,6 +139,7 @@ def GTF_splitter(GTF_file, size=10000):
                 with open("current.gtf", "r") as input_file, open("old.gtf", "a") as output_file:
                     for line in input_file:
                         output_file.write(line)
+                os.remove("current.gtf")
             # Packing up the currently building chunk file without the last chr/scaffold
             os.rename("old.gtf", chunk_basename + str(cpt_chunk) + ".gtf")
 
