@@ -375,7 +375,7 @@ def merge_index_chunks():
     for fh, strandness in zip([unstranded_genome_index, stranded_genome_index], ["unstranded", "stranded"]):
         files = [f for f in os.listdir(".") if f.startswith(chunk_basename) and f.endswith("." + strandness + ".ALFA_index")]
         with open(fh, "a") as output_file:
-            for file in files:
+            for file in sorted(files):
                 with open(file, "r") as input_file:
                     for line in input_file:
                         output_file.write(line)
