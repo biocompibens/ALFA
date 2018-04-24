@@ -10,6 +10,7 @@ import os
 import copy
 import sys
 import pybedtools
+#pybedtools.set_tempdir("/localtmp/")
 import matplotlib
 import matplotlib.pyplot as plt
 import matplotlib.patheffects as PathEffects
@@ -111,7 +112,7 @@ def GTF_splitter(GTF_file, size=10000):
                     current_file.close()
                     with open("current.gtf", "r") as input_file, open("old.gtf", "a") as output_file:
                         for line in input_file:
-                            output_file.write(line.strip())
+                            output_file.write(line)
                     current_file = open("current.gtf", "w")
                     # Updating counters
                     prev_cpt += cpt
@@ -137,7 +138,7 @@ def GTF_splitter(GTF_file, size=10000):
                 # Moving the new piece to the currently building chunk file
                 with open("current.gtf", "r") as input_file, open("old.gtf", "a") as output_file:
                     for line in input_file:
-                        output_file.write(line.strip())
+                        output_file.write(line)
             # Packing up the currently building chunk file without the last chr/scaffold
             os.rename("old.gtf", chunk_basename + str(cpt_chunk) + ".gtf")
 
@@ -498,6 +499,7 @@ def generate_bedgraph_files_parallel(sample_labels, bam_files):
     pool = Pool(options.nb_processors)
     # Running the instances
     list(pbar(pool.imap_unordered(run_genomecov, parameter_sets)))
+    pybedtools.cleanup()  # If pybedtools can't finish properly but the program is not stopped, the /tmp will be cleaned anyway from pybedtools temp files
     return None
 
 
