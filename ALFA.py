@@ -258,7 +258,7 @@ def generate_genome_index_1chr(annotation):
     annotation_basename = re.sub(".gtf$", "", annotation)
     # Processing the annotation file
     with open(annotation, "r") as gtf_fh:
-        max_value = -1
+        max_value = -1  # Maximum value of the currently processed interval
         intervals_dicts = []
         intervals_dict = {}
         prev_chrom = ""
@@ -421,8 +421,7 @@ def count_genome_features(cpt, features, start, stop, coverage=1):
                         prio = prios[cat]
                     except KeyError:
                         if cat not in unknown_cat:
-                            print >> sys.stderr, "Warning: Unknown categorie '%s' found and ignored.\n" % cat,
-                        unknown_cat.add(cat)
+                            print >> sys.stderr, "Warning: Unknown categorie '%s' found and ignored.\n" % cat, unknown_cat.add(cat)
                         continue
                     # Check if the category has a highest priority than the current one
                     if prio > cur_prio:
@@ -1329,6 +1328,14 @@ if __name__ == "__main__":
             # Checking whether the chromosomes lengths file exists
             if options.chr_len and not os.path.isfile(options.chr_len):
                 sys.exit("Error: the file '" + options.chr_len + "' doesn't exist.\n### End of program")
+            # Checking if the annotation file is correctly formatted (a biotype associated to each line)
+            with open (options.annotation, 'r') as input_file:
+                for line in input_file:
+                    if not line.startswith("#"):
+                        try:
+                            biot_split = line.split("gene_biotype")[1]
+                        except IndexError:
+                            sys.exit("Error: at least one feature in the annotation file doesn't have a biotype description. ALFA won't be able to work robustly.\n=>" + line.rstrip() + "\n### End of program")
             # If "--genome_index" parameter is present, setting the future ALFA index basename
             if options.genome_index:
                 genome_index_basename = options.genome_index
