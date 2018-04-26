@@ -4,21 +4,21 @@
 __author__ = "noel & bahin"
 """ ALFA provides a global overview of features distribution composing NGS dataset(s). """
 
+import os
+import sys
+import re
+import numpy as np
+import collections
+import copy
 import argparse
 import pysam
-import os
-import copy
-import sys
 import pybedtools
 #pybedtools.set_tempdir("/localtmp/")
 import matplotlib
 import matplotlib.pyplot as plt
 import matplotlib.patheffects as PathEffects
-import re
-import progressbar
-import collections
-import numpy as np
 from multiprocessing import Pool
+import progressbar
 
 # To correctly embed the texts when saving plots in svg format
 matplotlib.rcParams["svg.fonttype"] = "none"
@@ -273,7 +273,7 @@ def generate_genome_index_1chr(annotation):
                 stop = int(line_split[4])
                 strand = line_split[6]
                 antisense = reverse_strand[strand]
-                biotype = line_split[8].split("biotype")[1].split(";")[0].strip('" ')
+                biotype = line_split[8].split("gene_biotype")[1].split(";")[0].strip('" ')
                 # Registering stored features info in the genome index file(s) if the new line concerns a new chromosome or the new line concerns an annotation not overlapping previously recorded ones
                 if start > max_value or chrom != prev_chrom:
                     # Write the previous features
