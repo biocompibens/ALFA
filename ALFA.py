@@ -421,7 +421,8 @@ def count_genome_features(cpt, features, start, stop, coverage=1):
                         prio = prios[cat]
                     except KeyError:
                         if cat not in unknown_cat:
-                            print >> sys.stderr, "Warning: Unknown categorie '%s' found and ignored.\n" % cat, unknown_cat.add(cat)
+                            print >> sys.stderr, "Warning: Unknown categorie '%s' found and ignored.\n" % cat,
+                        unknown_cat.add(cat)
                         continue
                     # Check if the category has a highest priority than the current one
                     if prio > cur_prio:
@@ -444,8 +445,6 @@ def count_genome_features(cpt, features, start, stop, coverage=1):
                             cpt[(cat, biot)] += (int(stop) - int(start)) * coverage / (float(nb_biot * nb_cat))
                         except KeyError:
                             cpt[(cat, biot)] = (int(stop) - int(start)) * coverage / (float(nb_biot * nb_cat))
-
-
     else:
         # TODO: Add an option to provide biotype priorities and handle it
         pass
