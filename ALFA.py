@@ -194,7 +194,7 @@ def write_index_line(feat, chrom, start, stop, sign, fh):
     # Formatting the features info
     feat_by_biotype = []
     for biot, cat in feat.iteritems():
-        feat_by_biotype.append(":".join((str(biot), ",".join(set(cat)))))
+        feat_by_biotype.append(":".join((str(biot), ",".join(sorted(cat)))))
     # Writing the features info in the index file
     fh.write("\t".join((chrom, start, stop, sign)) + "\t" + "\t".join(feat_by_biotype) + "\n")
 
@@ -240,13 +240,13 @@ def register_interval(features_dict, chrom, stranded_index_fh, unstranded_index_
             features_minus = features_dict["-"][interval_start]
             # If feature == transcript and prev interval's feature is exon => add intron feature
             for biotype, categ in features_plus.iteritems():
-                if set(categ) == {"gene", "transcript"}:
+                if categ == ["gene", "transcript"]:
                     if "exon" in prev_features_plus[biotype] or "intron" in prev_features_plus[biotype]:
                         categ.append("intron")
                 else:
                     continue
             for biotype, categ in features_minus.iteritems():
-                if set(categ) == {"gene", "transcript"}:
+                if categ == ["gene", "transcript"]:
                     if "exon" in prev_features_minus[biotype]:
                         categ.append("intron")
                 else:
@@ -259,7 +259,6 @@ def generate_genome_index_1chr(annotation):
     # Processing the annotation file
     with open(annotation, "r") as gtf_fh:
         max_value = -1  # Maximum value of the currently processed interval
-        intervals_dicts = []
         intervals_dict = {}
         prev_chrom = ""
         for line in gtf_fh:
@@ -275,7 +274,7 @@ def generate_genome_index_1chr(annotation):
                 antisense = reverse_strand[strand]
                 biotype = line_split[8].split("gene_biotype")[1].split(";")[0].strip('" ')
                 # Registering stored features info in the genome index file(s) if the new line concerns a new chromosome or the new line concerns an annotation not overlapping previously recorded ones
-                if start > max_value or chrom != prev_chrom:
+                if (start > max_value) or (chrom != prev_chrom):
                     # Write the previous features
                     if intervals_dict:
                         register_interval(intervals_dict, prev_chrom, annotation_basename + ".stranded.ALFA_index", annotation_basename + ".unstranded.ALFA_index")
@@ -296,35 +295,42 @@ def generate_genome_index_1chr(annotation):
                     for boundary in sorted(stranded_intervals):
                         # While the GTF line start is after the browsed boundary: keep the browsed boundary features info in case the GTF line start is before the next boundary
                         if boundary < start:
-                            stored_feat_strand, stored_feat_antisense = [dict(stranded_intervals[boundary]), dict(intervals_dict[antisense][boundary])]
+                            stored_feat_strand = copy.deepcopy(dict(stranded_intervals[boundary]))
+                            stored_feat_antisense = copy.deepcopy(dict(intervals_dict[antisense][boundary]))
+                            continue
 
                         # The GTF line start is already an existing boundary: store the existing features info (to manage after the GTF line stop) and update it with the GTF line features info
                         elif boundary == start:
-                            stored_feat_strand, stored_feat_antisense = [dict(stranded_intervals[boundary]), dict(intervals_dict[antisense][boundary])]
+                            stored_feat_strand = copy.deepcopy(dict(stranded_intervals[boundary]))
+                            stored_feat_antisense = copy.deepcopy(dict(intervals_dict[antisense][boundary]))
                             # Adding the GTF line features info to the interval
                             try:
-                                stranded_intervals[boundary][biotype] = stranded_intervals[boundary][biotype] + [cat]
-                            except KeyError:  # If the GTF line features info regard an unregistered biotype
+                                if cat not in stranded_intervals[boundary][biotype]:
+                                    stranded_intervals[boundary][biotype].append(cat)
+                            except KeyError:  # If the GTF line features info regards a new biotype
                                 stranded_intervals[boundary][biotype] = [cat]
                             added_info = True  # The features info were added
+                            continue
 
                         # The browsed boundary is after the GTF line start: add the GTF line features info
                         elif boundary > start:
                             # Create a new boundary for the GTF line start if necessary (if it is between 2 existing boundaries, it was not created before)
                             if not added_info:
                                 stranded_intervals[start] = copy.deepcopy(stored_feat_strand)
-                                # stranded_intervals[start][biotype] = [cat]
                                 try:
-                                    stranded_intervals[start][biotype].append(cat)
+                                    if cat not in stranded_intervals[start][biotype]:
+                                        stranded_intervals[start][biotype].append(cat)
                                 except KeyError:
                                     stranded_intervals[start][biotype] = [cat]
                                 intervals_dict[antisense][start] = copy.deepcopy(stored_feat_antisense)
                                 added_info = True  # The features info were added
                             # While the browsed boundary is before the GTF line stop: store the existing features info (to manage after the GTF line stop) and update it with the GTF line features info
                             if boundary < stop:
-                                stored_feat_strand, stored_feat_antisense = [dict(stranded_intervals[boundary]), dict(intervals_dict[antisense][boundary])]
+                                stored_feat_strand = copy.deepcopy(dict(stranded_intervals[boundary]))
+                                stored_feat_antisense = copy.deepcopy(dict(intervals_dict[antisense][boundary]))
                                 try:
-                                    stranded_intervals[boundary][biotype] = stranded_intervals[boundary][biotype] + [cat]
+                                    if cat not in stranded_intervals[boundary][biotype]:
+                                        stranded_intervals[boundary][biotype].append(cat)
                                 except KeyError:
                                     stranded_intervals[boundary][biotype] = [cat]
                             # The GTF line stop is already exists, nothing more to do, the GTF line features info are integrated
@@ -346,7 +352,7 @@ def generate_genome_index_1chr(annotation):
         if chrom != prev_chrom:
             with open(chunk_basename + "txt", "a") as input_file:
                 input_file.write(chrom + "\n")
-    return intervals_dicts
+    return None
 
 
 def generate_genome_index(chrom_sizes):
@@ -367,7 +373,7 @@ def generate_genome_index(chrom_sizes):
     list(pbar(pool.imap_unordered(generate_genome_index_1chr, chunks)))
     """
     # Non-parallel version for debugging
-    for f in files_plus_sizes:
+    for f in chunks:
         generate_genome_index_1chr(f)
     """
 
