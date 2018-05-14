@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
 __author__ = "noel & bahin"
@@ -1223,7 +1223,7 @@ if __name__ == "__main__":
 
     #### Parse command line arguments and store them in the variable options
     parser = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter, usage=usage_message())
-    parser.add_argument("--version", action="version", version="version 1.0",
+    parser.add_argument("--version", action="version", version="version 0.25",
                         help="Show ALFA version number and exit.\n\n-----------\n\n")
     # Options regarding the index
     parser.add_argument("-g", "--genome_index", metavar="GENOME_INDEX_BASENAME",
