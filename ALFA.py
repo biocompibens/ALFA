@@ -13,7 +13,7 @@ import copy
 import argparse
 import pysam
 import pybedtools
-#pybedtools.set_tempdir("/localtmp/")
+pybedtools.set_tempdir("/localtmp/")
 import matplotlib
 import matplotlib.pyplot as plt
 import matplotlib.patheffects as PathEffects
@@ -1258,6 +1258,7 @@ if __name__ == "__main__":
                         help="Set ordinate axis limits for enrichment plots.\n\n")
     parser.add_argument("-p", "--processors", dest="nb_processors", type=int, default=1, help="Set the number of processors used for multi-processing operations.\n\n")
     parser.add_argument("--keep_ambiguous", action="store_const", const=False, default=True, help="Keep reads mapping to different features (discarded by default).\n\n")
+    parser.add_argument("--temp_dir", dest="temp_dir", help="Temp directory to store pybedtools files ('/tmp/' by default).\n\n")
 
     if len(sys.argv) == 1:
         parser.print_usage()
@@ -1471,6 +1472,10 @@ if __name__ == "__main__":
                 print >> sys.stderr, "Warning: there are more than 20 samples, some colors on the plot will be duplicated."
     except KeyError:
         print >> sys.stderr, "Warning: your current configuration does not allow graphical interface ('$DISPLAY' variable is not set). Plotting step will not be performed."
+
+    # Setting the temp directory if specified
+    if options.temp_dir:
+        pybedtools.set_tempdir(options.temp_dir)
 
 
     #### Initialization of some variables
