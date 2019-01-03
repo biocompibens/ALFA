@@ -15,6 +15,7 @@ import pysam
 import pybedtools
 pybedtools.set_tempdir("/localtmp/")
 import matplotlib
+matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import matplotlib.patheffects as PathEffects
 from multiprocessing import Pool
@@ -168,12 +169,12 @@ def get_chromosome_lengths():
         # Checking if the chromosomes from the chromosome lengths file are present in the GTF file
         for chrom in lengths:
             if chrom not in gtf_chrom_names:
-                print >> sys.stderr, "Warning: chromosome '" + chrom + "' of the chromosome lengths file does not match any chromosome name in the GTF file provided and was ignored."
+                print("Warning: chromosome '" + chrom + "' of the chromosome lengths file does not match any chromosome name in the GTF file provided and was ignored.", file=sys.stderr)
         # Checking if the chromosomes from the GTF file are present in the lengths file
         for chrom in gtf_chrom_names:
             if chrom not in lengths:
-                print >> sys.stderr, "Warning: at least one chromosome ('" + chrom + "') was found in the GTF file and does not match any chromosome provided in the lengths file."
-                print >> sys.stderr, "\t=> All the chromosome lengths will be approximated using annotations in the GTF file."
+                print("Warning: at least one chromosome ('" + chrom + "') was found in the GTF file and does not match any chromosome provided in the lengths file.", file=sys.stderr)
+                print("\t=> All the chromosome lengths will be approximated using annotations in the GTF file.", file=sys.stderr)  ## MB: better than the first end of line??
                 break
         else:
             return lengths
@@ -185,7 +186,7 @@ def get_chromosome_lengths():
                 end = int(line.split("\t")[4])
                 init_dict(lengths, chrom, 0)
                 lengths[chrom] = max(lengths[chrom], end)
-    print "The chromosome lengths have been approximated using the GTF file annotations (the stop position of the last annotation of each chromosome is considered as its length)."
+    print("The chromosome lengths have been approximated using the GTF file annotations (the stop position of the last annotation of each chromosome is considered as its length).")
     return lengths
 
 
@@ -193,7 +194,7 @@ def write_index_line(feat, chrom, start, stop, sign, fh):
     """ Write a new line in an index file. """
     # Formatting the features info
     feat_by_biotype = []
-    for biot, cat in feat.iteritems():
+    for biot, cat in feat.items():
         feat_by_biotype.append(":".join((str(biot), ",".join(sorted(cat)))))
     # Writing the features info in the index file
     fh.write("\t".join((chrom, start, stop, sign)) + "\t" + "\t".join(feat_by_biotype) + "\n")
@@ -239,13 +240,13 @@ def register_interval(features_dict, chrom, stranded_index_fh, unstranded_index_
             features_plus = features_dict["+"][interval_start]
             features_minus = features_dict["-"][interval_start]
             # If feature == transcript and prev interval's feature is exon => add intron feature
-            for biotype, categ in features_plus.iteritems():
+            for biotype, categ in features_plus.items():
                 if categ == ["gene", "transcript"]:
                     if "exon" in prev_features_plus[biotype] or "intron" in prev_features_plus[biotype]:
                         categ.append("intron")
                 else:
                     continue
-            for biotype, categ in features_minus.iteritems():
+            for biotype, categ in features_minus.items():
                 if categ == ["gene", "transcript"]:
                     if "exon" in prev_features_minus[biotype]:
                         categ.append("intron")
@@ -359,7 +360,7 @@ def generate_genome_index(chrom_sizes):
     """ Create an index of the genome annotations and save it in a file. """
     # Write the chromosome lengths as comment lines before the genome index
     with open(unstranded_genome_index, "w") as unstranded_index_fh, open(stranded_genome_index, "w") as stranded_index_fh:
-        for key, value in chrom_sizes.items():
+        for key, value in list(chrom_sizes.items()):
             unstranded_index_fh.write("#%s\t%s\n" % (key, value))
             stranded_index_fh.write("#%s\t%s\n" % (key, value))
     # Chunk file list creation
@@ -427,7 +428,7 @@ def count_genome_features(cpt, features, start, stop, coverage=1):
                         prio = prios[cat]
                     except KeyError:
                         if cat not in unknown_cat:
-                            print >> sys.stderr, "Warning: Unknown categorie '%s' found and ignored.\n" % cat,
+                            print("Warning: Unknown categorie '%s' found and ignored.\n" % cat, file=sys.stderr)
                         unknown_cat.add(cat)
                         continue
                     # Check if the category has a highest priority than the current one
@@ -469,8 +470,9 @@ def read_index():
                 count_genome_features(cpt_genome, line.rstrip().split("\t")[4:], line.split("\t")[1], line.split("\t")[2])
 
 
-def run_genomecov((strand, bam_file, sample_label, name)):
+def run_genomecov(arguments):
     """ Run genomecov (from Bedtools through pybedtools lib) for a set of parameters to produce a BedGraph file. """
+    (strand, bam_file, sample_label, name) = arguments
     # Load the BAM file
     input_file = pybedtools.BedTool(bam_file)
     # Run genomecov
@@ -484,7 +486,7 @@ def run_genomecov((strand, bam_file, sample_label, name)):
 def generate_bedgraph_files_parallel(sample_labels, bam_files):
     """ Creates, through multi-processors, BedGraph files from BAM ones. """
     # Sorting the BAM file on size to process the biggest first
-    files = zip(sample_labels, bam_files, [os.stat(i).st_size for i in bam_files])
+    files = list(zip(sample_labels, bam_files, [os.stat(i).st_size for i in bam_files]))
     files.sort(key=lambda p: p[2], reverse=True)
     # Defining parameters sets to provide to the genomecov instances to run
     parameter_sets = []
@@ -525,12 +527,13 @@ def read_gtf(gtf_index_file, sign):
             pass
     gtf_chrom = splitline[0]
     gtf_features = splitline[4:]
-    gtf_start, gtf_stop = map(int, splitline[1:3])
+    gtf_start, gtf_stop = list(map(int, splitline[1:3]))
     return endGTF
 
 
-def intersect_bedgraphs_and_index_to_count_categories_1_file((sample_labels, bedgraph_files, biotype_prios, strand, sign)):
+def intersect_bedgraphs_and_index_to_count_categories_1_file(arguments):
     global gtf_line, gtf_chrom, gtf_start, gtf_stop, gtf_cat, endGTF
+    (sample_labels, bedgraph_files, biotype_prios, strand, sign) = arguments  # For Python 3
     unknown_chrom = []
     cpt = {}  # Counter for the nucleotides in the BAM input file(s)
     prev_chrom = ""
@@ -544,7 +547,7 @@ def intersect_bedgraphs_and_index_to_count_categories_1_file((sample_labels, bed
         for bam_line in bedgraph_fh:
             # Getting the BAM line info
             bam_chrom = bam_line.split("\t")[0]
-            bam_start, bam_stop, bam_cpt = map(float, bam_line.split("\t")[1:4])
+            bam_start, bam_stop, bam_cpt = list(map(float, bam_line.split("\t")[1:4]))
             # Skip the line if the chromosome is not in the index
             if bam_chrom not in index_chrom_list:
                 if bam_chrom not in unknown_chrom:
@@ -663,17 +666,17 @@ def intersect_bedgraphs_and_index_to_count_categories(sample_labels, bedgraph_fi
                 except KeyError:
                     final_cpt[sample][feat] = cpt[sample][strand[1]][feat]
 
-    print "Unknown chromosomes: " + str(set([i for u in unknown_chrom for i in u])) + "."
+    print("Unknown chromosomes: " + str(set([i for u in unknown_chrom for i in u])) + ".")
     return final_cpt
 
 
 def write_counts_in_files(cpt, genome_counts):
     """ Writes the biotype/category counts in an output file. """
-    for sample_label, counters in cpt.items():
+    for sample_label, counters in list(cpt.items()):
         sample_label = "_".join(re.findall(r"[\w\-']+", sample_label))
         with open(sample_label + ".ALFA_feature_counts.tsv", "w") as output_fh:
             output_fh.write("#Category,biotype\tCounts_in_BAM/BedGraph\tSize_in_genome\n")
-            for features_pair, counts in counters.items():
+            for features_pair, counts in list(counters.items()):
                 output_fh.write("%s\t%s\t%s\n" % (",".join(features_pair), counts, genome_counts[features_pair]))
 
 
@@ -704,7 +707,7 @@ def group_counts_by_categ(cpt, cpt_genome, final, selected_biotype):
             tot_filter = 0
             tot_genome = 0
             for cat in final[final_cat]:
-                for key, value in cpt[f].items():
+                for key, value in list(cpt[f].items()):
                     if key[0] == cat:
                         tot += value
                         tot_genome += cpt_genome[key]
@@ -732,13 +735,13 @@ def group_counts_by_biotype(cpt, cpt_genome, biotypes):
             tot_genome = 0
             try:
                 for final_biot in biotypes[biot]:
-                    for key, value in cpt[f].items():
+                    for key, value in list(cpt[f].items()):
                         if key[1] == final_biot:
                             tot += value
                             # if key[1] != 'antisense':
                             tot_genome += cpt_genome[key]
             except:
-                for key, value in cpt[f].items():
+                for key, value in list(cpt[f].items()):
                     if key[1] == biot:
                         tot += value
                         tot_genome += cpt_genome[key]
@@ -750,26 +753,27 @@ def group_counts_by_biotype(cpt, cpt_genome, biotypes):
 
 def display_percentage_of_ambiguous(cpt, count_files_option=False):
     if count_files_option:
-        print "INFO: Ambiguous counts were discarded in at least one sample\n" \
-              "      (see --ambiguous option for more information)"
+        print("INFO: Ambiguous counts were discarded in at least one sample\n" \
++              "      (see --ambiguous option for more information)")
     else:
-        print "INFO: Reads matching ambiguous annotation have been discarded.\n" \
-              "      To change this option, please see \"--ambiguous\" help."
-    print "INFO: Percentage of ambiguous counts:"
+        print("INFO: Reads matching ambiguous annotation have been discarded.\n" \
+              + "      To change this option, please see \"--ambiguous\" help.")
+    print("INFO: Percentage of ambiguous counts:")
 
     # Loop for each sample
-    for sample, counts in cpt.iteritems():
+    for sample, counts in cpt.items():
         # Compute and display the percentage of ambiguous counts
         try:
             ambiguous = counts[('ambiguous', 'ambiguous')]
-            total = sum([count for feat, count in counts.iteritems() if 'intergenic' not in feat])
-            print "    {!s:25.25} {:5.2f}% of ambiguous".format(sample, float(ambiguous / total) * 100)
+            total = sum([count for feat, count in counts.items() if 'intergenic' not in feat])
+            print("    {!s:25.25} {:5.2f}% of ambiguous".format(sample, float(ambiguous / total) * 100))
         # If ambiguous is not in the count file
         except KeyError:
             if count_files_option:
-                print "    {!s:25.25} {:3.2f}% of ambiguous (this sample may have been processed with --ambiguous option)".format(sample, 0)
+                print(
+                    "    {!s:25.25} {:3.2f}% of ambiguous (this sample may have been processed with --ambiguous option)".format(sample, 0))
             else:
-                print "    {!s:25.25} {:3.2f}% of ambiguous".format(sample, 0)
+                print("    {!s:25.25} {:3.2f}% of ambiguous".format(sample, 0))
 
 
 def recategorize_the_counts(cpt, cpt_genome, final):
@@ -798,7 +802,7 @@ def one_sample_plot(ordered_categs, percentages, enrichment, n_cat, index, index
     ax1 = plt.subplot2grid((2, 4), (0, 0), colspan=2)
     ax2 = plt.subplot2grid((2, 4), (1, 0), colspan=2)
     cmap = plt.get_cmap("Spectral")
-    cols = [cmap(x) for x in xrange(0, 256, 256 / n_cat)]
+    cols = [cmap(x) for x in range(0, 256, 256 / n_cat)]
     if title:
         ax1.set_title(title + "in: %s" % sample_labels[0])
     else:
@@ -814,9 +818,9 @@ def one_sample_plot(ordered_categs, percentages, enrichment, n_cat, index, index
     ax2.bar(index_enrichment, enrichment, bar_width,
             color=cols, )
     ### Piecharts
-    pielabels = [ordered_categs[i] if percentages[i] > 0.025 else "" for i in xrange(n_cat)]
+    pielabels = [ordered_categs[i] if percentages[i] > 0.025 else "" for i in range(n_cat)]
     sum_enrichment = np.sum(enrichment)
-    pielabels_enrichment = [ordered_categs[i] if enrichment[i] / sum_enrichment > 0.025 else "" for i in xrange(n_cat)]
+    pielabels_enrichment = [ordered_categs[i] if enrichment[i] / sum_enrichment > 0.025 else "" for i in range(n_cat)]
     # Categories piechart
     ax3 = plt.subplot2grid((2, 4), (0, 2))
     pie_wedge_collection, texts = ax3.pie(percentages, labels=pielabels, shadow=True, colors=cols)
@@ -846,9 +850,9 @@ def make_plot(sample_labels, ordered_categs, categ_counts, genome_counts, counts
         shift_mpl = 0
     # From ordered_categs, keep only the features (categs or biotypes) that we can find in at least one sample.
     existing_categs = set()
-    for sample in categ_counts.values():
+    for sample in list(categ_counts.values()):
         existing_categs |= set(sample.keys())
-    ordered_categs = filter(existing_categs.__contains__, ordered_categs)
+    ordered_categs = list(filter(existing_categs.__contains__, ordered_categs))
     xlabels = [cat if len(cat.split("_")) == 1 else "\n".join(cat.split("_")) if cat.split("_")[0] != 'undescribed' else "\n".join(["und.",cat.split("_")[1]]) for cat in ordered_categs]
     n_cat = len(ordered_categs)
     #n_exp = len(sample_names)
@@ -865,7 +869,7 @@ def make_plot(sample_labels, ordered_categs, categ_counts, genome_counts, counts
                 pass
     '''
     for sample_label in sample_labels:
-        for cat in xrange(len(ordered_categs)):
+        for cat in range(len(ordered_categs)):
             try:
                 counts[sample_labels.index(sample_label), cat] = categ_counts[sample_label][ordered_categs[cat]]
             except:
@@ -880,7 +884,7 @@ def make_plot(sample_labels, ordered_categs, categ_counts, genome_counts, counts
     if "opposite_strand" in ordered_categs:
         antisense_pos = ordered_categs.index("opposite_strand")
         sizes[antisense_pos] = 1e-100
-    for cpt in xrange(len(sizes)):
+    for cpt in range(len(sizes)):
         sizes[cpt] /= float(sizes_sum)
 
     ## Create array which contains the percentage of reads in each categ for every sample
@@ -892,13 +896,13 @@ def make_plot(sample_labels, ordered_categs, categ_counts, genome_counts, counts
         for i in xrange(len(sample_names)):
             enrichment[i][antisense_pos] = 0
         '''
-        for n in xrange(nb_samples):
+        for n in range(nb_samples):
             enrichment[n][antisense_pos] = 0
 
     # enrichment=np.log(np.array(percentages/sizes))
     #for exp in xrange(n_exp):
-    for n in xrange(nb_samples):
-        for i in xrange(n_cat):
+    for n in range(nb_samples):
+        for i in range(n_cat):
             val = enrichment[n][i]
             if val > 1:
                 enrichment[n][i] = val - 1
@@ -920,7 +924,7 @@ def make_plot(sample_labels, ordered_categs, categ_counts, genome_counts, counts
     '''
     if nb_samples > ncolor:
         cmap = plt.get_cmap("tab20", nb_samples)
-        cmap = [cmap(i) for i in xrange(nb_samples)]
+        cmap = [cmap(i) for i in range(nb_samples)]
 
     ## Parameters for the plot
     opacity = 1
@@ -1009,8 +1013,8 @@ def make_plot(sample_labels, ordered_categs, categ_counts, genome_counts, counts
         threshold_top = abs(float(options.threshold[1]) - 1)
 
         #for i in xrange(n_exp):
-        for n in xrange(nb_samples):
-            for y in xrange(n_cat):
+        for n in range(nb_samples):
+            for y in range(n_cat):
                 #val = enrichment[i][y]
                 val = enrichment[n][y]
                 if not np.isnan(val) and not (threshold_bottom < val < threshold_top):
@@ -1028,7 +1032,7 @@ def make_plot(sample_labels, ordered_categs, categ_counts, genome_counts, counts
                         margin_top = 0
                     rect.set_height(rect.get_height() - diff)
     if margin_top != 0 and margin_bottom != 0:
-        margin_top, margin_bottom = [max(margin_top, margin_bottom) for i in xrange(2)]
+        margin_top, margin_bottom = [max(margin_top, margin_bottom) for i in range(2)]
     ax2.set_ylim(ax2_ymin - margin_bottom, ax2_ymax + margin_top)
     # Y axis title
     ax1.set_ylabel("Proportion of reads (%)")
@@ -1051,8 +1055,7 @@ def make_plot(sample_labels, ordered_categs, categ_counts, genome_counts, counts
     # Correct y-axis ticks labels for enrichment subplot
     # ax2.set_yticklabels([str(i+1)+"$^{+1}$" if i>0 else 1 if i==0 else str(-(i-1))+"$^{-1}$" for i in ax2.get_yticks()])
     yticks = list(ax2.get_yticks())
-    yticks = [yticks[i] - 1 if yticks[i] > 9 else yticks[i] + 1 if yticks[i] < -9 else yticks[i] for i in
-              xrange(len(yticks))]
+    yticks = [yticks[i] - 1 if yticks[i] > 9 else yticks[i] + 1 if yticks[i] < -9 else yticks[i] for i in range(len(yticks))]
     ax2.set_yticks(yticks)
     ax2.set_yticklabels([str(int(i + 1)) if i > 0 and i % 1 == 0 else str(
         i + 1) if i > 0 else 1 if i == 0 else str(
@@ -1061,7 +1064,7 @@ def make_plot(sample_labels, ordered_categs, categ_counts, genome_counts, counts
     # Change appearance of 'antisense' bars on enrichment plot since we cannot calculate an enrichment for this artificial category
     if "antisense_pos" in locals():  # ax2.text(antisense_pos+bar_width/2,ax2.get_ylim()[1]/10,'NA')
         #for i in xrange(n_exp):
-        for n in xrange(nb_samples):
+        for n in range(nb_samples):
             #rect = rects_enrichment[i][antisense_pos]
             rect = rects_enrichment[n][antisense_pos]
             rect.set_y(ax2.get_ylim()[0])
@@ -1076,8 +1079,8 @@ def make_plot(sample_labels, ordered_categs, categ_counts, genome_counts, counts
         ax2.text(index[antisense_pos] + bar_width * nb_samples / 2 - 0.1, (ax2_ymax + ax2_ymin) / 2, "NA")
 
     # Add text for features absent in sample & correct for bars too small to be seen
-    for n in xrange(nb_samples):
-        for y in xrange(n_cat):
+    for n in range(nb_samples):
+        for y in range(n_cat):
             # if no counts in sample for this feature, display "Abs. in sample"
             if percentages[n][y] == 0:
                 txt = ax1.text(y + bar_width * (n + 0.5), 0.02, "Abs.", rotation="vertical", color=cmap[n],
@@ -1108,8 +1111,10 @@ def make_plot(sample_labels, ordered_categs, categ_counts, genome_counts, counts
         ax.spines["top"].set_visible(False)
         ax.spines["right"].set_visible(False)
         ax.spines["bottom"].set_visible(False)
-        ax.tick_params(axis="x", which="both", bottom="on", top="off", labelbottom="on")
-        ax.tick_params(axis="y", which="both", left="on", right="off", labelleft="on")
+        #ax.tick_params(axis="x", which="both", bottom="on", top="off", labelbottom="on")
+        ax.tick_params(axis="x", which="both", bottom=True, top=False, labelbottom=True)
+        #ax.tick_params(axis="y", which="both", left="on", right="off", labelleft="on")
+        ax.tick_params(axis="y", which="both", left=True, right=False, labelleft=True)
 
     ### Add second axis with categ groups
     annotate_group(categ_groups, label=None, ax=ax1)
@@ -1155,7 +1160,7 @@ def annotate_group(groups, ax=None, label=None, labeloffset=30):
     level = 0
     for level in range(len(groups)):
         grp = groups[level]
-        for name, coord in grp.items():
+        for name, coord in list(grp.items()):
             ymin = ax.get_ylim()[0] - np.ptp(ax.get_ylim()) * 0.12 - np.ptp(ax.get_ylim()) * 0.05 * (level)
             ypad = 0.01 * np.ptp(ax.get_ylim())
             xcenter = np.mean(coord)
@@ -1176,7 +1181,7 @@ def filter_categs_on_biotype(selected_biotype, cpt):
     filtered_cpt = {}
     for sample in cpt:
         filtered_cpt[sample] = {}
-        for feature, count in cpt[sample].items():
+        for feature, count in list(cpt[sample].items()):
             if feature[1] == selected_biotype:
                 filtered_cpt[sample][feature[0]] = count
     return filtered_cpt
@@ -1245,7 +1250,7 @@ if __name__ == "__main__":
 
     # Options regarding the plot
     #parser.add_argument("--biotype_filter", help=argparse.SUPPRESS)  # "Make an extra plot of categories distribution using only counts of the specified biotype."
-    parser.add_argument("-d", "--categories_depth", type=int, default=3, choices=range(1, 5),
+    parser.add_argument("-d", "--categories_depth", type=int, default=3, choices=list(range(1, 5)),
                         help="Use this option to set the hierarchical level that will be considered in the GTF file (default=3): \n(1) gene,intergenic; \n(2) intron,exon,intergenic; \n(3) 5'UTR,CDS,3'UTR,intron,intergenic; \n(4) start_codon,5'UTR,CDS,3'UTR,stop_codon,intron,intergenic. \n\n")
     parser.add_argument("--pdf", nargs="?", const="ALFA_plots.pdf",
                         help="Save produced plots in PDF format at the specified path ('categories_plots.pdf' if no argument provided).\n\n")
@@ -1265,7 +1270,7 @@ if __name__ == "__main__":
         sys.exit(1)
 
     options = parser.parse_args()
-    print "### ALFA ###"
+    print("### ALFA ###")
 
     # Sample labels and file paths
     labels = []
@@ -1289,7 +1294,7 @@ if __name__ == "__main__":
             sys.exit("Error: write permission denied in the directory, ALFA will not be able to run correctly.\n### End of program")
 
     #### Check arguments conformity and define which steps have to be performed
-    print "### Checking parameters"
+    print("### Checking parameters")
     # Checking whether there is at least one parameter among "-a", "--bam/bedgraph" and "-c"
     if not (options.counts or options.bam or options.bedgraph or options.annotation):
         sys.exit("Error: argument(s) are missing. At least '-a', '--bam', '--bedgraph' or '-c' is required. Please refer to help (-h/--help) and usage cases for more details.\n### End of program")
@@ -1354,7 +1359,7 @@ if __name__ == "__main__":
             if os.path.isfile(genome_index_basename + ".stranded.ALFA_index") or os.path.isfile(
                             genome_index_basename + ".unstranded.ALFA_index"):
                 if options.bam or options.bedgraph:
-                    print >> sys.stderr, "Warning: an ALFA index file named '%s' already exists and will be used. If you want to create a new index, please delete this file or specify another path." % (genome_index_basename + ".(un)stranded.ALFA_index")
+                    print("Warning: an ALFA index file named '%s' already exists and will be used. If you want to create a new index, please delete this file or specify another path." % (genome_index_basename + ".(un)stranded.ALFA_index"), file=sys.stderr)
                     generate_index = False
                 else:
                     sys.exit("Error: an ALFA index file named '%s' already exists. If you want to create a new index, please delete this file or specify an other path.\n### End of program" % (
@@ -1379,7 +1384,7 @@ if __name__ == "__main__":
             # Checking the input BAM file(s)
             if len(options.bam) % 2 != 0:
                 sys.exit("Error: Make sure to follow the expected format: --bam BAM_file1 Label1 [BAM_file2 Label2 ...].\n### End of program ###")
-            for sample_package_nb in xrange(0, len(options.bam), 2):
+            for sample_package_nb in range(0, len(options.bam), 2):
                 # Check whether the BAM file exists
                 if not os.path.isfile(options.bam[sample_package_nb]):
                     sys.exit("Error: the file '" + options.bam[sample_package_nb] + "' doesn't exist.\n### End of program")
@@ -1405,8 +1410,8 @@ if __name__ == "__main__":
                 BAM_chr_list = pysam.AlignmentFile(options.bam[sample_package_nb], "r").references
                 # Checking if there is at least one common chromosome name between the reference genome and the processed BAM file
                 if not any(i in reference_chr_list for i in BAM_chr_list):
-                    print ("Reference genome chromosome(s): " + str(reference_chr_list))
-                    print ("BAM file chromosome(s): " + str(list(BAM_chr_list)))
+                    print(("Reference genome chromosome(s): " + str(reference_chr_list)))
+                    print(("BAM file chromosome(s): " + str(list(BAM_chr_list))))
                     sys.exit("Error: no matching chromosome between the BAM file '" + options.bam[sample_package_nb] + "' and the reference genome.\n### End of program")
             # Set these steps as a tasks to process
             generate_BedGraph = True
@@ -1422,8 +1427,8 @@ if __name__ == "__main__":
             # Setting and checking the BedGraph extension
             bedgraph_extension = "." + options.bedgraph[0].split(".")[-1]
             # Checking the input BedGraph file(s)
-            for sample_package_nb in xrange(0, len(options.bedgraph), sample_file_nb):
-                for sample_file in xrange(0, sample_file_nb - 1):
+            for sample_package_nb in range(0, len(options.bedgraph), sample_file_nb):
+                for sample_file in range(0, sample_file_nb - 1):
                     # Check whether the BedGraph file exists
                     if not os.path.isfile(options.bedgraph[sample_package_nb + sample_file]):
                         sys.exit("Error: the file '" + options.bedgraph[
@@ -1442,8 +1447,8 @@ if __name__ == "__main__":
                                 bedgraph_chr_list.append(chr)
                     # Checking if there is at least one common chromosome name between the reference genome and the processed BedGraph file
                     if not any(i in reference_chr_list for i in bedgraph_chr_list):
-                        print ("Reference genome chromosome(s): " + str(reference_chr_list))
-                        print ("BedGraph file chromosome(s): " + str(list(bedgraph_chr_list)))
+                        print(("Reference genome chromosome(s): " + str(reference_chr_list)))
+                        print(("BedGraph file chromosome(s): " + str(list(bedgraph_chr_list))))
                         sys.exit("Error: no matching chromosome between the BedGraph file '" + options.bedgraph[
                             sample_package_nb + sample_file] + "' and the reference genome.\n### End of program")
                     # Register the BedGraph filename(s)
@@ -1469,9 +1474,9 @@ if __name__ == "__main__":
             generate_plot = True
             # Checking the sample number for the colors
             if len(labels) > 20:
-                print >> sys.stderr, "Warning: there are more than 20 samples, some colors on the plot will be duplicated."
+                print("Warning: there are more than 20 samples, some colors on the plot will be duplicated.", file=sys.stderr)
     except KeyError:
-        print >> sys.stderr, "Warning: your current configuration does not allow graphical interface ('$DISPLAY' variable is not set). Plotting step will not be performed."
+        print("Warning: your current configuration does not allow graphical interface ('$DISPLAY' variable is not set). Plotting step will not be performed.", file=sys.stderr)
 
     # Setting the temp directory if specified
     if options.temp_dir:
@@ -1573,7 +1578,7 @@ if __name__ == "__main__":
     # Indexes generation
     if generate_index:
         # Running the index generation commands
-        print "# Generating the genome index files"
+        print("# Generating the genome index files")
         # Getting the PID of the process as a unique random number
         pid = os.getpgrp()
         chunk_basename = "chunk.ALFA." + str(pid) + "."
@@ -1592,34 +1597,34 @@ if __name__ == "__main__":
                     for line in input_file:
                         index_chrom_list.append(line.rstrip())
         index_chrom_list.sort(key=alphanum_key)
-        print "Indexed chromosomes: " + ", ".join(index_chrom_list)
+        print("Indexed chromosomes: " + ", ".join(index_chrom_list))
         chunks_cleaner()
     if generate_index or not options.counts:
         # Getting index info
         read_index()
         # Computing the genome intergenic count: sum of the chr lengths minus sum of the genome annotated intervals
-        cpt_genome[("intergenic", "intergenic")] = sum(lengths.values()) - sum([v for x, v in cpt_genome.iteritems() if x != ("opposite_strand", "opposite_strand")])
+        cpt_genome[("intergenic", "intergenic")] = sum(lengths.values()) - sum([v for x, v in cpt_genome.items() if x != ("opposite_strand", "opposite_strand")])
 
     # BedGraph files generation
     if generate_BedGraph:
-        print "# Generating the BedGraph files"
+        print("# Generating the BedGraph files")
         generate_bedgraph_files_parallel(labels, bams)
 
     # Indexes and BedGraph files intersection
     if intersect_indexes_BedGraph:
-        print "# Intersecting index and BedGraph files"
+        print("# Intersecting index and BedGraph files")
         cpt = intersect_bedgraphs_and_index_to_count_categories(labels, bedgraphs)  # TODO: Write the counts to an output file
         write_counts_in_files(cpt, cpt_genome)
 
     ## Plot generation ## MB: all the section still to review
     if generate_plot:
-        print "# Generating plots"
+        print("# Generating plots")
         # If input files are the categories counts, the first step is to load them
         if options.counts:
             #cpt, cpt_genome, sample_names = read_counts(options.counts)
             cpt, cpt_genome = read_counts(labels, count_files)
         # Managing the unknown biotypes
-        for sample_label, counters in cpt.items():
+        for sample_label, counters in list(cpt.items()):
             for (cat, biot) in counters:
                 if biot not in biotypes:
                     biotypes.add(biot)
@@ -1657,7 +1662,7 @@ if __name__ == "__main__":
         if options.keep_ambiguous and not options.counts:
             display_percentage_of_ambiguous(cpt)
         # If only counts are provided, check whether 'ambiguous' feature exists in at least one sample and then display the percentages
-        elif options.counts and any([('ambiguous', 'ambiguous') in features for features in cpt.values()]):
+        elif options.counts and any([('ambiguous', 'ambiguous') in features for features in list(cpt.values())]):
             display_percentage_of_ambiguous(cpt, options.counts)
         # Remove the "opposite_strand" category if the library type is "unstranded" ## MB: if options.strandness == "unstranded": cat_list.remove("opposite_strand")??
         for dic in cpt.values():
@@ -1672,4 +1677,4 @@ if __name__ == "__main__":
         final_cat_cpt, final_genome_cpt = group_counts_by_biotype(cpt, cpt_genome, biotypes)
         make_plot(labels, biotypes, final_cat_cpt, final_genome_cpt, "Biotypes")
 
-    print "### End of program ###"
+    print("### End of program ###")
