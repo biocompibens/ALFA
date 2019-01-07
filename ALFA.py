@@ -13,7 +13,6 @@ import copy
 import argparse
 import pysam
 import pybedtools
-pybedtools.set_tempdir("/localtmp/")
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
@@ -1608,6 +1607,7 @@ if __name__ == "__main__":
     # BedGraph files generation
     if generate_BedGraph:
         print("# Generating the BedGraph files")
+        pybedtools.set_tempdir(options.temp_dir)
         generate_bedgraph_files_parallel(labels, bams)
 
     # Indexes and BedGraph files intersection
