@@ -1,0 +1,44 @@
+{% set name = "ALFA" %}
+{% set version = "0.27.1" %}
+
+package:
+  name: alfa
+  version: "0.27.1"
+
+source:
+  url: https://files.pythonhosted.org/packages/5c/c5/4e458263be6adcf6140bde9b3143014a2d546a62a839e35162b68adf6631/ALFA-0.27.1.tar.gz
+  sha256: 014f9351fc63306350f600efb15eed3910815988a5ce64dd9e538e1fc766ac3e
+
+build:
+  number: 1
+  script: "{{ PYTHON }} -m pip install . --no-deps --ignore-installed -vv "
+
+requirements:
+  host:
+    - matplotlib
+    - numpy
+    - pip
+    - progressbar2
+    - pybedtools
+    - pysam
+    - python ==3.6
+  run:
+    - matplotlib
+    - numpy
+    - progressbar2
+    - pybedtools
+    - pysam
+    - python ==3.6
+
+about:
+  home: https://github.com/biocompibens/ALFA
+  license: MIT
+  license_family: MIT
+  license_file: LICENSE.txt
+  summary: A simple software to get a quick overview of features composing NGS dataset(s).
+  doc_url: 
+  dev_url: 
+
+extra:
+  recipe-maintainers:
+    - mbahin
