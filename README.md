@@ -45,6 +45,11 @@ You can install ALFA through the command:
 
     pip install ALFA
 
+### Conda
+You can install ALFA through the command:
+
+    conda install -c biocomp alfa
+
 ### Galaxy
 You can run ALFA on Galaxy, the instance administrator can find the progam on the mail tool shed.
 
@@ -53,7 +58,7 @@ RAM: 1 GB should be sufficient for a BAM file aligned on the human genome
 
 Dependencies:
   - Bedtools suite (v2.20.0 and above)
-  - python libs: argparse, pysam, copy, subprocess, matplotlib, re, progressbar, multiprocessing
+  - python libs: argparse, pysam, copy, subprocess, matplotlib, re, progressbar2, multiprocessing
 
 ## Quick start
 There is a [quick start](https://github.com/biocompibens/ALFA/tree/master/Quick_start) in the respository in order to test the tool installation. To do so, one can go in the directory and run the following command:
