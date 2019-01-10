@@ -1,17 +1,19 @@
 {% set name = "ALFA" %}
-{% set version = "0.27.1" %}
+{% set version = "0.27.4" %}
 
 package:
   name: alfa
-  version: "0.27.1"
+  version: "0.27.4"
 
 source:
-  url: https://files.pythonhosted.org/packages/5c/c5/4e458263be6adcf6140bde9b3143014a2d546a62a839e35162b68adf6631/ALFA-0.27.1.tar.gz
-  sha256: 014f9351fc63306350f600efb15eed3910815988a5ce64dd9e538e1fc766ac3e
+  url: https://test-files.pythonhosted.org/packages/d4/e3/e442f705f1601a7b90705510efd36d69cd911213f8a61e7be9b81b427e51/ALFA-0.27.4.tar.gz
+  sha256: 65634e26c7b29f9887910477d024c3cd5315a86932627da8d8803135bcb96084
 
 build:
-  number: 1
+  number: 3
   script: "{{ PYTHON }} -m pip install . --no-deps --ignore-installed -vv "
+  entry_points:
+    - ALFA = ALFA:main
 
 requirements:
   host:
