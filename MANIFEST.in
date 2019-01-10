@@ -1,0 +1,4 @@
+include ALFA.py
+include setup.py
+include LICENSE.txt
+include README
