@@ -1129,6 +1129,7 @@ def make_plot(sample_labels, ordered_categs, categ_counts, genome_counts, counts
         plt.tight_layout()
 
     ## Displaying or saving the plot
+    """
     if not options.pdf and not options.svg and not options.png:
         plt.show()
     else:  # If any of the 3 plot output format is set
@@ -1139,6 +1140,14 @@ def make_plot(sample_labels, ordered_categs, categ_counts, genome_counts, counts
                     output_basename = output_basename[:-4]
                 # Saving the plot
                 plt.savefig(".".join((output_basename.rstrip("." + output_format), counts_type, output_format)))
+    """
+    for output_basename, output_format in [(options.pdf, "pdf"), (options.svg, "svg"), (options.png, "png")]:
+        if output_basename:
+            # Checking if the file extension have been specified and removing it if so
+            if output_basename.endswith("." + output_format):
+                output_basename = output_basename[:-4]
+            # Saving the plot
+            plt.savefig(".".join((output_basename.rstrip("." + output_format), counts_type, output_format)))
     plt.close()
 
 
@@ -1225,7 +1234,7 @@ def usage_message():
 ##########################################################################
 
 
-def main():
+def main(args):
 
     #### Parse command line arguments and store them in the variable options
     parser = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter, usage=usage_message())
@@ -1270,7 +1279,7 @@ def main():
         parser.print_usage()
         sys.exit(1)
 
-    options = parser.parse_args()
+    options = parser.parse_args(args)
     print("### ALFA ###")
 
     # Sample labels and file paths
@@ -1467,6 +1476,7 @@ def main():
         sys.exit("Error: at least one label is duplicated.\n### End of program")
 
     # Setting whether plots should be generated
+    """
     try:
         # Checking if a X server environment variable is set
         x_server = os.environ['DISPLAY']
@@ -1478,6 +1488,17 @@ def main():
                 print("Warning: there are more than 20 samples, some colors on the plot will be duplicated.", file=sys.stderr)
     except KeyError:
         print("Warning: your current configuration does not allow graphical interface ('$DISPLAY' variable is not set). Plotting step will not be performed.", file=sys.stderr)
+    """
+    # Plots are generated if one of the format display was chosen
+    if options.counts or options.pdf or options.svg or options.png or options.bam or options.bedgraph:
+        generate_plot = True
+        # Setting the default output format if non was specified
+        if not options.pdf and not options.svg and not options.png:
+            options.pdf = "ALFA_plots"
+    # Checking the sample number for the colors
+    if len(labels) > 20:
+        print("Warning: there are more than 20 samples, some colors on the plot will be duplicated.", file=sys.stderr)
+
 
     # Setting the temp directory if specified
     if options.temp_dir:
@@ -1683,4 +1704,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    main(sys.argv[1:])
