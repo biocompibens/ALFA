@@ -46,7 +46,7 @@ You can install ALFA through the command:
     pip install ALFA
 
 ### Conda
-You can install ALFA through the command:
+You can install ALFA through the command (might need to add bioconda channel first with "conda config --add channels bioconda"):
 
     conda install -c biocomp alfa
 
