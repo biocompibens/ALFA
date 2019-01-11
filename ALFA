@@ -1,0 +1,5 @@
+#!/usr/bin/env python
+
+import ALFA
+
+ALFA.main(sys.argv[1:])
