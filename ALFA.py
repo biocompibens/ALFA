@@ -1234,11 +1234,11 @@ def usage_message():
 ##########################################################################
 
 
-def main(args):
+def main():
 
     #### Parse command line arguments and store them in the variable options
     parser = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter, usage=usage_message())
-    parser.add_argument("--version", action="version", version="version 0.25",
+    parser.add_argument("--version", action="version", version="version 1.0.3",
                         help="Show ALFA version number and exit.\n\n-----------\n\n")
     # Options regarding the index
     parser.add_argument("-g", "--genome_index", metavar="GENOME_INDEX_BASENAME",
@@ -1279,7 +1279,7 @@ def main(args):
         parser.print_usage()
         sys.exit(1)
 
-    options = parser.parse_args(args)
+    options = parser.parse_args()
     print("### ALFA ###")
 
     # Sample labels and file paths
@@ -1704,4 +1704,4 @@ def main(args):
 
 
 if __name__ == "__main__":
-    main(sys.argv[1:])
+    main()
