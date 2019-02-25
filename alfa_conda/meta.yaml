@@ -1,19 +1,19 @@
-{% set name = "ALFA" %}
-{% set version = "1.0.0" %}
+{% set name = "alfa" %}
+{% set version = "1.0.6" %}
 
 package:
   name: alfa
-  version: "1.0.0"
+  version: "1.0.6"
 
 source:
-  url: https://files.pythonhosted.org/packages/68/6c/a10e7bd755a0ee1f1ef998c6275b74efef7bf8eddea1658648a0f4dbb0a4/ALFA-1.0.0.tar.gz
-  sha256: 17051c2bab51ea6a562ddcb8e4651207f6d4e67d0eaeabdcbd4842e19fb272c8
+  url: https://files.pythonhosted.org/packages/a1/f0/d51f25b48645fc0b4784b5d36fe7b6d6aebe1d9c1be58747196c457e3e1c/alfa-1.0.6.tar.gz 
+  sha256: 628fa47efdd4ca2af7434c2ffa81a00bca237d024421b092087ba45379299c32
 
 build:
   number: 0
   script: "{{ PYTHON }} -m pip install . --no-deps --ignore-installed -vv "
   entry_points:
-    - ALFA = ALFA:main
+    - alfa = alfa:main
 
 requirements:
   host:
@@ -33,7 +33,7 @@ requirements:
     - python ==3.6
 
 about:
-  home: https://github.com/biocompibens/ALFA
+  home: https://github.com/biocompibens/alfa
   license: MIT
   license_family: MIT
   license_file: LICENSE.txt
