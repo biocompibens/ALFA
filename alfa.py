@@ -1238,7 +1238,7 @@ def main():
 
     #### Parse command line arguments and store them in the variable options
     parser = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter, usage=usage_message())
-    parser.add_argument("--version", action="version", version="version 1.0.4",
+    parser.add_argument("--version", action="version", version="version 1.0.6",
                         help="Show alfa version number and exit.\n\n-----------\n\n")
     # Options regarding the index
     parser.add_argument("-g", "--genome_index", metavar="GENOME_INDEX_BASENAME",
