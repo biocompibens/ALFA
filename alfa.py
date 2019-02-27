@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 __author__ = "bahin & noel"
-""" alfa provides a global overview of features distribution composing NGS dataset(s). """
+""" ALFA provides a global overview of features distribution composing NGS dataset(s). """
 
 import os
 import sys
@@ -279,7 +279,7 @@ def generate_genome_index_1chr(arguments):
                 if (start > max_value) or (chrom != prev_chrom):
                     # Write the previous features
                     if intervals_dict:
-                        register_interval(intervals_dict, prev_chrom, annotation_basename + ".stranded.alfa_index", annotation_basename + ".unstranded.alfa_index")
+                        register_interval(intervals_dict, prev_chrom, annotation_basename + ".stranded.ALFA_index", annotation_basename + ".unstranded.ALFA_index")
                     if chrom != prev_chrom:
                         with open(chunk_basename + "txt", "a") as input_file:
                             input_file.write(chrom + "\n")
@@ -350,7 +350,7 @@ def generate_genome_index_1chr(arguments):
                         intervals_dict[antisense][stop] = {}
 
         # Store the categories of the last chromosome
-        register_interval(intervals_dict, chrom, annotation_basename + ".stranded.alfa_index", annotation_basename + ".unstranded.alfa_index")
+        register_interval(intervals_dict, chrom, annotation_basename + ".stranded.ALFA_index", annotation_basename + ".unstranded.ALFA_index")
         if chrom != prev_chrom:
             with open(chunk_basename + "txt", "a") as input_file:
                 input_file.write(chrom + "\n")
@@ -383,7 +383,7 @@ def generate_genome_index(unstranded_genome_index, stranded_genome_index, chrom_
 def merge_index_chunks(unstranded_genome_index, stranded_genome_index, chunk_basename):
     """ Merges the genome index chunks into a single file. """
     for fh, strandness in zip([unstranded_genome_index, stranded_genome_index], ["unstranded", "stranded"]):
-        files = [f for f in os.listdir(".") if f.startswith(chunk_basename) and f.endswith("." + strandness + ".alfa_index")]
+        files = [f for f in os.listdir(".") if f.startswith(chunk_basename) and f.endswith("." + strandness + ".ALFA_index")]
         with open(fh, "a") as output_file:
             for file in sorted(files):
                 with open(file, "r") as input_file:
@@ -675,7 +675,7 @@ def write_counts_in_files(cpt, genome_counts):
     """ Writes the biotype/category counts in an output file. """
     for sample_label, counters in list(cpt.items()):
         sample_label = "_".join(re.findall(r"[\w\-']+", sample_label))
-        with open(sample_label + ".alfa_feature_counts.tsv", "w") as output_fh:
+        with open(sample_label + ".ALFA_feature_counts.tsv", "w") as output_fh:
             output_fh.write("#Category,biotype\tCounts_in_BAM/BedGraph\tSize_in_genome\n")
             for features_pair, counts in list(counters.items()):
                 output_fh.write("%s\t%s\t%s\n" % (",".join(features_pair), counts, genome_counts[features_pair]))
@@ -1198,21 +1198,21 @@ def filter_categs_on_biotype(selected_biotype, cpt):
 
 def usage_message():
     return """
-    README on GitHub: https://github.com/biocompibens/alfa/blob/master/README.md
+    README on GitHub: https://github.com/biocompibens/ALFA/blob/master/README.md
     
-    Generate alfa genome indexes:
-         python alfa.py -a GTF [-g GENOME_INDEX_BASENAME]
+    Generate ALFA genome indexes:
+         alfa -a GTF [-g GENOME_INDEX_BASENAME]
                                         [--chr_len CHR_LENGTHS_FILE]
                                         [-p NB_PROCESSORS]
     Process BAM file(s):
-         python alfa.py -g GENOME_INDEX_BASENAME --bam BAM1 LABEL1 [BAM2 LABEL2 ...]
+         alfa -g GENOME_INDEX_BASENAME --bam BAM1 LABEL1 [BAM2 LABEL2 ...]
                                         [--bedgraph] [-s STRAND]
                                         [-d {1,2,3,4}] [-t YMIN YMAX]
                                         [--keep_ambiguous]
                                         [-n] [--pdf output.pdf] [--svg output.svg] [--png output.png]
                                         [-p NB_PROCESSORS]
     Index genome + process BAM files(s):
-         python alfa.py -a GTF [-g GENOME_INDEX_BASENAME] [--chr_len CHR_LENGTHS_FILE]
+         alfa -a GTF [-g GENOME_INDEX_BASENAME] [--chr_len CHR_LENGTHS_FILE]
                                         --bam BAM1 LABEL1 [BAM2 LABEL2 ...]
                                         [--bedgraph][-s STRAND]
                                         [-d {1,2,3,4}] [-t YMIN YMAX]
@@ -1220,8 +1220,8 @@ def usage_message():
                                         [-n] [--pdf output.pdf] [--svg output.svg] [--png output.png]
                                         [-p NB_PROCESSORS]
 
-    Process previously created alfa count file(s):
-         python alfa.py -c COUNTS1 [COUNTS2 ...]
+    Process previously created ALFA count file(s):
+         alfa -c COUNTS1 [COUNTS2 ...]
                                         [-s STRAND]
                                         [-d {1,2,3,4}] [-t YMIN YMAX]
                                         [-n] [--pdf output.pdf] [--svg output.svg] [--png output.png]
@@ -1238,8 +1238,8 @@ def main():
 
     #### Parse command line arguments and store them in the variable options
     parser = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter, usage=usage_message())
-    parser.add_argument("--version", action="version", version="version 1.0.6",
-                        help="Show alfa version number and exit.\n\n-----------\n\n")
+    parser.add_argument("--version", action="version", version="version 1.1.0",
+                        help="Show ALFA version number and exit.\n\n-----------\n\n")
     # Options regarding the index
     parser.add_argument("-g", "--genome_index", metavar="GENOME_INDEX_BASENAME",
                         help="Genome index files path and basename for existing index, or path and basename for new index creation.\n\n")
@@ -1251,7 +1251,7 @@ def main():
                         help="Input BAM file(s) and label(s). The BAM files must be sorted by position.\n\n")
     parser.add_argument("--bedgraph", metavar=("BEDGRAPH1 LABEL1", ""), nargs="+", help="Use this options if your input(s) is/are BedGraph file(s). If stranded, provide the BedGraph files\nfor each strand for all samples (e.g. '--bedgraph file.plus.bedgraph file.minus.bedgraph LABEL').\n\n")
     parser.add_argument("-c", "--counts", metavar=("COUNTS1", ""), nargs="+",
-                        help="Use this options instead of '--bam/--bedgraph' to provide alfa counts files as input \ninstead of bam/bedgraph files.\n\n")
+                        help="Use this options instead of '--bam/--bedgraph' to provide ALFA counts files as input \ninstead of bam/bedgraph files.\n\n")
     parser.add_argument("-s", "--strandness", default="unstranded",
                         choices=["unstranded", "forward", "reverse", "fr-firststrand", "fr-secondstrand"], metavar="",
                         help="Library orientation. Choose within: 'unstranded', "
@@ -1262,11 +1262,11 @@ def main():
     #parser.add_argument("--biotype_filter", help=argparse.SUPPRESS)  # "Make an extra plot of categories distribution using only counts of the specified biotype."
     parser.add_argument("-d", "--categories_depth", type=int, default=3, choices=list(range(1, 5)),
                         help="Use this option to set the hierarchical level that will be considered in the GTF file (default=3): \n(1) gene,intergenic; \n(2) intron,exon,intergenic; \n(3) 5'UTR,CDS,3'UTR,intron,intergenic; \n(4) start_codon,5'UTR,CDS,3'UTR,stop_codon,intron,intergenic. \n\n")
-    parser.add_argument("--pdf", nargs="?", const="alfa_plots.pdf",
+    parser.add_argument("--pdf", nargs="?", const="ALFA_plots.pdf",
                         help="Save produced plots in PDF format at the specified path ('categories_plots.pdf' if no argument provided).\n\n")
-    parser.add_argument("--png", nargs="?", const="alfa_plots.png",
+    parser.add_argument("--png", nargs="?", const="ALFA_plots.png",
                         help="Save produced plots in PNG format with the provided argument as basename \n('categories.png' and 'biotypes.png' if no argument provided).\n\n")
-    parser.add_argument("--svg", nargs="?", const="alfa_plots.svg",
+    parser.add_argument("--svg", nargs="?", const="ALFA_plots.svg",
                         help="Save produced plots in SVG format with the provided argument as basename \nor 'categories.svg' and 'biotypes.svg' if no argument provided.\n\n")
     parser.add_argument("-n", "--no_display", action="store_const", const=True, default=False, help="Do not display plots.\n\n") # We have to add "const=None" to avoid a bug in argparse
     parser.add_argument("-t", "--threshold", dest="threshold", nargs=2, metavar=("YMIN", "YMAX"), type=float,
@@ -1280,7 +1280,7 @@ def main():
         sys.exit(1)
 
     options = parser.parse_args()
-    print("### alfa ###")
+    print("### ALFA ###")
 
     # Sample labels and file paths
     labels = []
@@ -1301,7 +1301,7 @@ def main():
     if not os.access(".", os.W_OK):
         # The only exception would be if the user already has the count files and wants to display the plots without saving them
         if not options.counts or options.pdf or options.svg or options.png:
-            sys.exit("Error: write permission denied in the directory, alfa will not be able to run correctly.\n### End of program")
+            sys.exit("Error: write permission denied in the directory, ALFA will not be able to run correctly.\n### End of program")
 
     #### Check arguments conformity and define which steps have to be performed
     print("### Checking parameters")
@@ -1314,12 +1314,12 @@ def main():
         for filename in options.counts:
             if not os.path.isfile(filename):
                 sys.exit("Error: the file '" + filename + "' doesn't exist.\n### End of program")
-            # Checking whether the counts file(s) have the correct "alfa_feature_counts.tsv" extension
-            if not filename.endswith(".alfa_feature_counts.tsv"):
-                sys.exit("Error: the counts file '" + filename + "' doesn't have the extension 'alfa_feature_counts.tsv'.\n### End of program")
+            # Checking whether the counts file(s) have the correct "ALFA_feature_counts.tsv" extension
+            if not filename.endswith(".ALFA_feature_counts.tsv"):
+                sys.exit("Error: the counts file '" + filename + "' doesn't have the extension 'ALFA_feature_counts.tsv'.\n### End of program")
             # Registering the sample labels
             label = os.path.basename(filename)
-            label = re.sub(".alfa_feature_counts.tsv", "", label)
+            label = re.sub(".ALFA_feature_counts.tsv", "", label)
             label = "_".join(re.findall(r"[\w\-']+", label))
             labels.append(label)
             # Registering the counts filename
@@ -1334,14 +1334,14 @@ def main():
         else:
             # Otherwise the GTF filename without extension will be used as the basename
             genome_index_basename = options.annotation.split("/")[-1].split(".gtf")[0]
-        # Setting the stranded and unstranded alfa index files and choosing the one to use
-        stranded_genome_index = genome_index_basename + ".stranded.alfa_index"
-        unstranded_genome_index = genome_index_basename + ".unstranded.alfa_index"
+        # Setting the stranded and unstranded ALFA index files and choosing the one to use
+        stranded_genome_index = genome_index_basename + ".stranded.ALFA_index"
+        unstranded_genome_index = genome_index_basename + ".unstranded.ALFA_index"
         if options.strandness == "unstranded":
             genome_index = unstranded_genome_index
         else:
             genome_index = stranded_genome_index
-        # Checking the parameters related to genome annotation and alfa index files
+        # Checking the parameters related to genome annotation and ALFA index files
         if options.annotation:
             # Checking whether the annotation file exists
             if not os.path.isfile(options.annotation):
@@ -1356,8 +1356,8 @@ def main():
                         try:
                             biot_split = line.split("gene_biotype")[1]
                         except IndexError:
-                            sys.exit("Error: at least one feature in the annotation file doesn't have a biotype description. alfa won't be able to work robustly.\n=>" + line.rstrip() + "\n### End of program")
-            # If "--genome_index" parameter is present, setting the future alfa index basename
+                            sys.exit("Error: at least one feature in the annotation file doesn't have a biotype description. ALFA won't be able to work robustly.\n=>" + line.rstrip() + "\n### End of program")
+            # If "--genome_index" parameter is present, setting the future ALFA index basename
             if options.genome_index:
                 genome_index_basename = options.genome_index
             else:
@@ -1365,19 +1365,19 @@ def main():
                 genome_index_basename = options.annotation.split("/")[-1].split(".gtf")[0]
             # Set this step as a task to process
             generate_index = True
-            # Check if the alfa indexes already exist and warning if BAM/BedGrap(s) is/are provided, raise an error otherwise
-            if os.path.isfile(genome_index_basename + ".stranded.alfa_index") or os.path.isfile(
-                            genome_index_basename + ".unstranded.alfa_index"):
+            # Check if the ALFA indexes already exist and warning if BAM/BedGrap(s) is/are provided, raise an error otherwise
+            if os.path.isfile(genome_index_basename + ".stranded.ALFA_index") or os.path.isfile(
+                            genome_index_basename + ".unstranded.ALFA_index"):
                 if options.bam or options.bedgraph:
-                    print("Warning: an alfa index file named '%s' already exists and will be used. If you want to create a new index, please delete this file or specify another path." % (genome_index_basename + ".(un)stranded.alfa_index"), file=sys.stderr)
+                    print("Warning: an ALFA index file named '%s' already exists and will be used. If you want to create a new index, please delete this file or specify another path." % (genome_index_basename + ".(un)stranded.ALFA_index"), file=sys.stderr)
                     generate_index = False
                 else:
-                    sys.exit("Error: an alfa index file named '%s' already exists. If you want to create a new index, please delete this file or specify an other path.\n### End of program" % (
-                            genome_index_basename + ".(un)stranded.alfa_index"))
-        elif options.genome_index:  # Checking whether the alfa index files exist if no annotation file was provided
-            if not os.path.isfile(options.genome_index + ".stranded.alfa_index") or not os.path.isfile(
-                            options.genome_index + ".unstranded.alfa_index"):
-                sys.exit("Error: the file '" + options.genome_index + ".stranded.alfa_index" + "' and/or the file '" + options.genome_index + ".unstranded.alfa_index" + "' doesn't exist.\n### End of program")
+                    sys.exit("Error: an ALFA index file named '%s' already exists. If you want to create a new index, please delete this file or specify an other path.\n### End of program" % (
+                            genome_index_basename + ".(un)stranded.ALFA_index"))
+        elif options.genome_index:  # Checking whether the ALFA index files exist if no annotation file was provided
+            if not os.path.isfile(options.genome_index + ".stranded.ALFA_index") or not os.path.isfile(
+                            options.genome_index + ".unstranded.ALFA_index"):
+                sys.exit("Error: the file '" + options.genome_index + ".stranded.ALFA_index" + "' and/or the file '" + options.genome_index + ".unstranded.ALFA_index" + "' doesn't exist.\n### End of program")
             genome_index_basename = options.genome_index
 
         # Getting the reference genome chromosome list to check whether there is at least one in common with each BAM/BedGraph file
@@ -1414,8 +1414,8 @@ def main():
                     existing_file(label + ".plus" + bedgraph_extension)
                     existing_file(label + ".minus" + bedgraph_extension)
                 # Checking whether the counts file(s) that will be created already exist
-                if os.path.isfile(label + ".alfa_feature_counts.tsv"):
-                    sys.exit("Error: The file '" + label + ".alfa_feature_counts.tsv' is about to be produced but already exists in the directory. \n### End of program")
+                if os.path.isfile(label + ".ALFA_feature_counts.tsv"):
+                    sys.exit("Error: The file '" + label + ".ALFA_feature_counts.tsv' is about to be produced but already exists in the directory. \n### End of program")
                 # Listing the BAM chromosome(s) to check whether there is at least one common with the reference genome
                 BAM_chr_list = pysam.AlignmentFile(options.bam[sample_package_nb], "r").references
                 # Checking if there is at least one common chromosome name between the reference genome and the processed BAM file
@@ -1467,7 +1467,7 @@ def main():
                 label = "_".join(re.findall(r"[\w\-']+", options.bedgraph[sample_package_nb + sample_file_nb - 1]))
                 labels.append(label)
                 # Checking whether the count file(s) that will be created already exist
-                existing_file(label + ".alfa_feature_counts.tsv")
+                existing_file(label + ".ALFA_feature_counts.tsv")
             # Set this step as a task to process
             intersect_indexes_BedGraph = True
 
@@ -1494,7 +1494,7 @@ def main():
         generate_plot = True
         # Setting the default output format if non was specified
         if not options.pdf and not options.svg and not options.png:
-            options.pdf = "alfa_plots"
+            options.pdf = "ALFA_plots"
     # Checking the sample number for the colors
     if len(labels) > 20:
         print("Warning: there are more than 20 samples, some colors on the plot will be duplicated.", file=sys.stderr)
@@ -1603,7 +1603,7 @@ def main():
         print("# Generating the genome index files")
         # Getting the PID of the process as a unique random number
         pid = os.getpgrp()
-        chunk_basename = "chunk.alfa." + str(pid) + "."
+        chunk_basename = "chunk.ALFA." + str(pid) + "."
         # Splitting the GTF file into chunks
         GTF_splitter(options.annotation, chunk_basename)
         # Getting chromosomes lengths
