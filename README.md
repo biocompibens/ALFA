@@ -43,7 +43,7 @@ You can either download the code by clicking the ZIP link on this webpage or clo
 ### Pip
 You can install ALFA through the command:
 
-    pip install ALFA
+    pip install alfa
 
 ### Conda
 You can install ALFA through the command (might need to add bioconda channel first with "conda config --add channels bioconda"):
@@ -63,7 +63,7 @@ Dependencies:
 ## Quick start
 There is a [quick start](https://github.com/biocompibens/ALFA/tree/master/Quick_start) in the respository in order to test the tool installation. To do so, one can go in the directory and run the following command:
 
-    python ALFA.py -a quick_start.gtf --chr_len quick_start.chr_len.txt -g quick_start --bam quick_start.bam quick_start
+    python alfa.py -a quick_start.gtf --chr_len quick_start.chr_len.txt -g quick_start --bam quick_start.bam quick_start
 ![Quick start terminal](https://github.com/biocompibens/ALFA/blob/master/Images/quick_start.terminal.png)
 ![Quick start plots](https://github.com/biocompibens/ALFA/blob/master/Images/quick_start.improved.png)
 
@@ -76,6 +76,8 @@ The figure shows an illustration of the input BAM file reads distribution on the
 
 ## Manual
 ### ALFA usages
+ALFA can be installed from pip or conda, in this case, an executable is provided meaning that the user can call the program with "alfa" directly. Otherwise, if ALFA is installed from a GitHub clone, the user has to type "python alfa.py".
+
 The basic ALFA workflow consists in 2 steps performed at once or separately:
 
 * Generating ALFA genome index files (stranded and unstranded)
@@ -89,7 +91,7 @@ The basic ALFA workflow consists in 2 steps performed at once or separately:
 #### Generating ALFA index files
 Usage:
 
-    python ALFA.py -a GTF_FILE [-g GENOME_INDEX] [--chr_len CHR_LENGTHS_FILE] [-p NB_CPUS]
+    alfa -a GTF_FILE [-g GENOME_INDEX] [--chr_len CHR_LENGTHS_FILE] [-p NB_CPUS]
 
 Arguments:
 * _**-a/--annotation**_ specifies the path to the genomic annotation file (GTF format).
@@ -106,7 +108,7 @@ Important: the GTF file has to be sorted by position. Otherwise, you can use the
 #### Processing reads files
 Usage:
 
-    python ALFA.py -g GENOME_INDEX --bam BAM_FILE1 LABEL1 [BAM_FILE2 LABEL2 …]
+    alfa -g GENOME_INDEX --bam BAM_FILE1 LABEL1 [BAM_FILE2 LABEL2 …]
                          [-s STRAND] [-d {1,2,3,4}] [-t YMIN YMAX]
                          [-n] [--{pdf, svg, png} output.{pdf, svg, png}]
                          [--keep_ambiguous] [-p NB_CPUS]
@@ -131,22 +133,22 @@ Important: BAM files have to be sorted by position. Otherwise, you can use the '
 
 > create the ALFA genome indexes and process your BAM files at once using both _**-a/--annotation**_ and _**--bam**_ options. Example:
 ```
-python ALFA.py -a quick_start.gtf -g quick_start --bam quick_start.bam quick_start
+alfa -a quick_start.gtf -g quick_start --bam quick_start.bam quick_start
 ```
 
 * *Processing bedgraph files*
 
 > provide the data in the coverage bedgraph format to skip the bam to bedgraph and coverageBed steps using _**--bedgraph**_ flag. Example (unstranded and stranded):
 ```
-python ALFA.py -g quick_start --bedgraph quick_start.bedgraph quick_start
-python ALFA.py -g quick_start --bedgraph quick_start.plus.bedgraph quick_start.plus.bedgraph quick_start -s forward
+alfa -g quick_start --bedgraph quick_start.bedgraph quick_start
+alfa -g quick_start --bedgraph quick_start.plus.bedgraph quick_start.plus.bedgraph quick_start -s forward
 ```
 
 * *Running the tool from counts*
 
 > specify the count files previously generated to avoid running the script again on already processed datasets using the _**-c/--counts**_ option (instead of _**--bam**_). Example:
 ```
-python ALFA.py -c quick_start.feature_counts.tsv
+alfa -c quick_start.feature_counts.tsv
 ```
 
 ### Categories depth
