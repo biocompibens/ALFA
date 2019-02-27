@@ -43,7 +43,7 @@ You can either download the code by clicking the ZIP link on this webpage or clo
 ### Pip
 You can install ALFA through the command:
 
-    pip install ALFA
+    pip install alfa
 
 ### Conda
 You can install ALFA through the command (might need to add bioconda channel first with "conda config --add channels bioconda"):
@@ -63,7 +63,7 @@ Dependencies:
 ## Quick start
 There is a [quick start](https://github.com/biocompibens/ALFA/tree/master/Quick_start) in the respository in order to test the tool installation. To do so, one can go in the directory and run the following command:
 
-    python ALFA.py -a quick_start.gtf --chr_len quick_start.chr_len.txt -g quick_start --bam quick_start.bam quick_start
+    python alfa.py -a quick_start.gtf --chr_len quick_start.chr_len.txt -g quick_start --bam quick_start.bam quick_start
 ![Quick start terminal](https://github.com/biocompibens/ALFA/blob/master/Images/quick_start.terminal.png)
 ![Quick start plots](https://github.com/biocompibens/ALFA/blob/master/Images/quick_start.improved.png)
 
@@ -77,6 +77,7 @@ The figure shows an illustration of the input BAM file reads distribution on the
 ## Manual
 ### ALFA usages
 ALFA can be installed from pip or conda, in this case, an executable is provided meaning that the user can call the program with "alfa" directly. Otherwise, if ALFA is installed from a GitHub clone, the user has to type "python alfa.py".
+
 The basic ALFA workflow consists in 2 steps performed at once or separately:
 
 * Generating ALFA genome index files (stranded and unstranded)
