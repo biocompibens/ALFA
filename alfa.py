@@ -1302,11 +1302,18 @@ def main():
     if not options.output_dir.endswith("/"):
         options.output_dir += "/"
 
-    # Checking whether the script will be able to write in the current directory
-    if not os.access(".", os.W_OK):
-        # The only exception would be if the user already has the count files and wants to display the plots without saving them
-        if not options.counts or options.pdf or options.svg or options.png:
-            sys.exit("Error: write permission denied in the directory, ALFA will not be able to run correctly.\n### End of program")
+    # Checking whether the output directory exists
+    if os.path.isdir(options.output_dir):
+        # Checking whether the script will be able to write in the output directory
+        if not os.access(options.output_dir, os.W_OK):
+            # The only exception would be if the user already has the count files and wants to display the plots without saving them
+            if not options.counts or options.pdf or options.svg or options.png:
+                sys.exit(
+                    "Error: write permission denied in the output directory (" + options.output_dir + "), ALFA will not be able to run correctly.\n### End of program")
+    else:
+        # Creating the output directory
+        print("The output directory doesn't exist yet, it is created.\n")
+        os.mkdir(options.output_dir)
 
     #### Check arguments conformity and define which steps have to be performed
     print("### Checking parameters")
