@@ -75,15 +75,15 @@ def get_chromosome_names_in_index(genome_index, index_chrom_list):
     return index_chrom_list
 
 
-def GTF_splitter(GTF_file, chunk_basename, size=10000):
+def GTF_splitter(GTF_file, output_dir, chunk_basename, size=10000):
     """ Function to split a GTF file into chunks of one chromosome or several chromosomes/scaffolds up to N (default=10k) lines. """
-    if os.path.isfile(chunk_basename + "1.gtf"):
+    if os.path.isfile(output_dir + chunk_basename + "1.gtf"):
         sys.exit("Error: There is already a file called '" + chunk_basename + "1.gtf' in the directory. Running the command would crush this file. Aborting")
     prev_chr = ""  # Chr/scaffold previously processed
     prev_cpt = 0  # Currently building chunk file line counter
     cpt = 0  # Processed chr/scaffold line counter
     cpt_chunk = 1  # Chunk counter
-    current_file = open("current.gtf", "w")  # New piece to add to the building chunk file (one chromosome/scaffold)
+    current_file = open(output_dir + "current.gtf", "w")  # New piece to add to the building chunk file (one chromosome/scaffold)
     # Processing the input GTF file
     with open(GTF_file, "r") as input_file:
         for line in input_file:
@@ -97,23 +97,23 @@ def GTF_splitter(GTF_file, chunk_basename, size=10000):
                 if cpt > size:
                     # Packing up the processed chr/scaffold
                     current_file.close()
-                    os.rename("current.gtf", chunk_basename + str(cpt_chunk) + ".gtf")
-                    current_file = open("current.gtf", "w")
+                    os.rename(output_dir + "current.gtf", output_dir + chunk_basename + str(cpt_chunk) + ".gtf")
+                    current_file = open(output_dir + "current.gtf", "w")
                     # Updating counters
                     cpt_chunk += 1
                 else:
                     if cpt + prev_cpt > size:
                         # Packing up the currently building chunk file without the last chr/scaffold
-                        os.rename("old.gtf", chunk_basename + str(cpt_chunk) + ".gtf")
+                        os.rename(output_dir + "old.gtf", output_dir + chunk_basename + str(cpt_chunk) + ".gtf")
                         # Updating counters
                         cpt_chunk += 1
                         prev_cpt = 0
                     # Moving the new piece to the currently building chunk file
                     current_file.close()
-                    with open("current.gtf", "r") as input_file, open("old.gtf", "a") as output_file:
+                    with open(output_dir + "current.gtf", "r") as input_file, open(output_dir + "old.gtf", "a") as output_file:
                         for line in input_file:
                             output_file.write(line)
-                    current_file = open("current.gtf", "w")
+                    current_file = open(output_dir + "current.gtf", "w")
                     # Updating counters
                     prev_cpt += cpt
                 # Updating the processed chr/scaffold line counter and the previous chromosome
@@ -128,20 +128,20 @@ def GTF_splitter(GTF_file, chunk_basename, size=10000):
         current_file.close()
         if prev_cpt == 0:  # There was only one chromosome/scaffold in the annotation file
             # Packing up the processed chr/scaffold
-            os.rename("current.gtf", chunk_basename + str(cpt_chunk) + ".gtf")
+            os.rename(output_dir + "current.gtf", output_dir + chunk_basename + str(cpt_chunk) + ".gtf")
         else:
             if prev_cpt + cpt > size:
                 # Packing up the processed chr/scaffold
-                os.rename("current.gtf", chunk_basename + str(cpt_chunk) + ".gtf")
+                os.rename(output_dir + "current.gtf", output_dir + chunk_basename + str(cpt_chunk) + ".gtf")
                 cpt_chunk += 1
             else:
                 # Moving the new piece to the currently building chunk file
-                with open("current.gtf", "r") as input_file, open("old.gtf", "a") as output_file:
+                with open(output_dir + "current.gtf", "r") as input_file, open(output_dir + "old.gtf", "a") as output_file:
                     for line in input_file:
                         output_file.write(line)
-                os.remove("current.gtf")
+                os.remove(output_dir + "current.gtf")
             # Packing up the currently building chunk file without the last chr/scaffold
-            os.rename("old.gtf", chunk_basename + str(cpt_chunk) + ".gtf")
+            os.rename(output_dir + "old.gtf", output_dir + chunk_basename + str(cpt_chunk) + ".gtf")
 
 
 def get_chromosome_lengths(options):
@@ -255,7 +255,7 @@ def register_interval(features_dict, chrom, stranded_index_fh, unstranded_index_
 
 def generate_genome_index_1chr(arguments):
     # Getting the arguments
-    (annotation, chunk_basename, reverse_strand) = arguments
+    (annotation, chunk_basename, reverse_strand, options) = arguments
     # Setting the annotation file basename
     annotation_basename = re.sub(".gtf$", "", annotation)
     # Processing the annotation file
@@ -281,7 +281,7 @@ def generate_genome_index_1chr(arguments):
                     if intervals_dict:
                         register_interval(intervals_dict, prev_chrom, annotation_basename + ".stranded.ALFA_index", annotation_basename + ".unstranded.ALFA_index")
                     if chrom != prev_chrom:
-                        with open(chunk_basename + "txt", "a") as input_file:
+                        with open(options.output_dir + chunk_basename + "txt", "a") as input_file:
                             input_file.write(chrom + "\n")
                     prev_chrom = chrom
                     # (Re)Initializing the intervals info dict
@@ -352,7 +352,7 @@ def generate_genome_index_1chr(arguments):
         # Store the categories of the last chromosome
         register_interval(intervals_dict, chrom, annotation_basename + ".stranded.ALFA_index", annotation_basename + ".unstranded.ALFA_index")
         if chrom != prev_chrom:
-            with open(chunk_basename + "txt", "a") as input_file:
+            with open(options.output_dir + chunk_basename + "txt", "a") as input_file:
                 input_file.write(chrom + "\n")
     return None
 
@@ -365,14 +365,14 @@ def generate_genome_index(unstranded_genome_index, stranded_genome_index, chrom_
             unstranded_index_fh.write("#%s\t%s\n" % (key, value))
             stranded_index_fh.write("#%s\t%s\n" % (key, value))
     # Chunk file list creation
-    chunks = np.array([f for f in os.listdir(".") if f.startswith(chunk_basename) and f.endswith(".gtf")])
+    chunks = np.array([options.output_dir + f for f in os.listdir(options.output_dir) if f.startswith(chunk_basename) and f.endswith(".gtf")])
     # Sorting the chunks by file size
     file_sizes = np.array([os.stat(f).st_size for f in chunks])
     chunks = chunks[file_sizes.argsort()]
     # Progress bar to track the genome indexes creation
     pbar = progressbar.ProgressBar(widgets=["Indexing the genome ", progressbar.Percentage(), " ", progressbar.Bar(), progressbar.Timer()], maxval=len(chunks)).start()
     pool = Pool(options.nb_processors)
-    list(pbar(pool.imap_unordered(generate_genome_index_1chr, zip(chunks, [chunk_basename] * len(chunks), [reverse_strand] * len(chunks)))))
+    list(pbar(pool.imap_unordered(generate_genome_index_1chr, zip(chunks, [chunk_basename] * len(chunks), [reverse_strand] * len(chunks), [options] * len(chunks)))))
     """
     # Non-parallel version for debugging
     for f in chunks:
@@ -380,10 +380,10 @@ def generate_genome_index(unstranded_genome_index, stranded_genome_index, chrom_
     """
 
 
-def merge_index_chunks(unstranded_genome_index, stranded_genome_index, chunk_basename):
+def merge_index_chunks(unstranded_genome_index, stranded_genome_index, chunk_basename, output_dir):
     """ Merges the genome index chunks into a single file. """
     for fh, strandness in zip([unstranded_genome_index, stranded_genome_index], ["unstranded", "stranded"]):
-        files = [f for f in os.listdir(".") if f.startswith(chunk_basename) and f.endswith("." + strandness + ".ALFA_index")]
+        files = [output_dir + f for f in os.listdir(output_dir) if f.startswith(chunk_basename) and f.endswith("." + strandness + ".ALFA_index")]
         with open(fh, "a") as output_file:
             for file in sorted(files):
                 with open(file, "r") as input_file:
@@ -391,11 +391,11 @@ def merge_index_chunks(unstranded_genome_index, stranded_genome_index, chunk_bas
                         output_file.write(line)
 
 
-def chunks_cleaner(chunk_basename):
+def chunks_cleaner(chunk_basename, output_dir):
     """ Cleans the chunks created to index the genome. """
-    for f in os.listdir("."):
+    for f in os.listdir(output_dir):
         if f.startswith(chunk_basename):
-            os.remove(f)
+            os.remove(output_dir + f)
 
 
 def count_genome_features(cpt, features, start, stop, biotype_prios, options, prios, unknown_cat, coverage=1):
@@ -473,34 +473,34 @@ def read_index(genome_index, lengths, cpt_genome, options, prios, index_chrom_li
 
 def run_genomecov(arguments):
     """ Run genomecov (from Bedtools through pybedtools lib) for a set of parameters to produce a BedGraph file. """
-    (strand, bam_file, sample_label, name, bedgraph_extension) = arguments
+    (strand, bam_file, sample_label, name, bedgraph_extension, options) = arguments
     # Load the BAM file
     input_file = pybedtools.BedTool(bam_file)
     # Run genomecov
     if strand == "":
-        input_file.genome_coverage(bg=True, split=True).saveas(sample_label + name + bedgraph_extension)
+        input_file.genome_coverage(bg=True, split=True).saveas(options.output_dir + sample_label + name + bedgraph_extension)
     else:
-        input_file.genome_coverage(bg=True, split=True, strand=strand).saveas(sample_label + name + bedgraph_extension)
+        input_file.genome_coverage(bg=True, split=True, strand=strand).saveas(options.output_dir + sample_label + name + bedgraph_extension)
     return None
 
 
 def generate_bedgraph_files_parallel(sample_labels, bam_files, options, bedgraph_extension):
     """ Creates, through multi-processors, BedGraph files from BAM ones. """
     # Sorting the BAM file on size to process the biggest first
-    files = list(zip(sample_labels, bam_files, [os.stat(i).st_size for i in bam_files]))
+    files = list(zip(sample_labels, bam_files, [os.stat(i).st_size for i in bam_files], [options] * len(sample_labels)))
     files.sort(key=lambda p: p[2], reverse=True)
     # Defining parameters sets to provide to the genomecov instances to run
     parameter_sets = []
-    for l, b, s in files:
+    for l, b, s, o in files:
         # If the dataset is stranded, one BedGraph file for each strand is created
         if options.strandness in ["forward", "fr-firststrand"]:
-            parameter_sets.append(["+", b, l, ".plus", bedgraph_extension])
-            parameter_sets.append(["-", b, l, ".minus", bedgraph_extension])
-        elif options.strandness in ["reverse", "fr-secondstrand", bedgraph_extension]:
-            parameter_sets.append(["-", b, l, ".plus", bedgraph_extension])
-            parameter_sets.append(["+", b, l, ".minus", bedgraph_extension])
+            parameter_sets.append(["+", b, l, ".plus", bedgraph_extension, o])
+            parameter_sets.append(["-", b, l, ".minus", bedgraph_extension, o])
+        elif options.strandness in ["reverse", "fr-secondstrand", bedgraph_extension, o]:
+            parameter_sets.append(["-", b, l, ".plus", bedgraph_extension, o])
+            parameter_sets.append(["+", b, l, ".minus", bedgraph_extension, o])
         else:
-            parameter_sets.append(["", b, l, "", bedgraph_extension])
+            parameter_sets.append(["", b, l, "", bedgraph_extension, o])
     # Setting the progressbar
     pbar = progressbar.ProgressBar(widgets=["Generating the BedGraph files ", progressbar.Percentage(), progressbar.Bar(), progressbar.SimpleProgress(), "|", progressbar.Timer()], maxval=len(parameter_sets)).start()
     # Setting the processors number
@@ -630,7 +630,7 @@ def intersect_bedgraphs_and_index_to_count_categories(sample_labels, bedgraph_fi
     unknown_chrom = []
     cpt = {}  # Counter for the nucleotides in the BAM input file(s)
     if bedgraph_files == []:
-        bedgraph_files = sample_labels
+        bedgraph_files = [options.output_dir + s for s in sample_labels]
     if options.strandness == "unstranded":
         strands = [("", ".")]
     else:
@@ -671,11 +671,11 @@ def intersect_bedgraphs_and_index_to_count_categories(sample_labels, bedgraph_fi
     return final_cpt
 
 
-def write_counts_in_files(cpt, genome_counts):
+def write_counts_in_files(cpt, genome_counts, output_dir):
     """ Writes the biotype/category counts in an output file. """
     for sample_label, counters in list(cpt.items()):
         sample_label = "_".join(re.findall(r"[\w\-']+", sample_label))
-        with open(sample_label + ".ALFA_feature_counts.tsv", "w") as output_fh:
+        with open(output_dir + sample_label + ".ALFA_feature_counts.tsv", "w") as output_fh:
             output_fh.write("#Category,biotype\tCounts_in_BAM/BedGraph\tSize_in_genome\n")
             for features_pair, counts in list(counters.items()):
                 output_fh.write("%s\t%s\t%s\n" % (",".join(features_pair), counts, genome_counts[features_pair]))
@@ -1147,7 +1147,7 @@ def make_plot(sample_labels, ordered_categs, categ_counts, genome_counts, counts
             if output_basename.endswith("." + output_format):
                 output_basename = output_basename[:-4]
             # Saving the plot
-            plt.savefig(".".join((output_basename.rstrip("." + output_format), counts_type, output_format)))
+            plt.savefig(options.output_dir + "/" + ".".join((output_basename.rstrip("." + output_format), counts_type, output_format)))
     plt.close()
 
 
@@ -1238,7 +1238,7 @@ def main():
 
     #### Parse command line arguments and store them in the variable options
     parser = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter, usage=usage_message())
-    parser.add_argument("--version", action="version", version="version 1.1.0",
+    parser.add_argument("--version", action="version", version="version 1.1.1",
                         help="Show ALFA version number and exit.\n\n-----------\n\n")
     # Options regarding the index
     parser.add_argument("-g", "--genome_index", metavar="GENOME_INDEX_BASENAME",
@@ -1274,6 +1274,7 @@ def main():
     parser.add_argument("-p", "--processors", dest="nb_processors", type=int, default=1, help="Set the number of processors used for multi-processing operations.\n\n")
     parser.add_argument("--keep_ambiguous", action="store_const", const=False, default=True, help="Keep reads mapping to different features (discarded by default).\n\n")
     parser.add_argument("--temp_dir", dest="temp_dir", default="/tmp/", help="Temp directory to store pybedtools files ('/tmp/' by default).\n\n")
+    parser.add_argument("-o", dest="output_dir", default="./", help="Output directory for all files created by ALFA (current dir by default).\n\n")
 
     if len(sys.argv) == 1:
         parser.print_usage()
@@ -1296,6 +1297,10 @@ def main():
     generate_BedGraph = False
     intersect_indexes_BedGraph = False
     generate_plot = False
+
+    #  Making sure the output directory variable terminates with a slash
+    if not options.output_dir.endswith("/"):
+        options.output_dir += "/"
 
     # Checking whether the script will be able to write in the current directory
     if not os.access(".", os.W_OK):
@@ -1329,14 +1334,19 @@ def main():
         if not options.annotation and not options.genome_index:
             sys.exit("Error: at least '-a' or '-g' argument is missing.\n###End of program")
         # Declare genome_index variables (either from the parameter "-g" of from the annotation filename)
-        if options.genome_index:
-            genome_index_basename = options.genome_index
+        if options.annotation:
+            if options.genome_index:
+                # With a genome index basename provided
+                genome_index_basename = options.genome_index
+            else:
+                # Otherwise, with only an annotation file, the basename is inferred
+                genome_index_basename = options.annotation.split("/")[-1].split(".gtf")[0]
+            stranded_genome_index = options.output_dir + genome_index_basename + ".stranded.ALFA_index"
+            unstranded_genome_index = options.output_dir + genome_index_basename + ".unstranded.ALFA_index"
         else:
-            # Otherwise the GTF filename without extension will be used as the basename
-            genome_index_basename = options.annotation.split("/")[-1].split(".gtf")[0]
-        # Setting the stranded and unstranded ALFA index files and choosing the one to use
-        stranded_genome_index = genome_index_basename + ".stranded.ALFA_index"
-        unstranded_genome_index = genome_index_basename + ".unstranded.ALFA_index"
+            # Without annotation file, the genome index provided is used
+            stranded_genome_index = options.genome_index + ".stranded.ALFA_index"
+            unstranded_genome_index = options.genome_index + ".unstranded.ALFA_index"
         if options.strandness == "unstranded":
             genome_index = unstranded_genome_index
         else:
@@ -1366,8 +1376,8 @@ def main():
             # Set this step as a task to process
             generate_index = True
             # Check if the ALFA indexes already exist and warning if BAM/BedGrap(s) is/are provided, raise an error otherwise
-            if os.path.isfile(genome_index_basename + ".stranded.ALFA_index") or os.path.isfile(
-                            genome_index_basename + ".unstranded.ALFA_index"):
+            if os.path.isfile(options.output_dir + genome_index_basename + ".stranded.ALFA_index") or os.path.isfile(
+                            options.output_dir + genome_index_basename + ".unstranded.ALFA_index"):
                 if options.bam or options.bedgraph:
                     print("Warning: an ALFA index file named '%s' already exists and will be used. If you want to create a new index, please delete this file or specify another path." % (genome_index_basename + ".(un)stranded.ALFA_index"), file=sys.stderr)
                     generate_index = False
@@ -1409,12 +1419,12 @@ def main():
                 labels.append(label)
                 # Checking whether the BedGraph file(s) don't already exist
                 if options.strandness == "unstranded":
-                    existing_file(label + bedgraph_extension)
+                    existing_file(options.output_dir + label + bedgraph_extension)
                 else:
-                    existing_file(label + ".plus" + bedgraph_extension)
-                    existing_file(label + ".minus" + bedgraph_extension)
+                    existing_file(options.output_dir + label + ".plus" + bedgraph_extension)
+                    existing_file(options.output_dir + label + ".minus" + bedgraph_extension)
                 # Checking whether the counts file(s) that will be created already exist
-                if os.path.isfile(label + ".ALFA_feature_counts.tsv"):
+                if os.path.isfile(options.output_dir + label + ".ALFA_feature_counts.tsv"):
                     sys.exit("Error: The file '" + label + ".ALFA_feature_counts.tsv' is about to be produced but already exists in the directory. \n### End of program")
                 # Listing the BAM chromosome(s) to check whether there is at least one common with the reference genome
                 BAM_chr_list = pysam.AlignmentFile(options.bam[sample_package_nb], "r").references
@@ -1462,12 +1472,12 @@ def main():
                         sys.exit("Error: no matching chromosome between the BedGraph file '" + options.bedgraph[
                             sample_package_nb + sample_file] + "' and the reference genome.\n### End of program")
                     # Register the BedGraph filename(s)
-                    bedgraphs.append(re.sub("(.(plus|minus))?" + bedgraph_extension, "", options.bedgraph[sample_package_nb + sample_file]))
+                    bedgraphs.append(options.output_dir + re.sub("(.(plus|minus))?" + bedgraph_extension, "", options.bedgraph[sample_package_nb + sample_file]))
                 # Registering the label(s) (all that is not a character or a "minus" will be transformer into a "_")
                 label = "_".join(re.findall(r"[\w\-']+", options.bedgraph[sample_package_nb + sample_file_nb - 1]))
                 labels.append(label)
                 # Checking whether the count file(s) that will be created already exist
-                existing_file(label + ".ALFA_feature_counts.tsv")
+                existing_file(options.output_dir + label + ".ALFA_feature_counts.tsv")
             # Set this step as a task to process
             intersect_indexes_BedGraph = True
 
@@ -1605,22 +1615,22 @@ def main():
         pid = os.getpgrp()
         chunk_basename = "chunk.ALFA." + str(pid) + "."
         # Splitting the GTF file into chunks
-        GTF_splitter(options.annotation, chunk_basename)
+        GTF_splitter(options.annotation, options.output_dir, chunk_basename)
         # Getting chromosomes lengths
         lengths = get_chromosome_lengths(options)
         # Generating the index files
         generate_genome_index(unstranded_genome_index, stranded_genome_index, lengths, chunk_basename, options, reverse_strand)
         # Merging the genome index chunks
-        merge_index_chunks(unstranded_genome_index, stranded_genome_index, chunk_basename)
+        merge_index_chunks(unstranded_genome_index, stranded_genome_index, chunk_basename, options.output_dir)
         # Displaying the list of indexed chromosomes
-        for f in os.listdir("."):
+        for f in os.listdir(options.output_dir):
             if f.startswith(chunk_basename) and f.endswith(".txt"):
-                with open(f, "r") as input_file:
+                with open(options.output_dir + f, "r") as input_file:
                     for line in input_file:
                         index_chrom_list.append(line.rstrip())
         index_chrom_list.sort(key=alphanum_key)
         print("Indexed chromosomes: " + ", ".join(index_chrom_list))
-        chunks_cleaner(chunk_basename)
+        chunks_cleaner(chunk_basename, options.output_dir)
     if generate_index or not options.counts:
         # Getting index info
         read_index(genome_index, lengths, cpt_genome, options, prios, index_chrom_list, biotype_prios, unknown_cat)
@@ -1637,7 +1647,7 @@ def main():
     if intersect_indexes_BedGraph:
         print("# Intersecting index and BedGraph files")
         cpt = intersect_bedgraphs_and_index_to_count_categories(labels, bedgraphs, options, bedgraph_extension, genome_index, prios, index_chrom_list, unknown_cat)  # TODO: Write the counts to an output file
-        write_counts_in_files(cpt, cpt_genome)
+        write_counts_in_files(cpt, cpt_genome, options.output_dir)
 
     ## Plot generation ## MB: all the section still to review
     if generate_plot:
