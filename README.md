@@ -96,7 +96,6 @@ Usage:
 Arguments:
 * _**-a/--annotation**_ specifies the path to the genomic annotation file (GTF format).
 * _**-g/--genome_index**_ defines ALFA index files basename. In absence of this option, the annotation file basename will be used.
-* _**-p/--processors**_ specifies the number of processors used
 * _**--chr_len specifies**_ the path to the tab-delimited text file defining chromosome names and lengths. In absence of this option, lengths will be estimated using the GTF file. Chr_len file example:
 
 > “Chr12    100000”
@@ -122,7 +121,6 @@ Arguments:
 * _**--pdf or --svg or --png**_ specifies the path to save the plots in the chosen format
 * _**-n/--no_display**_ do not create and show the plots
 * _**--keep_ambiguous**_ specifies that the nucleotides mapping to more than one feature (category or biotype) is equally split between the different features instead of being discarded
-* _**-p/--processors**_ specifies the number of processors used (will use at most twice the BAM file number)
 
 Important: BAM files have to be sorted by position. Otherwise, you can use the 'sort' module of samtools suite:
 
@@ -150,6 +148,10 @@ alfa -g quick_start --bedgraph quick_start.plus.bedgraph quick_start.plus.bedgra
 ```
 alfa -c quick_start.feature_counts.tsv
 ```
+
+#### Miscellaneous arguments
+* _**-p/--processors**_ specifies the number of processors used
+* _**-o**_ specifies an output directory where the files are created (default is the current directory, it will be created if it doesn't exist)
 
 ### Categories depth
 ALFA can assign categories to nucleotides according to different hierarchical levels considered in the GTF file using the _**-d/--categories_depth**_ option.
