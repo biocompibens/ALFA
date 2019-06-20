@@ -1308,8 +1308,7 @@ def main():
         if not os.access(options.output_dir, os.W_OK):
             # The only exception would be if the user already has the count files and wants to display the plots without saving them
             if not options.counts or options.pdf or options.svg or options.png:
-                sys.exit(
-                    "Error: write permission denied in the output directory (" + options.output_dir + "), ALFA will not be able to run correctly.\n### End of program")
+                sys.exit("Error: write permission denied in the output directory (" + options.output_dir + "), ALFA will not be able to run correctly.\n### End of program")
     else:
         # Creating the output directory
         print("The output directory doesn't exist yet, it is created.\n")

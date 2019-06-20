@@ -4,7 +4,7 @@ from distutils.core import setup
 
 setup(name = "alfa",
       py_modules = ["alfa"],
-      version = "1.1.0",
+      version = "1.1.1",
       description = "A simple software to get a quick overview of features composing NGS dataset(s).",
       author = "Mathieu Bahin",
       author_email = "mathieu.bahin@biologie.ens.fr",

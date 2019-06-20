@@ -1,13 +1,13 @@
 {% set name = "alfa" %}
-{% set version = "1.0.6" %}
+{% set version = "1.1.0" %}
 
 package:
   name: alfa
-  version: "1.0.6"
+  version: "1.1.0"
 
 source:
-  url: https://files.pythonhosted.org/packages/a1/f0/d51f25b48645fc0b4784b5d36fe7b6d6aebe1d9c1be58747196c457e3e1c/alfa-1.0.6.tar.gz 
-  sha256: 628fa47efdd4ca2af7434c2ffa81a00bca237d024421b092087ba45379299c32
+  url: https://files.pythonhosted.org/packages/4e/f5/074b69eaf9bbbcfb99c4b41d35df5e2a0bc711dca4ed15a3a1c475d6deca/alfa-1.1.0.tar.gz
+  sha256: b0a9d26c219dd668a15199bc35224013b7d612a67ef5f1d64b640fe1b7335a35
 
 build:
   number: 0
@@ -23,17 +23,17 @@ requirements:
     - progressbar2
     - pybedtools
     - pysam
-    - python ==3.6
+    - python
   run:
     - matplotlib
     - numpy
     - progressbar2
     - pybedtools
     - pysam
-    - python ==3.6
+    - python
 
 about:
-  home: https://github.com/biocompibens/alfa
+  home: https://github.com/biocompibens/ALFA
   license: MIT
   license_family: MIT
   license_file: LICENSE.txt
