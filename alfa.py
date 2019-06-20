@@ -845,7 +845,7 @@ def one_sample_plot(ordered_categs, percentages, enrichment, n_cat, index, index
 def make_plot(sample_labels, ordered_categs, categ_counts, genome_counts, counts_type, options, title=None, categ_groups=[]):
 
     #Test matplotlib version. If __version__ >= 2, use a shift value to correct the positions of bars and xticks
-    if int(matplotlib.__version__[0]) == 2:
+    if int(matplotlib.__version__[0]) >= 2:
         shift_mpl = 0.5
     else:
         shift_mpl = 0
