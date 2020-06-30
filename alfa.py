@@ -1478,7 +1478,7 @@ def main():
                         sys.exit("Error: no matching chromosome between the BedGraph file '" + options.bedgraph[
                             sample_package_nb + sample_file] + "' and the reference genome.\n### End of program")
                     # Register the BedGraph filename(s)
-                    bedgraphs.append(options.output_dir + re.sub("(.(plus|minus))?" + bedgraph_extension, "", options.bedgraph[sample_package_nb + sample_file]))
+                    bedgraphs.append(re.sub("(.(plus|minus))?" + bedgraph_extension, "", options.bedgraph[sample_package_nb + sample_file]))
                 # Registering the label(s) (all that is not a character or a "minus" will be transformer into a "_")
                 label = "_".join(re.findall(r"[\w\-']+", options.bedgraph[sample_package_nb + sample_file_nb - 1]))
                 labels.append(label)
@@ -1652,6 +1652,7 @@ def main():
     # Indexes and BedGraph files intersection
     if intersect_indexes_BedGraph:
         print("# Intersecting index and BedGraph files")
+        print("Coucou", bedgraphs)
         cpt = intersect_bedgraphs_and_index_to_count_categories(labels, bedgraphs, options, bedgraph_extension, genome_index, prios, index_chrom_list, unknown_cat)  # TODO: Write the counts to an output file
         write_counts_in_files(cpt, cpt_genome, options.output_dir)
 
